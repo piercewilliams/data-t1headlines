@@ -306,7 +306,7 @@
     <tr><td>Leading with a number outperforms trailing-number formats</td><td><span class="tag-green">Confirmed</span></td><td>Number-lead construction at or above baseline CTR across notification data</td></tr>
     <tr><td>"Here's a look" is underused and consistently strong</td><td><span class="tag-blue">Plausible</span></td><td>Prior analysis had 2 data points; our notification sample can't yet isolate this formula at sufficient scale to confirm</td></tr>
     <tr><td>Wildlife/science content dominates by topic volume</td><td><span class="tag-blue">Channel-specific</span></td><td>Holds for Commons/Discover distribution. App-based platforms (Apple News, SmartNews, MSN) show a different topic ROI structure — Local and U.S. National lead by a wide margin on SmartNews</td></tr>
-    <tr><td>High page views signal content quality and predict ROI</td><td><span class="tag-red">Not supported by depth data</span></td><td>Active reading time has r=−0.007 with total views (p=0.70, n=3,039). The engagement depth signal is statistically independent of reach. This is the dataset's most important finding for how we define and measure ROI going forward.</td></tr>
+    <tr><td>Page views are the primary ROI signal for headline and content performance</td><td><span class="tag-red">Incomplete</span></td><td>Active reading time has r=−0.007 with total views (p=0.70, n=3,039). The engagement depth signal is statistically independent of reach. Views measure one dimension; this dataset measures two. The most consequential finding is that optimizing for clicks and optimizing for reading are not the same problem.</td></tr>
   </table>
 
   <div class="callout">
@@ -320,7 +320,7 @@
 <div class="container">
   <div class="section-label">Key Finding · Deep Dive</div>
   <h2>Views and reading depth are statistically independent — across every performance level</h2>
-  <p>The Apple News 2025 dataset — 3,037 articles, full year — contains both Total Views and Avg. Active Time in seconds. Most distribution data gives you one or the other. This dataset gives both, making it possible to test the "clicks = quality" assumption directly.</p>
+  <p>The Apple News 2025 dataset — 3,039 articles, full year — contains both Total Views and Avg. Active Time in seconds. Most distribution data gives you one or the other. This dataset gives both, making it possible to test the "clicks = quality" assumption directly.</p>
 
   <div class="stat-row">
     <div class="stat-block"><div class="n">−0.007</div><div class="l">Pearson r: views vs. active time</div></div>
@@ -545,7 +545,7 @@
       <div class="action-body">
         <span class="priority p-soon">Soon</span>
         <div class="action-title">Redefine ROI for the allocation model to include engagement depth — not views alone</div>
-        <div class="action-desc">Active reading time has r=−0.007 with views. Saves have r=0.82. A complete ROI signal should include: views (reach), saves (intent to return), and active time (depth of read) — weighted by what best predicts subscriber behavior. Using views alone, as the Frame deck does, measures one dimension of a two-dimensional problem and risks optimizing for traffic that doesn't convert.</div>
+        <div class="action-desc">Active reading time has r=−0.007 with views. Saves have r=0.82. A complete ROI signal should include: views (reach), saves (intent to return), and active time (depth of read) — weighted by what best predicts subscriber behavior. Using views alone measures one dimension of a two-dimensional problem and risks optimizing for traffic that doesn't convert to retention.</div>
       </div>
     </li>
     <li>
@@ -603,16 +603,16 @@
 <script>
 // ── Site design tokens ──────────────────────────────────────────────────────
 const C = {
-  navy:    '#003366',
-  blue:    '#0066CC',
-  green:   '#2E7D32',
-  red:     '#C62828',
-  gray:    '#757575',
-  border:  '#DDE3EC',
-  subtext: '#4a4a6a',
-  lightGreen: 'rgba(46,125,50,0.12)',
-  lightRed:   'rgba(198,40,40,0.12)',
-  lightNavy:  'rgba(0,51,102,0.08)',
+  navy:    '#0f172a',
+  blue:    '#2563eb',
+  green:   '#16a34a',
+  red:     '#dc2626',
+  gray:    '#64748b',
+  border:  '#e2e8f0',
+  subtext: '#475569',
+  lightGreen: 'rgba(22,163,74,0.12)',
+  lightRed:   'rgba(220,38,38,0.12)',
+  lightNavy:  'rgba(15,23,42,0.08)',
 };
 
 Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif';
@@ -729,7 +729,7 @@ function refLinePlugin(axis, value, color, label) {
   const labels = ['Local', 'U.S. National', 'Football', 'Business', 'World', 'Health', 'Lifestyle', 'Entertainment'];
   const values = [16593, 11153, 1935, 1933, 580, 565, 241, 224];
   const colors = labels.map((_, i) => i < 2 ? C.navy : i < 4 ? C.blue : C.gray);
-  const bgColors = labels.map((_, i) => i < 2 ? 'rgba(0,51,102,0.15)' : i < 4 ? 'rgba(0,102,204,0.12)' : 'rgba(117,117,117,0.1)');
+  const bgColors = labels.map((_, i) => i < 2 ? 'rgba(15,23,42,0.15)' : i < 4 ? 'rgba(37,99,235,0.12)' : 'rgba(100,116,139,0.1)');
 
   new Chart(document.getElementById('chart2'), {
     type: 'bar',
@@ -793,7 +793,7 @@ function refLinePlugin(axis, value, color, label) {
           type: 'bar',
           label: 'Median saves',
           data: saves,
-          backgroundColor: 'rgba(0,51,102,0.18)',
+          backgroundColor: 'rgba(15,23,42,0.18)',
           borderColor: C.navy,
           borderWidth: 1.5,
           borderRadius: 3,
