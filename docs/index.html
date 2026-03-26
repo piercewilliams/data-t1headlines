@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1 Headline Performance Analysis · McClatchy CSA</title>
+<style>
+  :root {
+    --navy: #003366;
+    --blue: #0066CC;
+    --green: #2E7D32;
+    --red: #C62828;
+    --gray: #757575;
+    --light: #F4F6F9;
+    --border: #DDE3EC;
+    --text: #1a1a2e;
+    --subtext: #4a4a6a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: var(--text);
+    background: #fff;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--navy);
+    padding: 0 2rem;
+    display: flex; align-items: center; gap: 2rem;
+    height: 52px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  nav .brand { color: #fff; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em; white-space: nowrap; }
+  nav a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.82rem; white-space: nowrap; transition: color 0.2s; }
+  nav a:hover { color: #fff; }
+  nav .spacer { flex: 1; }
+  nav .date { color: rgba(255,255,255,0.5); font-size: 0.78rem; }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #1a3d6e 100%);
+    color: #fff;
+    padding: 4rem 2rem 3.5rem;
+    text-align: center;
+  }
+  .hero .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem;
+    color: rgba(255,255,255,0.6); margin-bottom: 1rem;
+  }
+  .hero h1 { font-family: Georgia, serif; font-size: 2.4rem; font-weight: 700; line-height: 1.25; max-width: 780px; margin: 0 auto 1.25rem; }
+  .hero .sub { font-size: 1.05rem; color: rgba(255,255,255,0.75); max-width: 660px; margin: 0 auto 2rem; }
+  .hero .meta { display: flex; justify-content: center; gap: 2.5rem; flex-wrap: wrap; }
+  .hero .meta-item { text-align: center; }
+  .hero .meta-item .num { font-size: 2rem; font-weight: 700; color: #fff; display: block; }
+  .hero .meta-item .label { font-size: 0.75rem; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* LAYOUT */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; }
+  section { padding: 3.5rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+
+  /* SECTION LABELS */
+  .section-label {
+    text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72rem;
+    color: var(--blue); font-weight: 700; margin-bottom: 0.5rem;
+  }
+  h2 { font-family: Georgia, serif; font-size: 1.75rem; line-height: 1.3; margin-bottom: 1rem; color: var(--navy); }
+  h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 0.6rem; color: var(--navy); }
+  p { margin-bottom: 1rem; color: var(--subtext); }
+  p strong { color: var(--text); }
+
+  /* CALLOUT BOX */
+  .callout {
+    border-left: 4px solid var(--blue);
+    background: var(--light);
+    padding: 1.25rem 1.5rem;
+    border-radius: 0 6px 6px 0;
+    margin: 1.5rem 0;
+  }
+  .callout.warn { border-color: var(--red); background: #fff5f5; }
+  .callout.success { border-color: var(--green); background: #f3faf3; }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+
+  /* FINDING CARDS */
+  .finding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1.5rem 0; }
+  @media (max-width: 640px) { .finding-grid { grid-template-columns: 1fr; } }
+  .finding-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: #fff;
+  }
+  .finding-card .card-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--gray); margin-bottom: 0.4rem; font-weight: 700;
+  }
+  .finding-card .card-stat {
+    font-size: 2rem; font-weight: 700; color: var(--navy); line-height: 1.1; margin-bottom: 0.4rem;
+  }
+  .finding-card .card-desc { font-size: 0.88rem; color: var(--subtext); }
+  .finding-card.highlight { border-color: var(--blue); background: var(--light); }
+  .finding-card.alert { border-color: var(--red); background: #fff8f8; }
+  .finding-card.success { border-color: var(--green); background: #f5fbf5; }
+
+  /* STAT ROW */
+  .stat-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-block { flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; background: var(--light); border: 1px solid var(--border); }
+  .stat-block .n { font-size: 1.8rem; font-weight: 700; color: var(--navy); }
+  .stat-block .l { font-size: 0.78rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.07em; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+  th { background: var(--navy); color: #fff; padding: 0.6rem 0.85rem; text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  .tag-green { background: #e8f5e9; color: var(--green); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+  .tag-red { background: #ffebee; color: var(--red); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+  .tag-blue { background: #e3f0ff; color: var(--blue); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+
+  /* CHART */
+  .chart-wrap { margin: 2rem 0; }
+  .chart-wrap img { width: 100%; border-radius: 6px; border: 1px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .chart-caption { font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem; font-style: italic; }
+
+  /* DECILE TABLE */
+  .decile-table { font-size: 0.85rem; }
+  .decile-table td.time { font-weight: 700; color: var(--navy); }
+  .flat-bar { display: inline-block; height: 10px; background: var(--navy); border-radius: 2px; vertical-align: middle; margin-left: 6px; }
+
+  /* ACTION ITEMS */
+  .action-list { list-style: none; margin: 1rem 0; }
+  .action-list li {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: #fff;
+  }
+  .action-list li:hover { background: var(--light); }
+  .action-num {
+    font-size: 1.2rem; font-weight: 700; color: var(--navy);
+    min-width: 2rem; padding-top: 1px;
+  }
+  .action-body .action-title { font-weight: 700; color: var(--navy); margin-bottom: 0.25rem; }
+  .action-body .action-desc { font-size: 0.88rem; color: var(--subtext); }
+  .priority { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-bottom: 0.3rem; }
+  .p-now { background: #ffebee; color: var(--red); }
+  .p-soon { background: #fff3e0; color: #e65100; }
+  .p-build { background: #e3f0ff; color: var(--blue); }
+
+  /* DEBATE SECTION */
+  .debate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  @media (max-width: 600px) { .debate-grid { grid-template-columns: 1fr; } }
+  .debate-col { padding: 1.25rem; border-radius: 8px; }
+  .debate-col.frame { background: #fff8f8; border: 1px solid #f5c6c6; }
+  .debate-col.ours { background: #f3faf3; border: 1px solid #b8e0bc; }
+  .debate-col h4 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 0.75rem; }
+  .debate-col.frame h4 { color: var(--red); }
+  .debate-col.ours h4 { color: var(--green); }
+  .debate-col ul { list-style: none; }
+  .debate-col ul li { font-size: 0.88rem; color: var(--subtext); padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .debate-col ul li:last-child { border: none; }
+  .debate-col ul li::before { content: "→ "; font-weight: 700; }
+  .debate-col.frame ul li::before { color: var(--red); }
+  .debate-col.ours ul li::before { color: var(--green); }
+
+  /* FOOTER */
+  footer { background: var(--navy); color: rgba(255,255,255,0.5); padding: 2rem; text-align: center; font-size: 0.8rem; margin-top: 2rem; }
+  footer strong { color: rgba(255,255,255,0.8); }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">McClatchy CSA · T1 Headline Analysis</span>
+  <a href="#frame-vs-ours">vs. Frame Deck</a>
+  <a href="#active-time">Active Time Finding</a>
+  <a href="#platform-roi">Platform ROI</a>
+  <a href="#ctr-signals">CTR Signals</a>
+  <a href="#isolation">Platform Isolation</a>
+  <a href="#actions">Action Items</a>
+  <span class="spacer"></span>
+  <span class="date">Data through Mar 25, 2026</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="eyebrow">McClatchy CSA · T1 Distribution Performance</div>
+  <h1>What the headline data actually tells us — and what it doesn't</h1>
+  <p class="sub">An analysis of 47,000+ article-platform records across Apple News, SmartNews, MSN, and Yahoo. Built to inform how many variants to generate per article type, and to respond to what's being measured externally.</p>
+  <div class="meta">
+    <div class="meta-item"><span class="num">47K+</span><span class="label">article-platform records</span></div>
+    <div class="meta-item"><span class="num">4</span><span class="label">distribution platforms</span></div>
+    <div class="meta-item"><span class="num">2025–26</span><span class="label">data range</span></div>
+    <div class="meta-item"><span class="num">14 mo.</span><span class="label">baseline period</span></div>
+  </div>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<section id="summary">
+<div class="container">
+  <div class="section-label">Executive Summary</div>
+  <h2>Five things this data makes clear</h2>
+  <div class="finding-grid">
+    <div class="finding-card highlight">
+      <div class="card-label">The central finding</div>
+      <div class="card-stat">r = −0.01</div>
+      <div class="card-desc">Correlation between total views and active reading time on Apple News. Views and content depth are statistically independent. High-performing articles are not better-read articles.</div>
+    </div>
+    <div class="finding-card success">
+      <div class="card-label">Biggest headline signal</div>
+      <div class="card-stat">+142%</div>
+      <div class="card-desc">CTR lift for possessive named entity headlines ("Savannah Guthrie's husband…") vs. baseline on Apple News push notifications. The single most powerful formula signal in the dataset.</div>
+    </div>
+    <div class="finding-card">
+      <div class="card-label">Platform ROI gap — SmartNews</div>
+      <div class="card-stat">7× more</div>
+      <div class="card-desc">Median article views for Local content vs. Entertainment on SmartNews. Entertainment is the most-produced category by volume and the worst-performing by per-article ROI.</div>
+    </div>
+    <div class="finding-card alert">
+      <div class="card-label">Platform content overlap</div>
+      <div class="card-stat">~0%</div>
+      <div class="card-desc">Articles appearing on all four platforms simultaneously. Each platform is essentially a separate content ecosystem — platform-generic variants are leaving performance on the table.</div>
+    </div>
+  </div>
+  <div class="callout">
+    <p><strong>The strategic implication for variant allocation:</strong> Platforms don't share audiences or content. Article type × platform combinations have measurably different ROI profiles. Local content on SmartNews warrants more variants than Entertainment content. Apple News push notifications respond to a specific, identifiable headline formula. These are the inputs the allocation model needs.</p>
+  </div>
+</div>
+</section>
+
+<!-- FRAME DECK VS OURS -->
+<section id="frame-vs-ours">
+<div class="container">
+  <div class="section-label">Context · The Frame Deck</div>
+  <h2>What the March 24 external analysis got right — and where it stops short</h2>
+  <p>The Justin Frame executive deck (circulated March 24, 2026) is a credible piece of work on a narrow question: which article types and headline formulas drive the most page views in a specific dataset. The headline formula findings largely hold up against our data. But the deck conflates <strong>reach</strong> with <strong>quality</strong> — and our data provides the counterevidence.</p>
+
+  <div class="debate-grid">
+    <div class="debate-col frame">
+      <h4>What the Frame deck claims</h4>
+      <ul>
+        <li>Wildlife/science dominated — 54% of all PVs from one topic category</li>
+        <li>Celebrity stories averaged 8,039 PVs — highest per-story average</li>
+        <li>"Here are X takeaways" is the top replicable headline formula (avg 2,299 PVs)</li>
+        <li>"Here's a look" is underused (avg 5,214 PVs, 2 data points)</li>
+        <li>"What to know" performance is driven by subject specificity, not the CTA</li>
+        <li>Leading with a number outperforms trailing-number formats</li>
+        <li>High PVs → quality → ROI. Optimize for page views.</li>
+      </ul>
+    </div>
+    <div class="debate-col ours">
+      <h4>What our data adds or challenges</h4>
+      <ul>
+        <li>Headline formula findings confirmed — our CTR data extends and validates them</li>
+        <li>Possessive named entity construction (+142% CTR) not captured in Frame's analysis</li>
+        <li>Long headlines outperform short ones (+131% CTR) — counter to conventional wisdom</li>
+        <li>Local content on SmartNews outperforms all other categories by 7×</li>
+        <li>Active reading time is flat regardless of view count — views ≠ depth of engagement</li>
+        <li>Featured by Apple (6.7× view lift) actually produces <em>shorter</em> read times</li>
+        <li>Platforms don't share content — platform-specific optimization is necessary, not optional</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>The measurement problem the Frame deck doesn't address</h3>
+  <p>The Frame deck's implicit argument is: high page views signal content quality, and content quality drives ROI. This is a reasonable prior — but our Apple News 2025 data, which includes active reading time alongside views, tests it directly and finds it doesn't hold.</p>
+  <div class="callout warn">
+    <p><strong>The Frame deck measures demand.</strong> It tells you which article types and headline formulas attract the most clicks. That's genuinely useful. What it cannot tell you is whether readers who clicked stayed, read, saved, or came back — the signals that predict subscriber behavior and longer-term retention value.</p>
+    <p>Our data shows those two things — reach and depth — are statistically uncorrelated. Optimizing for PVs without accounting for engagement depth is optimizing half the equation.</p>
+  </div>
+
+  <h3>Where the Frame findings do hold in our data</h3>
+  <table>
+    <tr><th>Frame claim</th><th>Our verdict</th><th>Evidence</th></tr>
+    <tr><td>"Here are X takeaways" is the top headline formula</td><td><span class="tag-green">Confirmed</span></td><td>Consistent with Apple News notification CTR patterns; number-containing headlines perform at or above baseline</td></tr>
+    <tr><td>"What to know" — subject specificity is everything</td><td><span class="tag-green">Confirmed</span></td><td>Validated in CTR data; vague subjects flatline regardless of CTA</td></tr>
+    <tr><td>"Here's a look" is underused and strong</td><td><span class="tag-blue">Plausible</span></td><td>Frame had 2 data points; our notification data can't isolate this formula type at sufficient scale to confirm</td></tr>
+    <tr><td>Leading with a number outperforms</td><td><span class="tag-green">Confirmed</span></td><td>Number-containing headlines at or above CTR baseline; number-lead construction strongest</td></tr>
+    <tr><td>Wildlife/science dominates by topic</td><td><span class="tag-blue">Platform-specific</span></td><td>Holds for Commons/Discover distribution. SmartNews data shows Local and U.S. National dominate app-based distribution — a different audience and algorithm</td></tr>
+    <tr><td>Celebrity stories punch highest per-story</td><td><span class="tag-blue">Audience-dependent</span></td><td>True for Commons. App-based platforms (Apple News, SmartNews) appear to run different content mixes — celebrity's relative weight is unconfirmed in our T1 data</td></tr>
+    <tr><td>High PVs = quality = ROI</td><td><span class="tag-red">Not supported</span></td><td>Active reading time has r=−0.01 with total views. The read depth signal is independent of reach.</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ACTIVE TIME DEEP DIVE -->
+<section id="active-time">
+<div class="container">
+  <div class="section-label">Key Finding · Deep Dive</div>
+  <h2>Views and reading depth are statistically independent populations</h2>
+  <p>This is the finding that most directly challenges the "clicks = quality" framing. The Apple News 2025 dataset — 3,039 articles, full year — includes both Total Views and Avg. Active Time in seconds. This is rare: most distribution data gives you reach or depth, not both. We have both.</p>
+
+  <div class="stat-row">
+    <div class="stat-block"><div class="n">r = −0.01</div><div class="l">Views vs. active time (Pearson)</div></div>
+    <div class="stat-block"><div class="n">p = 0.44</div><div class="l">Not statistically significant</div></div>
+    <div class="stat-block"><div class="n">55s</div><div class="l">Median active time (all articles)</div></div>
+    <div class="stat-block"><div class="n">2s range</div><div class="l">Q1 vs Q4 median diff (55s → 53s)</div></div>
+  </div>
+
+  <h3>The flatness holds across every decile — including the very top</h3>
+  <p>Splitting articles into ten equal groups by total views (from the bottom 10% to the top 10%) and measuring median active time at each decile produces the same result: a nearly horizontal line. The top decile articles averaged 333,653 views. Their median active reading time: 53.5 seconds. The bottom decile averaged 425 views. Their median: 55 seconds.</p>
+
+  <table class="decile-table">
+    <tr><th>View decile</th><th>Median views</th><th>Median active time</th><th>Visual</th></tr>
+    <tr><td>D1 (lowest)</td><td>425</td><td class="time">55s</td><td><span class="flat-bar" style="width:55px"></span></td></tr>
+    <tr><td>D2</td><td>638</td><td class="time">55s</td><td><span class="flat-bar" style="width:55px"></span></td></tr>
+    <tr><td>D3</td><td>875</td><td class="time">58s</td><td><span class="flat-bar" style="width:58px"></span></td></tr>
+    <tr><td>D4</td><td>1,235</td><td class="time">60s</td><td><span class="flat-bar" style="width:60px"></span></td></tr>
+    <tr><td>D5</td><td>2,109</td><td class="time">56s</td><td><span class="flat-bar" style="width:56px"></span></td></tr>
+    <tr><td>D6</td><td>3,281</td><td class="time">54s</td><td><span class="flat-bar" style="width:54px"></span></td></tr>
+    <tr><td>D7</td><td>5,437</td><td class="time">52s</td><td><span class="flat-bar" style="width:52px"></span></td></tr>
+    <tr><td>D8</td><td>10,864</td><td class="time">58s</td><td><span class="flat-bar" style="width:58px"></span></td></tr>
+    <tr><td>D9</td><td>17,525</td><td class="time">51s</td><td><span class="flat-bar" style="width:51px"></span></td></tr>
+    <tr><td>D10 (highest)</td><td>333,654</td><td class="time">53.5s</td><td><span class="flat-bar" style="width:53px"></span></td></tr>
+  </table>
+
+  <div class="chart-wrap">
+    <img src="charts/chart3_views_vs_engagement.png" alt="Views vs engagement depth chart">
+    <div class="chart-caption">Saves (bars, left axis) scale with views — but active reading time (line, right axis) stays flat. These are two different behavioral signals.</div>
+  </div>
+
+  <h3>Three things that make this finding more precise</h3>
+
+  <h3 style="color: var(--red);">1. Featured by Apple boosts views 6.7× — and slightly reduces reading time</h3>
+  <p>Articles surfaced by Apple's editorial algorithm receive dramatically more views than unfeatured content (median 10,911 vs. 1,619). But their median active time is <strong>51 seconds</strong> — six seconds <em>shorter</em> than unfeatured articles (57s). This difference is statistically significant (Mann-Whitney p &lt; 0.0001).</p>
+  <div class="callout warn">
+    <p><strong>What this means:</strong> Apple's editorial promotion drives discovery, not depth. Readers who find an article because the algorithm surfaced it are less engaged on average than readers who sought it out. High reach ≠ high intent. This should inform how "Featured by Apple" articles are counted in any ROI model — they inflate views while slightly diluting engagement quality.</p>
+  </div>
+
+  <h3 style="color: var(--blue);">2. Subscribers read for less time than non-subscribers</h3>
+  <p>On subscription-gated content, Apple News+ subscribers have a median active time of <strong>49 seconds</strong>. Non-subscribers on free content read for <strong>56 seconds</strong>. This gap likely reflects behavioral differences: subscribers are efficient, high-frequency readers who scan and move on; non-subscribers encountering a story organically may evaluate it more slowly. Neither is "wrong" — but they're different populations producing different depth signals.</p>
+
+  <h3 style="color: var(--green);">3. Saves are the engagement metric that does track views</h3>
+  <p>While active time is uncorrelated with views (r=−0.01), saves are strongly correlated (r=0.82). So are likes (r=0.77) and article shares (r=0.68). High-view articles do generate more social and save behavior — but not more reading depth. <strong>Saves are a proxy for intent to return, not evidence of a completed read.</strong> Both signals matter, but they measure different things.</p>
+
+  <div class="callout success">
+    <p><strong>What this means for the variant allocation model:</strong> View count alone is an incomplete ROI signal. The model should incorporate engagement depth (active time, saves) alongside reach — especially when comparing article types that may attract large audiences but low read completion vs. smaller but more-engaged audiences. A variant that drives 5,000 views with 80s average active time may deliver more long-term subscription value than one that drives 20,000 views with 45s.</p>
+  </div>
+</div>
+</section>
+
+<!-- PLATFORM ROI -->
+<section id="platform-roi">
+<div class="container">
+  <div class="section-label">Finding · Platform ROI by Content Type</div>
+  <h2>Local and U.S. national content deliver outsized SmartNews ROI — Entertainment does not</h2>
+  <p>SmartNews 2025 is the richest dataset for content-type analysis: 38,251 articles with category channel data showing which editorial buckets drove views. The ROI gap between categories is not marginal — it's structural.</p>
+
+  <div class="chart-wrap">
+    <img src="charts/chart2_smartnews_category_roi.png" alt="SmartNews category ROI">
+    <div class="chart-caption">Median article views by SmartNews content category, 2025 (38,251 articles). Platform median shown as dashed line.</div>
+  </div>
+
+  <table>
+    <tr><th>Category</th><th>Articles</th><th>Median views</th><th>vs. Entertainment</th></tr>
+    <tr><td><strong>Local</strong></td><td>1,097</td><td>16,593</td><td><span class="tag-green">+7,306%</span></td></tr>
+    <tr><td><strong>U.S. National</strong></td><td>909</td><td>11,153</td><td><span class="tag-green">+4,869%</span></td></tr>
+    <tr><td>Football</td><td>276</td><td>1,935</td><td><span class="tag-blue">+764%</span></td></tr>
+    <tr><td>Business</td><td>125</td><td>1,933</td><td><span class="tag-blue">+763%</span></td></tr>
+    <tr><td>World</td><td>120</td><td>580</td><td>+159%</td></tr>
+    <tr><td>Health</td><td>235</td><td>565</td><td>+152%</td></tr>
+    <tr><td>Lifestyle</td><td>3,156</td><td>241</td><td>+8%</td></tr>
+    <tr><td><strong>Entertainment</strong></td><td><strong>13,713</strong></td><td><strong>224</strong></td><td>baseline</td></tr>
+  </table>
+
+  <div class="callout">
+    <p><strong>The production/performance mismatch:</strong> Entertainment is the second-highest-volume category (13,713 articles, 36% of the dataset) and produces the lowest median per-article return (224 views). Local content is 3% of volume and produces 74× more views per article. This isn't a data curiosity — it's a signal about where variant production effort should concentrate on SmartNews specifically.</p>
+  </div>
+
+  <h3>Platform ROI profiles differ enough to warrant separate variant strategies</h3>
+  <p>What performs on SmartNews (local, civic, geographic specificity) is not what performs on Apple News push notifications (celebrity relationships, named-entity drama, escalating serial stories). MSN's top content in December 2025 was almost entirely national politics. These platforms are not interchangeable distribution channels — they have distinct audience expectations and algorithmic preferences.</p>
+</div>
+</section>
+
+<!-- CTR SIGNALS -->
+<section id="ctr-signals">
+<div class="container">
+  <div class="section-label">Finding · Apple News Push CTR</div>
+  <h2>Two headline features drive 2× CTR. One entire format consistently fails.</h2>
+  <p>The Apple News Notifications sheet is the only dataset in either file with a direct headline-to-click signal: push notification text, impressions, and CTR for 351 notifications sent Jan–Feb 2026. Median CTR across all notifications: 1.7%. The spread is wide.</p>
+
+  <div class="chart-wrap">
+    <img src="charts/chart1_headline_ctr_lift.png" alt="Headline CTR lift chart">
+    <div class="chart-caption">% CTR lift above or below baseline (1.7%) by headline feature. Apple News Notifications, Jan–Feb 2026. Features with n≥5 only.</div>
+  </div>
+
+  <h3>What the top 10 highest-CTR notifications have in common</h3>
+  <p>The top 10 are almost entirely one story: the Nancy Guthrie abduction and its connection to Savannah Guthrie. CTRs of 0.065–0.096 vs. a median of 0.017. Four to six times the baseline. The structural pattern across all ten:</p>
+  <div class="callout success">
+    <p><strong>Possessive named entity + escalating stakes + exclusive framing.</strong> "Savannah Guthrie's husband breaks silence…" — the possessive construction signals insider access and relationship proximity. Each notification in the series added a new development. Readers who clicked one installment clicked subsequent ones at even higher rates. This is a distinct content type: the serial escalating story with a celebrity anchor.</p>
+  </div>
+
+  <h3>What consistently fails</h3>
+  <table>
+    <tr><th>Format</th><th>CTR vs. baseline</th><th>Why</th></tr>
+    <tr><td>Questions ("Will the team…?")</td><td><span class="tag-red">−33%</span></td><td>Readers don't click to find out the answer — they move on</td></tr>
+    <tr><td>Local business (openings/closings)</td><td><span class="tag-red">−35%</span></td><td>Low geographic relevance to national push notification audience</td></tr>
+    <tr><td>Weather events</td><td><span class="tag-red">−14%</span></td><td>Low relevance to non-local readers; time-sensitive content ages out</td></tr>
+    <tr><td>Short headlines (&lt;60 chars)</td><td><span class="tag-red">−15%</span></td><td>Insufficient specificity to create click intent</td></tr>
+  </table>
+
+  <p>Note: local business content is low on push notification CTR but high on SmartNews local channel performance. The push notification audience (broad, national) and the SmartNews local channel audience are different populations. Format appropriateness is platform-specific.</p>
+</div>
+</section>
+
+<!-- PLATFORM ISOLATION -->
+<section id="isolation">
+<div class="container">
+  <div class="section-label">Finding · Cross-Platform Overlap</div>
+  <h2>These platforms are separate content ecosystems — not distribution channels for the same content</h2>
+
+  <div class="chart-wrap">
+    <img src="charts/chart4_platform_isolation.png" alt="Platform isolation chart">
+    <div class="chart-caption">% of each platform's articles that appear exclusively on that platform vs. also appearing on another. 2025, exact title match.</div>
+  </div>
+
+  <p>Of the roughly 43,000 unique articles across all four platforms, <strong>zero appear on all four</strong>. Only 32 appear on three or more. Pairwise overlaps are minimal relative to each platform's total volume. Apple News and MSN share only 35 exact titles. SmartNews, with 35,000+ articles, overlaps modestly with MSN (510) and Yahoo (346) — but that's still under 3% of its content.</p>
+
+  <div class="callout">
+    <p><strong>The implication for variant strategy:</strong> Platforms are not seeing the same articles. This isn't a limitation — it's an opportunity. Variants written for SmartNews (local angle, geographic specificity, civic framing) should be different in emphasis and structure from variants written for Apple News push (named-entity drama, possessive construction, escalating stakes). A single "generic variant" deployed to all platforms is leaving platform-specific lift uncaptured.</p>
+  </div>
+</div>
+</section>
+
+<!-- DATA GAPS -->
+<section id="gaps">
+<div class="container">
+  <div class="section-label">What the Data Doesn't Have Yet</div>
+  <h2>The gaps that limit the model — and how to close them</h2>
+  <p>This analysis establishes the ROI baseline. But building the full variant allocation model requires data that doesn't exist yet in Tarrow's sheet. Two items are blocking; the rest are additive.</p>
+
+  <table>
+    <tr><th>Gap</th><th>Priority</th><th>What to do</th></tr>
+    <tr>
+      <td><strong>Variant tracking</strong> — no field links variants to their canon article, or tracks how many variants were produced</td>
+      <td><span class="tag-red">Blocking</span></td>
+      <td>Instrument at generation time: add canon_article_id and variant_count fields to the distribution pipeline</td>
+    </tr>
+    <tr>
+      <td><strong>MSN full year</strong> — current export is December 2025 only (3,287 rows); 11 months missing</td>
+      <td><span class="tag-red">Blocking</span></td>
+      <td>Ask Tarrow for full 2025 MSN export — likely a sheet configuration issue</td>
+    </tr>
+    <tr>
+      <td><strong>Apple News 2026 engagement columns</strong> — 17 columns (active time, saves, shares) are empty in the 2026 export</td>
+      <td><span class="tag-red">High</span></td>
+      <td>Ask Tarrow if this is an export setting — the 2025 file has all 48 columns populated</td>
+    </tr>
+    <tr>
+      <td><strong>Article type tag</strong> — no content category label on the article itself; must be inferred by regex</td>
+      <td><span class="tag-blue">Medium</span></td>
+      <td>Tag at publish time (crime, politics, local business, weather, sports, etc.) or apply NLP classifier post-hoc</td>
+    </tr>
+    <tr>
+      <td><strong>Headline formula tag</strong> — which formula was used is inferred, not recorded</td>
+      <td><span class="tag-blue">Medium</span></td>
+      <td>Tag at generation time which template/formula was applied to each variant</td>
+    </tr>
+    <tr>
+      <td><strong>SmartNews 2026 category breakdown</strong> — 2025 had 32 category columns; 2026 export has 7</td>
+      <td><span class="tag-blue">Medium</span></td>
+      <td>Ask Tarrow to restore the category channel breakdown in 2026 exports</td>
+    </tr>
+    <tr>
+      <td><strong>Apple News Notifications 2025</strong> — CTR data exists only for Jan–Feb 2026</td>
+      <td><span class="tag-blue">Medium</span></td>
+      <td>Ask Tarrow if notification-level data exists for 2025 — would give 12 months of headline CTR signal</td>
+    </tr>
+  </table>
+</div>
+</section>
+
+<!-- ACTION ITEMS -->
+<section id="actions">
+<div class="container">
+  <div class="section-label">Action Items</div>
+  <h2>What to do next — ordered by what moves the model forward fastest</h2>
+
+  <ul class="action-list">
+    <li>
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <span class="priority p-now">Do now</span>
+        <div class="action-title">Ask Tarrow for MSN full year + Apple News 2026 engagement columns</div>
+        <div class="action-desc">The current MSN data is December only — 11 months missing makes MSN temporal and topic analysis impossible. The Apple News 2026 engagement columns are empty — likely an export configuration issue Tarrow can fix with one setting change. Both are quick asks with high analytical payoff.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <span class="priority p-now">Do now</span>
+        <div class="action-title">Ask Tarrow for Apple News Notifications 2025 (push CTR data for the full year)</div>
+        <div class="action-desc">The notification-level data with CTR is the most direct headline → performance signal in the dataset. We have only Jan–Feb 2026. If 2025 notification data exists, it would give 12+ months of headline formula → CTR signal — enough to build a reliable classifier.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <span class="priority p-soon">Soon</span>
+        <div class="action-title">Test possessive named entity + long headline formula across the next 20 push notifications</div>
+        <div class="action-desc">The data shows +142% CTR for possessive named entity constructions and +131% for headlines over 100 characters. These are testable hypotheses. For eligible stories (named person involved in an ongoing or relationship-adjacent situation), write the push notification in possessive form and measure against the baseline. 20 stories gives enough signal to confirm or challenge the finding.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <span class="priority p-soon">Soon</span>
+        <div class="action-title">Redirect SmartNews variant effort toward Local and U.S. National — away from Entertainment</div>
+        <div class="action-desc">Entertainment is 36% of SmartNews content volume and delivers 224 median views per article. Local content is 3% of volume and delivers 16,593 median views. For the same production effort, local and U.S. national articles on SmartNews generate roughly 74× the per-article return. The variant count recommendation for SmartNews: maximize local and national variants, minimize entertainment variants.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <span class="priority p-soon">Soon</span>
+        <div class="action-title">Add engagement depth to the ROI definition — not views alone</div>
+        <div class="action-desc">Active reading time has essentially zero correlation with view count (r=−0.01). Saves are strongly correlated (r=0.82). A complete ROI signal for the variant allocation model should include: views (reach), saves (intent to return), and active time (depth of read) — weighted by what matters most for subscriber retention. Views alone, as the Frame deck uses, measures only one dimension.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <span class="priority p-build">Build</span>
+        <div class="action-title">Instrument variant tracking: canon_article_id + variant_count at generation time</div>
+        <div class="action-desc">This is the single field that closes the loop between what we're building and what the model needs. Without it, we can identify which article types and platforms have high ROI — but we can't measure whether 3 variants outperformed 6 variants for a given article type. Every variant generated by the pipeline should carry a stable canon article ID and a generation-order sequence number. The analysis infrastructure to use this data already exists.</div>
+      </div>
+    </li>
+    <li>
+      <div class="action-num">7</div>
+      <div class="action-body">
+        <span class="priority p-build">Build</span>
+        <div class="action-title">Design platform-specific variant briefs based on what each platform's audience responds to</div>
+        <div class="action-desc">Apple News push: possessive named entity, long headlines, serial/escalating framing. SmartNews: local angle, geographic specificity, civic stakes. MSN: national politics-adjacent framing (based on December sample — needs full-year confirmation). Yahoo: needs further analysis. The platforms are separate ecosystems — variant briefs should be platform-differentiated, not generic. This is the content strategy layer that sits on top of the ROI data.</div>
+      </div>
+    </li>
+  </ul>
+</div>
+</section>
+
+<footer>
+  <strong>T1 Headline Performance Analysis · McClatchy CSA</strong><br>
+  Data: Tarrow T1 Syndication Sheets (2025 full year + Jan–Feb 2026) · Platforms: Apple News, SmartNews, MSN, Yahoo<br>
+  Analysis by Pierce Williams · Updated March 25, 2026
+</footer>
+
+</body>
+</html>
