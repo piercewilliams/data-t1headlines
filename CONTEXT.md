@@ -1,13 +1,7 @@
----
-name: data-t1headlines Working Context
-description: Working memory for the data-t1headlines project — current state, active tasks, and recent sessions
-type: project
----
+# T1 Headline Analysis — Working Context
 
-# data-t1headlines — Working Context
-
-**Phase:** Inception
-**Status:** Active — defining project scope and setting up infrastructure
+**Phase:** Phase 1 — Analyze Tarrow's Sheet
+**Status:** Active — data in hand, analysis not yet started
 **Last session:** 2026-03-25
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -17,30 +11,36 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Repo:** Initialized on GitHub, single `main` branch, clean
-- **Code:** None yet — blank canvas
-- **Infrastructure:** Git LFS configured (anticipating large data files)
-- **Context system:** Just set up (this session)
+- **Tarrow's sheet:** In hand as of Mar 25; shared with Pierce and Sarah Price
+- **Justin Frame's analysis:** Already reviewed and logged — formulas captured in REFERENCE.md
+- **Code:** None written yet — analysis may be spreadsheet-native
+- **CSA dashboard:** Separate repo; not touched by this project
 
 ## What's Next — Prioritized
 
 **High:**
-1. [ ] Define project goals and scope (fill in REFERENCE.md)
-2. [ ] Decide on tech stack / data pipeline approach
-3. [ ] Set up initial project structure (src/, data/, scripts/, etc.)
+1. [ ] Open Tarrow's sheet with Sarah Price — identify what signals are present (clicks? impressions? CTR? opens? time on page?)
+2. [ ] Flag which signals are worth monitoring on an ongoing basis
+3. [ ] Look for patterns that confirm, contradict, or extend Justin Frame's formulas
+4. [ ] Note what's missing that would make the dataset more useful
 
 **Medium:**
-4. [ ] Add .gitignore
-5. [ ] Define data schema / format for headlines
+5. [ ] Define monitoring cadence and reporting workflow (what signals, what cadence, back to whom)
+6. [ ] Draft internal content testing narrative doc — response to Justin Frame per Chris's directive
+7. [ ] Follow up with Sara P on headline performance (may be subsumed into Apple News work)
 
-**Deferred:**
-- (nothing deferred yet)
+**Phase 2 (after Phase 1 findings):**
+8. [ ] Determine tooling need — Pipedream/Sheets automation vs. manual analysis
+9. [ ] Define how findings feed back into content decisions (pitch process? editorial guidance?)
+
+**Phase 3:**
+10. [ ] Formalize content testing narrative system for Pierce + Sarah Price
 
 ## Recent Session: 2026-03-25
 
-Project created. Repository initialized with a README. Context lifecycle system set up (CONTEXT.md, REFERENCE.md, sessions/). No code written yet — project is at the "blank canvas" stage, ready for scope definition and implementation planning.
+Project kicked off. Chris Tarrow gave go-ahead and shared the T1 headline performance sheet with Pierce and Sarah Price. Sarah Price alignment confirmed on Slack (Semrush ≠ Apple News disambiguation resolved). Justin Frame's external SVP-level analysis (Mar 24) is the catalyst — Chris's directive is to own this narrative internally. Context seed created and handed off to this dedicated repo. No analysis started yet.
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~45 lines*
+*Current count: ~50 lines*
