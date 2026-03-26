@@ -254,8 +254,8 @@
     </div>
     <div class="finding-card success">
       <div class="card-label">Strongest headline signal</div>
-      <div class="card-stat">+142% CTR</div>
-      <div class="card-desc">Lift for possessive named entity headlines ("Savannah Guthrie's husband…") vs. baseline on Apple News push. The most powerful identifiable formula in the dataset — not previously captured in any circulated analysis of this data.</div>
+      <div class="card-stat">+289% CTR</div>
+      <div class="card-desc">Lift for serial/escalating story structure vs. baseline on Apple News push (Guthrie cluster, n=16). Possessive named-entity construction alone: +146% (n=32). Neither signal appears in any circulated prior analysis of this data.</div>
     </div>
     <div class="finding-card alert">
       <div class="card-label">SmartNews production/ROI mismatch</div>
@@ -398,7 +398,7 @@
 <section id="ctr-signals">
 <div class="container">
   <div class="section-label">Finding · Apple News Push Notification CTR</div>
-  <h2>Two headline features drive 2× CTR. Questions and local business consistently fail.</h2>
+  <h2>One story structure drives 4× CTR. Questions and local business consistently underperform.</h2>
   <p>The Apple News Notifications sheet is the only data in either file with a direct headline → click signal: notification text, impressions, and CTR for 351 pushes sent Jan–Feb 2026. Median CTR: 1.7%. The spread is large — best performers run at 4–6× baseline.</p>
 
   <div class="chart-wrap">
@@ -415,8 +415,8 @@
   <h3>What consistently underperforms</h3>
   <table>
     <tr><th>Format</th><th>CTR vs. baseline</th><th>Why</th></tr>
-    <tr><td>Questions ("Will the team…?", "Who will…?")</td><td><span class="tag-red">−33%</span></td><td>Readers don't click to find out the answer — the question itself resolves their curiosity</td></tr>
-    <tr><td>Local business content (openings, closings)</td><td><span class="tag-red">−35%</span></td><td>Low geographic relevance to a broad national push notification audience</td></tr>
+    <tr><td>Questions ("Will the team…?", "Who will…?")</td><td><span class="tag-red">−18%</span></td><td>Readers don't click to find out the answer — the question itself resolves their curiosity</td></tr>
+    <tr><td>Local business content (openings, closings)</td><td><span class="tag-red">−23%</span></td><td>Low geographic relevance to a broad national push notification audience</td></tr>
     <tr><td>Weather events</td><td><span class="tag-red">−14%</span></td><td>Non-local readers have no stake; time-sensitive content ages out before many see the push</td></tr>
     <tr><td>Short headlines (&lt;60 chars)</td><td><span class="tag-red">−15%</span></td><td>Too brief to create specific click intent — vague enough to skip</td></tr>
   </table>
@@ -433,10 +433,10 @@
 
   <div class="chart-wrap">
     <div style="position:relative;height:300px"><canvas id="chart4"></canvas></div>
-    <div class="chart-caption">% of each platform's articles appearing exclusively on that platform vs. also on another. 2025, exact title match. Note: SmartNews carries 38,251 articles vs. 2,799–3,287 for others — its high exclusivity is partly a scale effect.</div>
+    <div class="chart-caption">% of each platform's unique articles appearing exclusively on that platform vs. shared with at least one other. 2025, exact normalized title match. SmartNews (35,507 unique titles) vs. 2,081–2,783 for others — its near-complete exclusivity is partly a scale effect.</div>
   </div>
 
-  <p>Across roughly 43,000 total articles in the 2025 dataset: <strong>zero appear on all four platforms</strong>. Only 32 appear on three or more. Apple News and MSN share 35 exact titles. SmartNews overlaps with MSN (510 titles) and Yahoo (346) — under 3% of its content. The platforms are pulling from almost entirely separate content pools.</p>
+  <p>Across roughly 43,000 total articles in the 2025 dataset: <strong>zero appear on all four platforms</strong>. Only 24 appear on three or more. Apple News and MSN share 25 exact titles. SmartNews overlaps with MSN (202 titles) and Yahoo (309) — under 3% of its 35,507 unique articles. Apple News's lower exclusivity (86%) reflects sharing with SmartNews (218) and Yahoo (169) — smaller in count but a higher share of its 2,783-article pool. The platforms are drawing from largely separate content pools.</p>
 
   <div class="callout">
     <p><strong>The implication for variant strategy:</strong> Platforms are not seeing the same articles — and their audiences are not the same readers. This means platform-specific variant briefs will outperform generic variants. A SmartNews variant should emphasize local angle, geographic specificity, and civic stakes. An Apple News push variant should emphasize possessive named-entity construction, high specificity, and escalating or exclusive framing. Deploying a single undifferentiated variant across platforms leaves measurable performance on the table.</p>
@@ -520,7 +520,7 @@
       <div class="action-body">
         <span class="priority p-soon">Soon</span>
         <div class="action-title">Run a structured headline formula test across the next 20 Apple News push notifications</div>
-        <div class="action-desc">The data shows +142% CTR for possessive named entity constructions and +131% for headlines over 100 characters. For any eligible story — a named person in a developing situation, a relationship or reaction angle — write the push notification using the possessive construction and longer specificity. Track CTR against baseline. Twenty stories at this scale gives enough signal to confirm or challenge the finding beyond the Savannah Guthrie cluster.</div>
+        <div class="action-desc">The data shows +289% CTR for serial/escalating story structures and +146% for possessive named-entity constructions. For any eligible story — a named person in a developing situation, a relationship or reaction angle — write the push notification using the possessive construction with high specificity. Track CTR against baseline. Twenty stories at this scale gives enough signal to confirm or challenge the finding beyond the Savannah Guthrie cluster.</div>
       </div>
     </li>
     <li>
@@ -655,18 +655,19 @@ function refLinePlugin(axis, value, color, label) {
 
 // ── Chart 1: CTR Lift by headline feature (horizontal bar) ─────────────────
 (function() {
+  // Values computed from 351 Apple News push notifications, Jan–Feb 2026
+  // Median baseline CTR: 1.68%
+  // Serial/ongoing: n=16 (Guthrie cluster) — possessive/exclusive categories partially overlap
   const labels = [
+    'Serial / escalating story',
     'Possessive named entity',
-    'Long headline (>80 chars)',
-    'Serial / ongoing story',
-    'Breaking / exclusive',
-    '"What to know" phrase',
-    'Short headline (<60 chars)',
-    'Weather event',
+    'Exclusive / breaking framing',
     'Question format',
     'Local business story',
+    'Short headline (<60 chars)',
+    'Weather event',
   ];
-  const values = [142, 131, 97, 44, 18, -15, -14, -33, -35];
+  const values = [289, 146, 139, -18, -23, -15, -14];
   const colors = values.map(v => v >= 0 ? C.green : C.red);
   const bgColors = values.map(v => v >= 0 ? C.lightGreen : C.lightRed);
 
@@ -769,9 +770,11 @@ function refLinePlugin(axis, value, color, label) {
 
 // ── Chart 3: Views vs Engagement — dual-axis (saves bar + active time line) ─
 (function() {
+  // Actual quartile medians from Apple News 2025 (n=2,791 articles with complete data)
+  // Q1: views 2–989, Q2: 991–2,951, Q3: 2,953–11,503, Q4: 11,504–1,827,673
   const labels = ['Q1 — Lowest views', 'Q2', 'Q3', 'Q4 — Highest views'];
-  const saves       = [12, 48, 215, 1140];
-  const activeTime  = [58, 57, 55, 53];
+  const saves       = [3, 6, 19, 67];
+  const activeTime  = [55, 57, 55, 53];
 
   new Chart(document.getElementById('chart3'), {
     data: {
@@ -842,8 +845,10 @@ function refLinePlugin(axis, value, color, label) {
 
 // ── Chart 4: Platform content exclusivity (stacked horizontal bar) ─────────
 (function() {
+  // Actual exclusivity from 2025 dataset, exact normalized title match
+  // Apple News: 392/2,783 shared; SmartNews: 706/35,507; MSN: 229/2,081; Yahoo: 465/2,758
   const platforms  = ['Apple News', 'SmartNews', 'MSN', 'Yahoo'];
-  const exclusive  = [98.9, 97.1, 83.4, 87.6];
+  const exclusive  = [85.9, 98.0, 89.0, 83.1];
   const shared     = exclusive.map(v => +(100 - v).toFixed(1));
 
   new Chart(document.getElementById('chart4'), {
