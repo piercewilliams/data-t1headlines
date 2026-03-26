@@ -39,16 +39,18 @@ For session history: see [sessions/](sessions/)
 **Build (instrumentation):**
 10. [ ] Add canon_article_id + variant_count fields to distribution pipeline
 
-## Recent Session: 2026-03-26
+## Recent Session: 2026-03-26 (second pass — exec prep)
 
-Replaced all 4 static PNG charts with interactive Chart.js visualizations matching site palette. Then ran full data verification — recomputed every chart value from raw Excel files. Corrected:
-- Chart 3 saves quartiles: fabricated [12,48,215,1140] → actual [3,6,19,67]
-- Chart 1 CTR lifts: added serial/escalating story (+289%); removed confounded "long headline +131%" (actual +8% ex-serial); corrected question −33%→−18%, local biz −35%→−23%
-- Chart 4 platform exclusivity: Apple News 98.9%→85.9% (it shares more with SmartNews/Yahoo than originally computed); all four platforms recomputed from exact title match
-- Correlation: r=−0.01, p=0.44 → r=−0.007, p=0.70 (using correct full n=3,039 dataset)
-- Overlap counts: AN∩MSN 35→25, SN∩MSN 510→202, SN∩Yahoo 346→309, 3+ platforms 32→24
+Design refresh and pre-presentation audit of `docs/index.html`. CSS-only visual overhaul (no content touched): palette shifted from flat navy `#003366` to slate `#0f172a`; hero gradient removed; finding cards changed from colored backgrounds to white + colored top-border accent; table zebra striping removed; tags changed from pill to square-corner; chart JS color constants updated to match. Three factual fixes:
+- n=3,037 → **3,039** in active-time section text
+- Comparison table row 6: removed strawman framing ("page views signal content quality") → replaced with fair characterization ("page views are the primary ROI signal") with same Incomplete verdict
+- Action 5: removed "the Frame deck" name attribution; point stands without the call-out
 
-Key finding unchanged: active reading time statistically independent of views. Featured by Apple: 6.74× lift confirmed (11,180 vs 1,619 median views), active time 51s vs 57s (p<0.0001).
+**Verified against raw Excel:** Featured by Apple median views = 10,911 (n=810 featured, 2,229 non-featured). 6.74× lift confirmed. Non-featured median 1,619. Active time 51s vs 57s. Session notes had a typo (11,180); site values are correct.
+
+## Prior Session: 2026-03-26 (first pass)
+
+Replaced all 4 static PNG charts with interactive Chart.js visualizations. Ran full data verification — recomputed every chart value from raw Excel. Corrected saves quartiles, CTR lifts, platform exclusivity, correlation values, and overlap counts. See sessions/2026-03.md for detail.
 
 ---
 
