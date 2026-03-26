@@ -249,7 +249,7 @@
   <div class="finding-grid">
     <div class="finding-card highlight">
       <div class="card-label">The central finding</div>
-      <div class="card-stat">r = −0.01</div>
+      <div class="card-stat">r = −0.007</div>
       <div class="card-desc">Correlation between total views and active reading time on Apple News. Views and content depth are statistically independent. High-traffic articles are not better-read articles — and the data to prove it is in this dataset.</div>
     </div>
     <div class="finding-card success">
@@ -284,7 +284,7 @@
 
   <div class="callout warn">
     <p><strong>What page view analysis captures:</strong> which headlines drive clicks, which topics attract volume, which content scales to high traffic. All genuinely useful.</p>
-    <p><strong>What it cannot tell you:</strong> whether readers who clicked stayed, read, saved, or came back — the behavioral signals that predict subscriber retention and longer-term revenue. Our data measures both sides. The correlation between them is r = −0.01.</p>
+    <p><strong>What it cannot tell you:</strong> whether readers who clicked stayed, read, saved, or came back — the behavioral signals that predict subscriber retention and longer-term revenue. Our data measures both sides. The correlation between them is r = −0.007.</p>
   </div>
 
   <h3>What this data confirms, extends, and complicates</h3>
@@ -297,7 +297,7 @@
     <tr><td>Leading with a number outperforms trailing-number formats</td><td><span class="tag-green">Confirmed</span></td><td>Number-lead construction at or above baseline CTR across notification data</td></tr>
     <tr><td>"Here's a look" is underused and consistently strong</td><td><span class="tag-blue">Plausible</span></td><td>Prior analysis had 2 data points; our notification sample can't yet isolate this formula at sufficient scale to confirm</td></tr>
     <tr><td>Wildlife/science content dominates by topic volume</td><td><span class="tag-blue">Channel-specific</span></td><td>Holds for Commons/Discover distribution. App-based platforms (Apple News, SmartNews, MSN) show a different topic ROI structure — Local and U.S. National lead by a wide margin on SmartNews</td></tr>
-    <tr><td>High page views signal content quality and predict ROI</td><td><span class="tag-red">Not supported by depth data</span></td><td>Active reading time has r=−0.01 with total views (p=0.44, n=3,037). The engagement depth signal is statistically independent of reach. This is the dataset's most important finding for how we define and measure ROI going forward.</td></tr>
+    <tr><td>High page views signal content quality and predict ROI</td><td><span class="tag-red">Not supported by depth data</span></td><td>Active reading time has r=−0.007 with total views (p=0.70, n=3,039). The engagement depth signal is statistically independent of reach. This is the dataset's most important finding for how we define and measure ROI going forward.</td></tr>
   </table>
 
   <div class="callout">
@@ -314,8 +314,8 @@
   <p>The Apple News 2025 dataset — 3,037 articles, full year — contains both Total Views and Avg. Active Time in seconds. Most distribution data gives you one or the other. This dataset gives both, making it possible to test the "clicks = quality" assumption directly.</p>
 
   <div class="stat-row">
-    <div class="stat-block"><div class="n">−0.01</div><div class="l">Pearson r: views vs. active time</div></div>
-    <div class="stat-block"><div class="n">p = 0.44</div><div class="l">Not statistically significant</div></div>
+    <div class="stat-block"><div class="n">−0.007</div><div class="l">Pearson r: views vs. active time</div></div>
+    <div class="stat-block"><div class="n">p = 0.70</div><div class="l">Not statistically significant</div></div>
     <div class="stat-block"><div class="n">55s</div><div class="l">Median active time, all articles</div></div>
     <div class="stat-block"><div class="n">9s</div><div class="l">Total range across all 10 view deciles</div></div>
   </div>
@@ -353,7 +353,7 @@
   <p>Apple News+ subscribers have a median active time of <strong>49 seconds</strong> on subscription content. Non-subscribers on free content read for <strong>56 seconds</strong>. Subscribers are likely efficient, high-frequency readers who scan more and move on — not a quality problem, but a behavioral difference that matters when comparing engagement metrics across paywalled vs. free articles.</p>
 
   <h3 class="good">3. Saves are the engagement metric that does track views</h3>
-  <p>Active time is uncorrelated with views (r=−0.01). But saves are strongly correlated (r=0.82), as are likes (r=0.77) and article shares (r=0.68). High-view articles generate more save and social behavior — but not more reading depth. <strong>Saves proxy intent to return. Active time proxies depth of the current read.</strong> Both matter. They measure different things.</p>
+  <p>Active time is uncorrelated with views (r=−0.007). But saves are strongly correlated (r=0.82), as are likes (r=0.77) and article shares (r=0.68). High-view articles generate more save and social behavior — but not more reading depth. <strong>Saves proxy intent to return. Active time proxies depth of the current read.</strong> Both matter. They measure different things.</p>
 
   <div class="callout success">
     <p><strong>What this means for the variant allocation model:</strong> View count alone is an incomplete ROI signal. A variant that drives 5,000 views with 75s average active time may deliver more subscriber retention value than one that drives 20,000 views with 45s. The model should incorporate at minimum: views (reach), saves (return intent), and active time (depth) — weighted by what best predicts subscriber behavior for this audience.</p>
@@ -536,7 +536,7 @@
       <div class="action-body">
         <span class="priority p-soon">Soon</span>
         <div class="action-title">Redefine ROI for the allocation model to include engagement depth — not views alone</div>
-        <div class="action-desc">Active reading time has r=−0.01 with views. Saves have r=0.82. A complete ROI signal should include: views (reach), saves (intent to return), and active time (depth of read) — weighted by what best predicts subscriber behavior. Using views alone, as the Frame deck does, measures one dimension of a two-dimensional problem and risks optimizing for traffic that doesn't convert.</div>
+        <div class="action-desc">Active reading time has r=−0.007 with views. Saves have r=0.82. A complete ROI signal should include: views (reach), saves (intent to return), and active time (depth of read) — weighted by what best predicts subscriber behavior. Using views alone, as the Frame deck does, measures one dimension of a two-dimensional problem and risks optimizing for traffic that doesn't convert.</div>
       </div>
     </li>
     <li>

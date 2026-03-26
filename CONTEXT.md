@@ -2,7 +2,7 @@
 
 **Phase:** Phase 1 complete — findings packaged, GitHub Pages site built
 **Status:** Active — awaiting Tarrow data requests + GitHub Pages publish
-**Last session:** 2026-03-25
+**Last session:** 2026-03-26
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -13,9 +13,10 @@ For session history: see [sessions/](sessions/)
 
 - **Data:** Both Tarrow sheets fully analyzed (2025 full year + 2026 Jan–Feb)
 - **Platforms covered:** Apple News, SmartNews, MSN, Yahoo
-- **Charts:** 4 executive PNGs in `charts/` and `docs/charts/`
+- **Charts:** 4 interactive Chart.js visualizations in `docs/index.html` (static PNGs in `charts/` retained as backup)
 - **GitHub Pages site:** Built at `docs/index.html` — enable Pages in repo settings to publish
-- **Key finding confirmed:** Views and active reading time are statistically independent (r=−0.01, p=0.44)
+- **Key finding confirmed:** Views and active reading time are statistically independent (r=−0.007, p=0.70, n=3,039)
+- **All chart data verified:** Recomputed from raw Excel in session 2026-03-26; all values grounded in actual data
 - **CSA dashboard:** Separate repo; not touched by this project
 
 ## What's Next — Prioritized
@@ -38,13 +39,18 @@ For session history: see [sessions/](sessions/)
 **Build (instrumentation):**
 10. [ ] Add canon_article_id + variant_count fields to distribution pipeline
 
-## Recent Session: 2026-03-25
+## Recent Session: 2026-03-26
 
-Full inaugural analysis session. Profiled both Tarrow sheets (excel-analysis skill). Ran investigative signal detection (data-sleuth): headline CTR by formula, platform ROI by topic, engagement depth vs. views, cross-platform overlap, temporal trends, absence signals. Packaged 4 executive charts (data-analysis skill). Built GitHub Pages presentation site at docs/index.html — includes Frame deck comparison, active time deep dive with full statistical backing (r=−0.01, decile table, Kruskal-Wallis, subscriber split), SmartNews category ROI, push CTR signals, platform isolation, data gaps, and 7 ordered action items.
+Replaced all 4 static PNG charts with interactive Chart.js visualizations matching site palette. Then ran full data verification — recomputed every chart value from raw Excel files. Corrected:
+- Chart 3 saves quartiles: fabricated [12,48,215,1140] → actual [3,6,19,67]
+- Chart 1 CTR lifts: added serial/escalating story (+289%); removed confounded "long headline +131%" (actual +8% ex-serial); corrected question −33%→−18%, local biz −35%→−23%
+- Chart 4 platform exclusivity: Apple News 98.9%→85.9% (it shares more with SmartNews/Yahoo than originally computed); all four platforms recomputed from exact title match
+- Correlation: r=−0.01, p=0.44 → r=−0.007, p=0.70 (using correct full n=3,039 dataset)
+- Overlap counts: AN∩MSN 35→25, SN∩MSN 510→202, SN∩Yahoo 346→309, 3+ platforms 32→24
 
-Key finding: active reading time is statistically independent of view count. Featured by Apple produces 6.7× more views and slightly shorter read times. Saves scale strongly with views (r=0.82); depth does not (r=−0.01). The Frame deck's implicit "clicks = quality" framing is not supported by the depth data.
+Key finding unchanged: active reading time statistically independent of views. Featured by Apple: 6.74× lift confirmed (11,180 vs 1,619 median views), active time 51s vs 57s (p<0.0001).
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~60 lines*
+*Current count: ~65 lines*
