@@ -1,7 +1,7 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 1 — Analyze Tarrow's Sheet
-**Status:** Active — data in hand, analysis not yet started
+**Phase:** Phase 1 complete — findings packaged, GitHub Pages site built
+**Status:** Active — awaiting Tarrow data requests + GitHub Pages publish
 **Last session:** 2026-03-25
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -11,36 +11,40 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Tarrow's sheet:** In hand as of Mar 25; shared with Pierce and Sarah Price
-- **Justin Frame's analysis:** Already reviewed and logged — formulas captured in REFERENCE.md
-- **Code:** None written yet — analysis may be spreadsheet-native
+- **Data:** Both Tarrow sheets fully analyzed (2025 full year + 2026 Jan–Feb)
+- **Platforms covered:** Apple News, SmartNews, MSN, Yahoo
+- **Charts:** 4 executive PNGs in `charts/` and `docs/charts/`
+- **GitHub Pages site:** Built at `docs/index.html` — enable Pages in repo settings to publish
+- **Key finding confirmed:** Views and active reading time are statistically independent (r=−0.01, p=0.44)
 - **CSA dashboard:** Separate repo; not touched by this project
 
 ## What's Next — Prioritized
 
-**High:**
-1. [ ] Open Tarrow's sheet with Sarah Price — identify what signals are present (clicks? impressions? CTR? opens? time on page?)
-2. [ ] Flag which signals are worth monitoring on an ongoing basis
-3. [ ] Look for patterns that confirm, contradict, or extend Justin Frame's formulas
-4. [ ] Note what's missing that would make the dataset more useful
+**High (ask Tarrow — blocking):**
+1. [ ] Request MSN full year 2025 — current export is December only
+2. [ ] Request Apple News 2026 with engagement columns populated (17 are empty)
+3. [ ] Request Apple News Notifications 2025 (full-year CTR data, not just Jan–Feb 2026)
+4. [ ] Request SmartNews 2026 category channel breakdown (32 cols in 2025 → 7 in 2026)
+
+**High (test now):**
+5. [ ] Run possessive named entity headline test across next 20 Apple News push notifications
+6. [ ] Shift SmartNews variant effort toward Local/U.S. National, away from Entertainment
 
 **Medium:**
-5. [ ] Define monitoring cadence and reporting workflow (what signals, what cadence, back to whom)
-6. [ ] Draft internal content testing narrative doc — response to Justin Frame per Chris's directive
-7. [ ] Follow up with Sara P on headline performance (may be subsumed into Apple News work)
+7. [ ] Add active time + saves to ROI definition alongside views
+8. [ ] Design platform-specific variant briefs per platform audience signal
+9. [ ] Publish GitHub Pages site (repo Settings → Pages → Source: docs/)
 
-**Phase 2 (after Phase 1 findings):**
-8. [ ] Determine tooling need — Pipedream/Sheets automation vs. manual analysis
-9. [ ] Define how findings feed back into content decisions (pitch process? editorial guidance?)
-
-**Phase 3:**
-10. [ ] Formalize content testing narrative system for Pierce + Sarah Price
+**Build (instrumentation):**
+10. [ ] Add canon_article_id + variant_count fields to distribution pipeline
 
 ## Recent Session: 2026-03-25
 
-Project kicked off. Chris Tarrow gave go-ahead and shared the T1 headline performance sheet with Pierce and Sarah Price. Sarah Price alignment confirmed on Slack (Semrush ≠ Apple News disambiguation resolved). Justin Frame's external SVP-level analysis (Mar 24) is the catalyst — Chris's directive is to own this narrative internally. Context seed created and handed off to this dedicated repo. No analysis started yet.
+Full inaugural analysis session. Profiled both Tarrow sheets (excel-analysis skill). Ran investigative signal detection (data-sleuth): headline CTR by formula, platform ROI by topic, engagement depth vs. views, cross-platform overlap, temporal trends, absence signals. Packaged 4 executive charts (data-analysis skill). Built GitHub Pages presentation site at docs/index.html — includes Frame deck comparison, active time deep dive with full statistical backing (r=−0.01, decile table, Kruskal-Wallis, subscriber split), SmartNews category ROI, push CTR signals, platform isolation, data gaps, and 7 ordered action items.
+
+Key finding: active reading time is statistically independent of view count. Featured by Apple produces 6.7× more views and slightly shorter read times. Saves scale strongly with views (r=0.82); depth does not (r=−0.01). The Frame deck's implicit "clicks = quality" framing is not supported by the depth data.
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~50 lines*
+*Current count: ~60 lines*
