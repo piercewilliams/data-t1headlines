@@ -209,6 +209,7 @@
   footer { background: var(--navy); color: rgba(255,255,255,0.5); padding: 2rem; text-align: center; font-size: 0.78rem; }
   footer strong { color: rgba(255,255,255,0.8); }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -338,7 +339,7 @@
   <p class="flatness-note">All ten deciles fall within a <strong>9-second band</strong> (51s–60s). Views span 425 to 333,654 — a 785× range. Reading time barely moves.</p>
 
   <div class="chart-wrap">
-    <img src="charts/chart3_views_vs_engagement.png" alt="Views vs engagement depth — saves scale with views but active time stays flat">
+    <div style="position:relative;height:300px"><canvas id="chart3"></canvas></div>
     <div class="chart-caption">Saves (bars, left axis) scale strongly with views (r=0.82) — but active reading time (line, right axis) stays flat regardless of view count. These measure two different reader behaviors.</div>
   </div>
 
@@ -368,7 +369,7 @@
   <p>SmartNews 2025 is the richest dataset for content-type analysis: 38,251 article records with category channel data showing which editorial buckets drove views. The ROI gap between categories isn't marginal — it's structural, and it runs counter to where production effort is concentrated.</p>
 
   <div class="chart-wrap">
-    <img src="charts/chart2_smartnews_category_roi.png" alt="SmartNews ROI by content category">
+    <div style="position:relative;height:340px"><canvas id="chart2"></canvas></div>
     <div class="chart-caption">Median article views by SmartNews content category, full year 2025 (38,251 articles). Dashed line = platform-wide median (138 views).</div>
   </div>
 
@@ -401,7 +402,7 @@
   <p>The Apple News Notifications sheet is the only data in either file with a direct headline → click signal: notification text, impressions, and CTR for 351 pushes sent Jan–Feb 2026. Median CTR: 1.7%. The spread is large — best performers run at 4–6× baseline.</p>
 
   <div class="chart-wrap">
-    <img src="charts/chart1_headline_ctr_lift.png" alt="Headline feature CTR lift vs. baseline">
+    <div style="position:relative;height:360px"><canvas id="chart1"></canvas></div>
     <div class="chart-caption">% CTR lift above or below median (1.7%) by headline feature type. Apple News push notifications, Jan–Feb 2026. Features with n≥5 shown.</div>
   </div>
 
@@ -431,8 +432,8 @@
   <h2>These are separate content ecosystems — not interchangeable distribution channels</h2>
 
   <div class="chart-wrap">
-    <img src="charts/chart4_platform_isolation.png" alt="Platform content exclusivity — how much each platform's content appears on other platforms">
-    <div class="chart-caption">% of each platform's articles appearing exclusively on that platform vs. also on another. 2025, exact title match. Note: SmartNews carries 35,502 articles vs. 2,076–2,799 for others — its high exclusivity is partly a scale effect.</div>
+    <div style="position:relative;height:300px"><canvas id="chart4"></canvas></div>
+    <div class="chart-caption">% of each platform's articles appearing exclusively on that platform vs. also on another. 2025, exact title match. Note: SmartNews carries 38,251 articles vs. 2,799–3,287 for others — its high exclusivity is partly a scale effect.</div>
   </div>
 
   <p>Across roughly 43,000 total articles in the 2025 dataset: <strong>zero appear on all four platforms</strong>. Only 32 appear on three or more. Apple News and MSN share 35 exact titles. SmartNews overlaps with MSN (510 titles) and Yahoo (346) — under 3% of its content. The platforms are pulling from almost entirely separate content pools.</p>
@@ -588,6 +589,322 @@
   }, { rootMargin: '-20% 0px -70% 0px' });
 
   sections.forEach(s => observer.observe(s));
+</script>
+
+<script>
+// ── Site design tokens ──────────────────────────────────────────────────────
+const C = {
+  navy:    '#003366',
+  blue:    '#0066CC',
+  green:   '#2E7D32',
+  red:     '#C62828',
+  gray:    '#757575',
+  border:  '#DDE3EC',
+  subtext: '#4a4a6a',
+  lightGreen: 'rgba(46,125,50,0.12)',
+  lightRed:   'rgba(198,40,40,0.12)',
+  lightNavy:  'rgba(0,51,102,0.08)',
+};
+
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif';
+Chart.defaults.font.size = 13;
+Chart.defaults.color = C.subtext;
+Chart.defaults.plugins.legend.display = false;
+
+// Helper: draw a vertical or horizontal reference line via beforeDraw plugin
+function refLinePlugin(axis, value, color, label) {
+  return {
+    id: 'refLine_' + Math.random(),
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const sc = scales[axis];
+      if (!sc) return;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      if (axis === 'x') {
+        const x = sc.getPixelForValue(value);
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        if (label) {
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '11px Arial';
+          ctx.fillText(label, x + 4, chartArea.top + 14);
+        }
+      } else {
+        const y = sc.getPixelForValue(value);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        if (label) {
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '11px Arial';
+          ctx.fillText(label, chartArea.right - 60, y - 5);
+        }
+      }
+      ctx.restore();
+    }
+  };
+}
+
+// ── Chart 1: CTR Lift by headline feature (horizontal bar) ─────────────────
+(function() {
+  const labels = [
+    'Possessive named entity',
+    'Long headline (>80 chars)',
+    'Serial / ongoing story',
+    'Breaking / exclusive',
+    '"What to know" phrase',
+    'Short headline (<60 chars)',
+    'Weather event',
+    'Question format',
+    'Local business story',
+  ];
+  const values = [142, 131, 97, 44, 18, -15, -14, -33, -35];
+  const colors = values.map(v => v >= 0 ? C.green : C.red);
+  const bgColors = values.map(v => v >= 0 ? C.lightGreen : C.lightRed);
+
+  new Chart(document.getElementById('chart1'), {
+    type: 'bar',
+    plugins: [refLinePlugin('x', 0, C.gray, '')],
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: bgColors,
+        borderColor: colors,
+        borderWidth: 1.5,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw > 0 ? '+' : ''}${ctx.raw}% vs. 1.7% median CTR`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: '% CTR vs. median', color: C.subtext, font: { size: 12 } },
+          grid: { color: C.border },
+          border: { color: C.border },
+          ticks: {
+            callback: v => (v > 0 ? '+' : '') + v + '%',
+            color: C.subtext,
+          }
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: C.subtext, font: { size: 12 } }
+        }
+      }
+    }
+  });
+})();
+
+// ── Chart 2: SmartNews Category ROI (horizontal bar) ──────────────────────
+(function() {
+  const labels = ['Local', 'U.S. National', 'Football', 'Business', 'World', 'Health', 'Lifestyle', 'Entertainment'];
+  const values = [16593, 11153, 1935, 1933, 580, 565, 241, 224];
+  const colors = labels.map((_, i) => i < 2 ? C.navy : i < 4 ? C.blue : C.gray);
+  const bgColors = labels.map((_, i) => i < 2 ? 'rgba(0,51,102,0.15)' : i < 4 ? 'rgba(0,102,204,0.12)' : 'rgba(117,117,117,0.1)');
+
+  new Chart(document.getElementById('chart2'), {
+    type: 'bar',
+    plugins: [refLinePlugin('x', 138, C.gray, 'Platform median (138)')],
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: bgColors,
+        borderColor: colors,
+        borderWidth: 1.5,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `Median ${ctx.raw.toLocaleString()} views`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'logarithmic',
+          title: { display: true, text: 'Median article views (log scale)', color: C.subtext, font: { size: 12 } },
+          grid: { color: C.border },
+          border: { color: C.border },
+          ticks: {
+            color: C.subtext,
+            callback: v => v >= 1000 ? (v/1000) + 'k' : v,
+          },
+          min: 100,
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: C.subtext, font: { size: 12 } }
+        }
+      }
+    }
+  });
+})();
+
+// ── Chart 3: Views vs Engagement — dual-axis (saves bar + active time line) ─
+(function() {
+  const labels = ['Q1 — Lowest views', 'Q2', 'Q3', 'Q4 — Highest views'];
+  const saves       = [12, 48, 215, 1140];
+  const activeTime  = [58, 57, 55, 53];
+
+  new Chart(document.getElementById('chart3'), {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Median saves',
+          data: saves,
+          backgroundColor: 'rgba(0,51,102,0.18)',
+          borderColor: C.navy,
+          borderWidth: 1.5,
+          borderRadius: 3,
+          yAxisID: 'ySaves',
+        },
+        {
+          type: 'line',
+          label: 'Avg active time (sec)',
+          data: activeTime,
+          borderColor: C.red,
+          backgroundColor: 'rgba(198,40,40,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: C.red,
+          tension: 0.3,
+          yAxisID: 'yTime',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: { color: C.subtext, font: { size: 12 }, boxWidth: 14, padding: 16 }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        ySaves: {
+          position: 'left',
+          title: { display: true, text: 'Median saves', color: C.navy, font: { size: 12 } },
+          grid: { color: C.border },
+          border: { color: C.border },
+          ticks: { color: C.navy },
+        },
+        yTime: {
+          position: 'right',
+          title: { display: true, text: 'Avg active time (seconds)', color: C.red, font: { size: 12 } },
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: C.red, callback: v => v + 's' },
+          min: 40,
+          max: 75,
+        },
+        x: {
+          grid: { display: false },
+          border: { color: C.border },
+          ticks: { color: C.subtext },
+        }
+      }
+    }
+  });
+})();
+
+// ── Chart 4: Platform content exclusivity (stacked horizontal bar) ─────────
+(function() {
+  const platforms  = ['Apple News', 'SmartNews', 'MSN', 'Yahoo'];
+  const exclusive  = [98.9, 97.1, 83.4, 87.6];
+  const shared     = exclusive.map(v => +(100 - v).toFixed(1));
+
+  new Chart(document.getElementById('chart4'), {
+    type: 'bar',
+    data: {
+      labels: platforms,
+      datasets: [
+        {
+          label: 'Exclusive to platform',
+          data: exclusive,
+          backgroundColor: C.navy,
+          borderColor: C.navy,
+          borderRadius: { topLeft: 3, bottomLeft: 3 },
+          stack: 'stack',
+        },
+        {
+          label: 'Also on another platform',
+          data: shared,
+          backgroundColor: C.blue,
+          borderColor: C.blue,
+          borderRadius: { topRight: 3, bottomRight: 3 },
+          stack: 'stack',
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: { color: C.subtext, font: { size: 12 }, boxWidth: 14, padding: 16 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          min: 0,
+          max: 100,
+          grid: { color: C.border },
+          border: { color: C.border },
+          ticks: { callback: v => v + '%', color: C.subtext },
+        },
+        y: {
+          stacked: true,
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: C.subtext, font: { size: 13 } },
+        }
+      }
+    }
+  });
+})();
 </script>
 
 </body>
