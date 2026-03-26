@@ -216,7 +216,7 @@
   <span class="brand">McClatchy CSA · T1 Analysis</span>
   <div class="nav-links">
     <a href="#summary">Summary</a>
-    <a href="#frame-vs-ours">Frame Deck</a>
+    <a href="#frame-vs-ours">Full Picture</a>
     <a href="#active-time">Active Time</a>
     <a href="#platform-roi">Platform ROI</a>
     <a href="#ctr-signals">CTR Signals</a>
@@ -254,7 +254,7 @@
     <div class="finding-card success">
       <div class="card-label">Strongest headline signal</div>
       <div class="card-stat">+142% CTR</div>
-      <div class="card-desc">Lift for possessive named entity headlines ("Savannah Guthrie's husband…") vs. baseline on Apple News push. The most powerful identifiable formula in the dataset — and it's not in the Frame deck.</div>
+      <div class="card-desc">Lift for possessive named entity headlines ("Savannah Guthrie's husband…") vs. baseline on Apple News push. The most powerful identifiable formula in the dataset — not previously captured in any circulated analysis of this data.</div>
     </div>
     <div class="finding-card alert">
       <div class="card-label">SmartNews production/ROI mismatch</div>
@@ -273,59 +273,35 @@
 </div>
 </section>
 
-<!-- FRAME DECK VS OURS -->
+<!-- BEYOND PAGE VIEWS -->
 <section id="frame-vs-ours">
 <div class="container">
-  <div class="section-label">Context · The Frame Deck (Mar 24, 2026)</div>
-  <h2>What the external analysis got right — and where it stops short</h2>
-  <p>The Justin Frame executive deck is credible work on a narrow question: which article types and headline formulas drive the most page views. Its headline formula findings largely hold up. But the deck conflates <strong>reach</strong> with <strong>quality</strong> — and our data provides the counterevidence.</p>
-
-  <div class="debate-grid">
-    <div class="debate-col frame">
-      <h4>What the Frame deck claims</h4>
-      <ul>
-        <li>Wildlife/science dominated — 54% of all PVs from one topic category</li>
-        <li>Celebrity stories averaged 8,039 PVs — highest per-story average</li>
-        <li>"Here are X takeaways" is the top replicable headline formula (avg 2,299 PVs)</li>
-        <li>"Here's a look" is underused but strong (avg 5,214 PVs, 2 data points)</li>
-        <li>"What to know" success is driven by subject specificity, not the CTA</li>
-        <li>Leading with a number outperforms trailing-number formats</li>
-        <li>High PVs signal content quality and therefore ROI</li>
-      </ul>
-    </div>
-    <div class="debate-col ours">
-      <h4>What our data adds or challenges</h4>
-      <ul>
-        <li>Core headline formula findings confirmed — our CTR data extends and validates them</li>
-        <li>Possessive named entity construction (+142% CTR) not in Frame's analysis</li>
-        <li>Long headlines outperform short (+131% CTR) — counter to conventional wisdom</li>
-        <li>Local content on SmartNews outperforms all categories by 74× per article</li>
-        <li>Active reading time is flat regardless of view count (r=−0.01)</li>
-        <li>Featured by Apple drives 6.7× more views — and slightly <em>shorter</em> read times</li>
-        <li>Platforms are separate ecosystems; platform-generic variants underperform</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3>The measurement gap the Frame deck doesn't address</h3>
-  <p>The Frame deck's implicit logic is: page views signal content quality, and quality drives long-term ROI. That's a reasonable prior — but our Apple News 2025 dataset is one of the few that includes both views <em>and</em> active reading time, letting us test it directly. It doesn't hold.</p>
+  <div class="section-label">The Measurement Question</div>
+  <h2>Page views tell you what people clicked. This data tells you what they actually read.</h2>
+  <p>Most headline and content performance analysis is built on a single metric: page views. PVs are a legitimate signal of demand — they tell you which headlines and article types attracted clicks, and that's useful. But clicks and reading are two different behaviors. Optimizing for one while treating it as a proxy for the other produces a picture that's accurate as far as it goes — and systematically incomplete beyond that.</p>
+  <p>This dataset is unusual in that it includes both reach metrics <em>and</em> engagement depth metrics for the same articles. That makes it possible to test the relationship between traffic and quality directly. The result is clear: <strong>they don't correlate.</strong></p>
 
   <div class="callout warn">
-    <p><strong>The Frame deck measures demand.</strong> It tells you which article types and headlines attract clicks. That's genuinely useful for generating traffic. What it cannot tell you is whether readers who clicked stayed, read, saved, or came back — the behavioral signals that predict subscriber retention and longer-term value.</p>
-    <p>Our data shows reach and depth are statistically uncorrelated. An optimization strategy built on page views alone is optimizing one dimension of a two-dimensional problem.</p>
+    <p><strong>What page view analysis captures:</strong> which headlines drive clicks, which topics attract volume, which content scales to high traffic. All genuinely useful.</p>
+    <p><strong>What it cannot tell you:</strong> whether readers who clicked stayed, read, saved, or came back — the behavioral signals that predict subscriber retention and longer-term revenue. Our data measures both sides. The correlation between them is r = −0.01.</p>
   </div>
 
-  <h3>Finding-by-finding verdict</h3>
+  <h3>What this data confirms, extends, and complicates</h3>
+  <p>Prior headline performance analysis of this content has established useful patterns. This dataset — which adds CTR, active reading time, saves, and platform-level engagement signals — lets us validate those patterns, sharpen them, and identify where they stop.</p>
+
   <table>
-    <tr><th>Frame claim</th><th>Verdict</th><th>Our evidence</th></tr>
-    <tr><td>"Here are X takeaways" is the top formula</td><td><span class="tag-green">Confirmed</span></td><td>Number-containing headlines perform at or above CTR baseline in our notification data</td></tr>
-    <tr><td>"What to know" — subject specificity is everything</td><td><span class="tag-green">Confirmed</span></td><td>Validated in CTR analysis; vague subjects flatline regardless of CTA ending</td></tr>
-    <tr><td>Leading with a number outperforms</td><td><span class="tag-green">Confirmed</span></td><td>Number-lead construction consistently at or above baseline CTR</td></tr>
-    <tr><td>"Here's a look" is underused and strong</td><td><span class="tag-blue">Plausible, unconfirmed</span></td><td>Frame had 2 data points; our notification sample can't isolate this formula at scale</td></tr>
-    <tr><td>Wildlife/science dominates by topic</td><td><span class="tag-blue">Platform-specific</span></td><td>True for Commons/Discover. SmartNews app-based data shows Local and U.S. National dominate — different algorithm, different audience</td></tr>
-    <tr><td>Celebrity stories punch highest per-story</td><td><span class="tag-blue">Commons-specific</span></td><td>True in Frame's Commons dataset; celebrity's weight in T1 app-based distribution is unconfirmed in our data</td></tr>
-    <tr><td>High PVs = content quality = ROI</td><td><span class="tag-red">Not supported</span></td><td>Active reading time has r=−0.01 with total views (p=0.44, n=3,037). The depth signal is independent of reach.</td></tr>
+    <tr><th>Established finding</th><th>T1 data verdict</th><th>What we can add</th></tr>
+    <tr><td>"Here are X takeaways" is the top replicable headline formula</td><td><span class="tag-green">Confirmed</span></td><td>Number-containing headlines perform at or above CTR baseline in direct headline → click data</td></tr>
+    <tr><td>"What to know" success depends on subject specificity, not the CTA itself</td><td><span class="tag-green">Confirmed</span></td><td>Validated in CTR analysis; vague subjects flatline regardless of the ending phrase</td></tr>
+    <tr><td>Leading with a number outperforms trailing-number formats</td><td><span class="tag-green">Confirmed</span></td><td>Number-lead construction at or above baseline CTR across notification data</td></tr>
+    <tr><td>"Here's a look" is underused and consistently strong</td><td><span class="tag-blue">Plausible</span></td><td>Prior analysis had 2 data points; our notification sample can't yet isolate this formula at sufficient scale to confirm</td></tr>
+    <tr><td>Wildlife/science content dominates by topic volume</td><td><span class="tag-blue">Channel-specific</span></td><td>Holds for Commons/Discover distribution. App-based platforms (Apple News, SmartNews, MSN) show a different topic ROI structure — Local and U.S. National lead by a wide margin on SmartNews</td></tr>
+    <tr><td>High page views signal content quality and predict ROI</td><td><span class="tag-red">Not supported by depth data</span></td><td>Active reading time has r=−0.01 with total views (p=0.44, n=3,037). The engagement depth signal is statistically independent of reach. This is the dataset's most important finding for how we define and measure ROI going forward.</td></tr>
   </table>
+
+  <div class="callout">
+    <p><strong>This isn't a critique of traffic-focused analysis — it's the next layer.</strong> Understanding which headlines drive clicks is necessary. It's not sufficient. The question our data allows us to start answering is: once they clicked, what happened? And increasingly, that second question is where subscriber value lives.</p>
+  </div>
 </div>
 </section>
 
