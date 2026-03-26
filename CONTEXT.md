@@ -39,18 +39,17 @@ For session history: see [sessions/](sessions/)
 **Build (instrumentation):**
 10. [ ] Add canon_article_id + variant_count fields to distribution pipeline
 
-## Recent Session: 2026-03-26 (second pass — exec prep)
+## Recent Session: 2026-03-26 (third pass — final verification)
 
-Design refresh and pre-presentation audit of `docs/index.html`. CSS-only visual overhaul (no content touched): palette shifted from flat navy `#003366` to slate `#0f172a`; hero gradient removed; finding cards changed from colored backgrounds to white + colored top-border accent; table zebra striping removed; tags changed from pill to square-corner; chart JS color constants updated to match. Three factual fixes:
-- n=3,037 → **3,039** in active-time section text
-- Comparison table row 6: removed strawman framing ("page views signal content quality") → replaced with fair characterization ("page views are the primary ROI signal") with same Incomplete verdict
-- Action 5: removed "the Frame deck" name attribution; point stands without the call-out
+Pulled Featured by Apple median views directly from raw Excel (`Top syndication content 2025.xlsx`, Apple News sheet) via Python. Confirmed: **10,911** featured median views (n=810), **1,619** non-featured (n=2,229), **6.74×** lift, **51s vs 57s** active time. Session notes had 11,180 — confirmed typo; site was correct all along. Updated h3 heading from "6.7×" → "6.74×" for precision. Corrected 11,180 → 10,911 everywhere in CONTEXT.md and sessions/2026-03.md. Site is fully verified; every stat traceable to raw data.
 
-**Verified against raw Excel:** Featured by Apple median views = 10,911 (n=810 featured, 2,229 non-featured). 6.74× lift confirmed. Non-featured median 1,619. Active time 51s vs 57s. Session notes had a typo (11,180); site values are correct.
+## Prior Session: 2026-03-26 (second pass — exec prep)
+
+CSS-only design refresh + content audit. Palette `#003366` → `#0f172a`; hero gradient removed; cards white + top-border accent; tables no zebra; tags square; chart JS colors updated. Content fixes: n=3,037→3,039; comparison table row 6 strawman removed; "Frame deck" name removed from action 5. See sessions/2026-03.md for detail.
 
 ## Prior Session: 2026-03-26 (first pass)
 
-Replaced all 4 static PNG charts with interactive Chart.js visualizations. Ran full data verification — recomputed every chart value from raw Excel. Corrected saves quartiles, CTR lifts, platform exclusivity, correlation values, and overlap counts. See sessions/2026-03.md for detail.
+Interactive Chart.js charts built; full data verification against raw Excel. See sessions/2026-03.md for detail.
 
 ---
 
