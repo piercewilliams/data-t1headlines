@@ -381,12 +381,34 @@ TOPIC_LABELS = {
     "nature_wildlife":"Nature/Wildlife","other":"Other"
 }
 topic_df["label"] = topic_df["topic"].map(TOPIC_LABELS)
-topic_df = topic_df.sort_values("an_median", ascending=True)
 
 an_overall = an["Total Views"].median()
 sn_overall = sn["article_view"].median()
 topic_df["an_idx"] = (topic_df["an_median"] / an_overall).tolist()
 topic_df["sn_idx"] = (topic_df["sn_median"] / sn_overall).tolist()
+
+# Sort by Apple News index descending — makes platform inversions visually obvious
+topic_df = topic_df.sort_values("an_idx", ascending=True)
+
+# Key stats for prose (all dynamic)
+an_ranked = topic_df.sort_values("an_idx", ascending=False).reset_index(drop=True)
+sn_ranked = topic_df.sort_values("sn_idx", ascending=False).reset_index(drop=True)
+an_top_label = TOPIC_LABELS.get(an_ranked.iloc[0]["topic"], an_ranked.iloc[0]["topic"])
+an_top_med   = int(an_ranked.iloc[0]["an_median"])
+an_2nd_label = TOPIC_LABELS.get(an_ranked.iloc[1]["topic"], an_ranked.iloc[1]["topic"])
+an_2nd_med   = int(an_ranked.iloc[1]["an_median"])
+sn_top_label = TOPIC_LABELS.get(sn_ranked.iloc[0]["topic"], sn_ranked.iloc[0]["topic"])
+sn_top_med   = int(sn_ranked.iloc[0]["sn_median"])
+# Sports rank and values on each platform
+sports_an_rank = int(an_ranked[an_ranked["topic"] == "sports"].index[0]) + 1
+sports_sn_rank = int(sn_ranked[sn_ranked["topic"] == "sports"].index[0]) + 1
+sports_an_med  = int(topic_df.loc[topic_df["topic"] == "sports", "an_median"].iloc[0])
+sports_sn_med  = int(topic_df.loc[topic_df["topic"] == "sports", "sn_median"].iloc[0])
+sports_an_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "an_idx"].iloc[0])
+sports_sn_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "sn_idx"].iloc[0])
+# Nature/wildlife inversion
+nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
+nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
 
 fig5 = go.Figure()
 fig5.add_trace(go.Bar(
@@ -771,8 +793,8 @@ html = f"""<!DOCTYPE html>
   <!-- TOPICS -->
   <section id="topics">
     <p class="section-label">Finding 5 · Platform Separation</p>
-    <h2>Sports dominates Apple News. Local/Civic leads SmartNews. Platforms draw from separate content pools — 97% of SmartNews articles appear nowhere else.</h2>
-    <p>Topic performance diverges sharply by platform. Weather and sports are the top performers on Apple News (median 5,094 and 4,726 views respectively). On SmartNews, local/civic content leads (median 273 views vs. platform median of 145), while sports ranks last at 78 views. Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
+    <h2>{an_top_label} leads Apple News. {sn_top_label} leads SmartNews. Sports ranks #{sports_an_rank} on Apple News and last on SmartNews — the starkest evidence that these platforms serve different audiences entirely.</h2>
+    <p>Topic performance diverges sharply — and in many cases inverts — by platform. {an_top_label} leads Apple News ({an_top_med:,} median views), followed by {an_2nd_label} ({an_2nd_med:,}). On SmartNews, {sn_top_label.lower()} leads ({sn_top_med} median views), while sports ranks last at {sports_sn_med} views — the same sports content that ranks #{sports_an_rank} on Apple News ({sports_an_med:,} median views) performs worst on SmartNews ({sports_sn_idx:.2f}x platform median). Nature/wildlife shows the same inversion in reverse: bottom of Apple News ({nw_an_idx:.2f}x) but near the top of SmartNews ({nw_sn_idx:.2f}x). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
     <div class="chart-wrap">{c5}</div>
     <h3>Platforms are drawing from separate content pools</h3>
     <p>Exact title matching across all four platforms confirms: {overlap_all4} articles appear on all four simultaneously. Only {overlap_3plus} appear on three or more. Each platform operates on largely independent content.</p>
@@ -786,7 +808,7 @@ html = f"""<!DOCTYPE html>
       </tbody>
     </table>
     <div class="callout">
-      <strong>Production implication:</strong> These platforms are not seeing the same articles, and their audiences are not the same readers. Platform-specific variant briefs will outperform generic variants. Apple News push: possessive named entity, high specificity, serial/escalating framing. SmartNews: local angle, geographic specificity, civic stakes. A single undifferentiated variant deployed across platforms leaves measurable performance on the table.
+      <strong>Production implication:</strong> These platforms are not seeing the same articles, and their audiences are not the same readers. Platform-specific variant briefs will outperform generic variants. Apple News: weather, sports, and serial/escalating framing — high-specificity national and regional stories. SmartNews: nature/wildlife, business, and crime — topic types that are underserved on Apple News but over-index significantly on SmartNews. A single undifferentiated variant deployed across platforms leaves measurable performance on the table.
     </div>
     <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match across all four 2025 datasets. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
   </section>
