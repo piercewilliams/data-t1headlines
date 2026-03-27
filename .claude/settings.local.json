@@ -28,7 +28,8 @@
       "Bash(grep -v '^[[:space:]]*$')",
       "Bash(python:*)",
       "Bash(grep:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(ls:*)"
     ]
   }
 }
