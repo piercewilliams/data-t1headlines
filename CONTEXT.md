@@ -1,7 +1,7 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 1 complete — findings packaged, GitHub Pages site built
-**Status:** Active — awaiting Tarrow data requests + GitHub Pages publish
+**Phase:** Phase 2 complete — analysis run, site live, generator script committed
+**Status:** Active — awaiting Tarrow data for deeper cuts; Phase 2 findings ready to share
 **Last session:** 2026-03-26
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -11,60 +11,72 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Data:** Both Tarrow sheets fully analyzed (2025 full year + 2026 Jan–Feb)
-- **Platforms covered:** Apple News, SmartNews, MSN, Yahoo
-- **Charts:** 4 interactive Chart.js visualizations in `docs/index.html` (static PNGs in `charts/` retained as backup)
-- **GitHub Pages site:** Built at `docs/index.html` — enable Pages in repo settings to publish
-- **Key finding confirmed:** Views and active reading time are statistically independent (r=−0.007, p=0.70, n=3,039)
-- **All chart data verified:** Recomputed from raw Excel in session 2026-03-26; all values grounded in actual data
+- **Data:** Both Tarrow sheets analyzed (2025 full year + 2026 Jan–Feb); Phase 2 analysis complete
+- **Site:** `docs/index.html` — Phase 2 live; Phase 1 preserved at `docs/v1/`
+- **Generator:** `generate_site.py` — run to regenerate site from raw Excel; fully reproducible
+- **Skills installed:** `polars`, `interactive-report-generator`, `code-data-analysis-scaffolds` added to `~/.claude/skills/`
 - **CSA dashboard:** Separate repo; not touched by this project
+
+## Phase 2 Key Findings (2026-03-26)
+
+**Formulas (Apple News, non-Featured, n=2,229):**
+- "Here's/Here are" (3.20×) and possessive named entity (2.08×) lead — directional, not yet sig (n too small)
+- Number leads (0.70×, p<0.001), questions (0.55×, p<0.001), quoted ledes (0.66×, p<0.001) significantly underperform
+
+**Featuring (Q2):**
+- "What to know" = 62% Featured rate vs. 27% baseline — strongest signal in dataset (p=0.0006)
+- Questions Featured at 37% but underperform within Featured (0.60× vs. Featured avg)
+
+**SmartNews allocation (Q4):**
+- Local channel: 108× views lift vs. Top feed, only 2.9% of article volume
+- U.S. National: 73× lift, 2.4% of volume
+- Entertainment: 35.9% of volume, 1.46× lift — severely over-indexed
+
+**Notifications (Q5, n=351):**
+- "Exclusive" tag: 2.49× CTR lift (partly confounded by Guthrie serial story cluster)
+- Full name present: 1.21× lift (p<0.001)
+- Questions: 0.64× (p<0.001) — hurt CTR
+- Short (≤80 chars): 0.61× — longer notifications perform better
+
+**Topics (Q3/cross-platform):**
+- Zero keyword overlap between Apple News and SmartNews top performers
+- Weather + sports lead Apple News; local/civic leads SmartNews
+- Platforms need separate content strategies
 
 ## CSA Instrumentation Status (as of 2026-03-26)
 
-- **Cluster ID (= canon_article_id):** Actively being scoped in CSA. Plan is to pass as metadata through Q (not necessarily exposed in UI). String format: cluster + persona + article type separated by dashes. Proactive assignment is ideal; retroactive acceptable.
-- **Diff tool (#1 CSA priority):** Cosine similarity pairwise comparison between variants, being built now (Jim Robinson + Marcelo). Phase 1 = automated measurement exposed in tool. Phase 2 = CSA auto-detects and gates variant differentiation during generation.
-- **Reporting pressure:** Paul Barry (data science / Sigma dashboards) has left — temporary air cover — but Britney/Justin's team pressure on CSA content reporting is re-emerging. Variant tracking need is not going away.
+- **Cluster ID (= canon_article_id):** Actively being scoped in CSA. String format: cluster + persona + article type, dash-separated, passed as Q metadata.
+- **Diff tool (#1 CSA priority):** Cosine similarity pairwise comparison (Jim Robinson + Marcelo). Phase 1 = measurement; Phase 2 = generation-time gating.
+- **Reporting pressure:** Paul Barry (data science / Sigma dashboards) left — temporary air cover — but Britney/Justin's team pressure re-emerging.
 - **Personas ticket:** "Fetch audience target definitions" not yet picked up by engineers.
 
 ## What's Next — Prioritized
 
 **Awaiting Tarrow data (confirmed "asap" 2026-03-26):**
-1. [ ] MSN full year 2025 — Tarrow confirmed; filter: <10k article views excluded (Pierce approved)
-2. [ ] Apple News 2026 engagement columns (17 empty) — confirmed
-3. [ ] Apple News Notifications 2025 (full-year CTR) — confirmed
-4. [ ] SmartNews 2026 category channel breakdown (32 cols → 7) — confirmed
-5. [ ] Jan 1–now 2026 pull to complement 2025 sheet — confirmed
+1. [ ] MSN full year 2025 — filter: <10k article views excluded
+2. [ ] Apple News 2026 engagement columns (17 empty)
+3. [ ] Apple News Notifications 2025 (full-year CTR — would validate Q5 findings)
+4. [ ] SmartNews 2026 category breakdown (32 cols → 7)
+5. [ ] Jan 1–now 2026 pull
 
-**High (do next session):**
-6. [ ] Run focused headline + keyword analysis for Sarah Price joint session — 6 questions scoped (formulas, Featured lift by formula, keyword lift table, SmartNews category ROI, notification CTR features, allocation model variance)
-7. [ ] Run possessive named entity headline test across next 20 Apple News push notifications
-8. [ ] Shift SmartNews variant effort toward Local/U.S. National, away from Entertainment
+**When data arrives:**
+6. [ ] Re-run `generate_site.py` with fuller notification dataset to validate CTR findings
+7. [ ] Add MSN full-year to topic × platform analysis (currently Dec only)
+8. [ ] Test possessive named entity formula more deliberately — build sample (currently n=75)
 
-**Medium:**
-7. [ ] Add active time + saves to ROI definition alongside views
-8. [ ] Design platform-specific variant briefs per platform audience signal
-9. [ ] Publish GitHub Pages site (repo Settings → Pages → Source: docs/)
+**Share with stakeholders:**
+9. [ ] Share Phase 2 site with Sarah Price — aligned workstream
+10. [ ] SmartNews allocation finding (Entertainment over-index) → flag to distribution team
+11. [ ] "What to know" Featured rate finding → share with editorial leads
 
 **Build (instrumentation):**
-10. [ ] Add canon_article_id + variant_count fields to distribution pipeline — CSA calling this "Cluster ID"; actively being scoped (track via Jira "National CSA" label)
+12. [ ] Add canon_article_id + variant_count to distribution pipeline (track via Jira "National CSA" label)
 
-## Session: 2026-03-26 (fourth pass — stakeholder sync + next phase scoping)
+## Session: 2026-03-26 (Phase 2 — full analysis)
 
-Reviewed conversations from CSA weekly meeting, Jira walkthrough, and Slack threads. Key updates: Cluster ID (= canon_article_id) actively being scoped in CSA; diff tool (cosine similarity) confirmed as #1 CSA priority; Paul Barry left (Sigma dashboards gap). Site shared publicly with team — Pierce described it as "a possible place to start" and noted data is patchy. Aligned with Sarah Price: headline analysis (Tarrow) and Semrush are separate workstreams. Scoped 6 focused questions for joint headline analysis session with Sarah (formulas, Featured lift by formula, keyword lift table, SmartNews category ROI, notification CTR features, allocation model variance). Tarrow confirmed all 4 data requests + 2026 Jan-now pull; MSN will exclude <10k article views.
-
-## Recent Session: 2026-03-26 (third pass — final verification)
-
-Pulled Featured by Apple median views directly from raw Excel (`Top syndication content 2025.xlsx`, Apple News sheet) via Python. Confirmed: **10,911** featured median views (n=810), **1,619** non-featured (n=2,229), **6.74×** lift, **51s vs 57s** active time. Session notes had 11,180 — confirmed typo; site was correct all along. Updated h3 heading from "6.7×" → "6.74×" for precision. Corrected 11,180 → 10,911 everywhere in CONTEXT.md and sessions/2026-03.md. Site is fully verified; every stat traceable to raw data.
-
-## Prior Session: 2026-03-26 (second pass — exec prep)
-
-CSS-only design refresh + content audit. Palette `#003366` → `#0f172a`; hero gradient removed; cards white + top-border accent; tables no zebra; tags square; chart JS colors updated. Content fixes: n=3,037→3,039; comparison table row 6 strawman removed; "Frame deck" name removed from action 5. See sessions/2026-03.md for detail.
-
-## Prior Session: 2026-03-26 (first pass)
-
-Interactive Chart.js charts built; full data verification against raw Excel. See sessions/2026-03.md for detail.
+Housekeeping first: versioned Phase 1 to `docs/v1/`, installed 3 new skills (`polars`, `interactive-report-generator`, `code-data-analysis-scaffolds`), updated REFERENCE.md with Phase 2 pipeline. Then ran full analysis across all 6 questions using scaffold → excel-analysis → polars → interactive-report-generator pipeline. Key data notes: Notifications = 359 rows (not 55 as assumed), SmartNews categories are view-count columns (not binary flags), MSN 2025 is December only. All findings grounded in raw Excel; site regenerates from `generate_site.py`.
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~65 lines*
+*Current count: ~80 lines*
