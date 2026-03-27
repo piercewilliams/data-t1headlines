@@ -166,26 +166,47 @@ SAV_COL = "Saves"
 LIK_COL = "Likes"
 SHA_COL = "Article Shares"
 
-an_eng = an[[AT_COL, SAV_COL, LIK_COL, SHA_COL, "Total Views", "is_featured"]].dropna(
-    subset=[AT_COL, "Total Views"])
+SUB_AT_COL  = "Avg. Active Time (in seconds), Subscribers, Subscription Content"
+NSUB_AT_COL = "Avg. Active Time (in seconds), Non-subscribers, Free Content"
 
-r_views_at, p_views_at = stats.pearsonr(an_eng["Total Views"], an_eng[AT_COL])
-r_saves,    _          = stats.pearsonr(an_eng["Total Views"].clip(upper=an_eng["Total Views"].quantile(0.99)),
-                                         an_eng[SAV_COL].fillna(0).clip(upper=an_eng[SAV_COL].fillna(0).quantile(0.99)))
+an_eng = an[[AT_COL, SAV_COL, LIK_COL, SHA_COL,
+             SUB_AT_COL, NSUB_AT_COL,
+             "Total Views", "is_featured"]].dropna(subset=[AT_COL, "Total Views"])
+
+r_views_at,    p_views_at    = stats.pearsonr(an_eng["Total Views"], an_eng[AT_COL])
+r_views_at_sp, p_views_at_sp = stats.spearmanr(an_eng["Total Views"], an_eng[AT_COL])
+
+def _r(col):
+    sub = an_eng.dropna(subset=[col])
+    return stats.pearsonr(sub["Total Views"], sub[col])[0]
+
+r_saves  = _r(SAV_COL)
+r_likes  = _r(LIK_COL)
+r_shares = _r(SHA_COL)
 
 feat_at  = an_eng[an_eng["is_featured"]][AT_COL].dropna()
 nfeat_at = an_eng[~an_eng["is_featured"]][AT_COL].dropna()
 _, p_feat_at = stats.mannwhitneyu(feat_at, nfeat_at, alternative="two-sided")
 
+# Subscriber vs non-subscriber active time
+sub_at_med  = an_eng[SUB_AT_COL].dropna().median()
+nsub_at_med = an_eng[NSUB_AT_COL].dropna().median()
+
 # Decile table
 an_eng["decile"] = pd.qcut(an_eng["Total Views"], 10, labels=False) + 1
 decile_tbl = an_eng.groupby("decile").agg(
-    med_views=(       "Total Views", "median"),
-    med_at=(          AT_COL,        "median"),
+    med_views=("Total Views", "median"),
+    med_at=(   AT_COL,        "median"),
 ).reset_index()
+at_range_s = decile_tbl["med_at"].max() - decile_tbl["med_at"].min()
+views_range_x = int(decile_tbl["med_views"].max() / decile_tbl["med_views"].min())
 
-# Chart 6 scatter — views vs active time (log x), coloured by Featured
-q6_sample = an_eng.sample(min(len(an_eng), 1500), random_state=42)
+# Active time outliers for caveat
+at_low_n  = int((an_eng[AT_COL] < 10).sum())
+at_high_n = int((an_eng[AT_COL] > 300).sum())
+
+# Chart 6 scatter — views vs active time (log x), coloured by Featured (all points)
+q6_sample = an_eng
 
 
 # ── Chart builder ─────────────────────────────────────────────────────────────
@@ -417,9 +438,38 @@ c5 = chart_html(fig5)
 c6 = chart_html(fig6)
 
 
+# ── Keyword overlap (top quartile Apple News vs SmartNews) ───────────────────
+STOPWORDS = {
+    "the","a","an","and","or","but","in","on","at","to","for","of","with",
+    "is","are","was","were","be","been","being","have","has","had","do","does",
+    "did","will","would","could","should","may","might","shall","can","need",
+    "from","by","as","this","that","these","those","it","its","about","after",
+    "before","into","out","up","over","no","not","more","one","new","says",
+    "what","how","why","who","when","where","here","there","your","their","our",
+    "his","her","they","them","we","us","he","she","i","you","my","your","him",
+    "all","than","then","so","if","just","only","also","now","than","even","back",
+    "than","still","first","last","other","like","get","than","which","than",
+}
+
+def top_words(texts, n=30):
+    words = {}
+    for t in texts:
+        for w in re.sub(r"[^a-z\s]", "", str(t).lower()).split():
+            if w not in STOPWORDS and len(w) > 2:
+                words[w] = words.get(w, 0) + 1
+    return set(sorted(words, key=lambda x: -words[x])[:n])
+
+q75_an = an["Total Views"].quantile(0.75)
+q75_sn = sn["article_view"].quantile(0.75)
+top_an_words = top_words(an[an["Total Views"] >= q75_an]["Article"])
+top_sn_words = top_words(sn[sn["article_view"] >= q75_sn]["title"])
+kw_overlap   = top_an_words & top_sn_words
+kw_overlap_n = len(kw_overlap)
+
+
 # ── Key stats ─────────────────────────────────────────────────────────────────
-N_AN        = 3039
-N_SN        = 38251
+N_AN        = len(an)
+N_SN        = len(sn)
 N_NOTIF     = len(notif)
 PLATFORMS   = 4
 WTN_FEAT    = "62%"
@@ -583,8 +633,8 @@ html = f"""<!DOCTYPE html>
       <strong>Production implication:</strong> "What to know" is the fastest path to Featured placement. Apply it to high-stakes local stories — health alerts, weather emergencies, civic events. The data shows Apple's editors strongly favor this format for surfacing to subscribers.
     </div>
     <h3>Featured placement drives reach — not reading depth</h3>
-    <p>Featured articles average 51 seconds of active reading time versus 57 seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
-    <p class="caveat">All 3,039 Apple News articles (2025). Chi-square test vs. all other formula types combined. Active time: n={len(an_eng):,} articles with valid active time data.</p>
+    <p>Featured articles average {feat_at.median():.0f} seconds of active reading time versus {nfeat_at.median():.0f} seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
+    <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test vs. all other formula types combined. Active time: n={len(an_eng):,} articles with valid active time data.</p>
   </section>
 
   <!-- SMARTNEWS -->
@@ -630,7 +680,7 @@ html = f"""<!DOCTYPE html>
       </tbody>
     </table>
     <div class="callout">
-      <strong>Production implication:</strong> Use full names in notification copy. Write longer notifications (more detail = more context = more clicks). Reserve "exclusive" for actual exclusives — the tag carries genuine signal. Avoid question format in notification copy.
+      <strong>Production implication:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." The possessive construction signals insider access and relational proximity, not just name recognition. Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
     </div>
     <h3>What doesn't move the needle in notifications</h3>
     <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
@@ -640,36 +690,36 @@ html = f"""<!DOCTYPE html>
   <!-- TOPICS -->
   <section id="topics">
     <p class="section-label">Finding 5 · Topic × Platform</p>
-    <h2>Sports dominates Apple News. Local/Civic leads SmartNews. Zero keyword overlap between the two platforms.</h2>
-    <p>Topic performance diverges sharply by platform. Weather and sports are the top performers on Apple News (median 5,094 and 4,726 views respectively). On SmartNews, local/civic content leads (median 273 views vs. platform median of 145), while sports ranks last at 78 views. These platforms are operating as distinct content ecosystems — a finding reinforced by zero overlap between Apple News top-quartile keywords and SmartNews top-quartile keywords.</p>
+    <h2>Sports dominates Apple News. Local/Civic leads SmartNews. {kw_overlap_n} shared keywords between the two platforms' top-quartile headlines.</h2>
+    <p>Topic performance diverges sharply by platform. Weather and sports are the top performers on Apple News (median 5,094 and 4,726 views respectively). On SmartNews, local/civic content leads (median 273 views vs. platform median of 145), while sports ranks last at 78 views. Among the top 30 most frequent words in top-quartile headlines on each platform, {kw_overlap_n} appear on both lists{f": {', '.join(sorted(kw_overlap))}" if kw_overlap_n > 0 else ""} — these platforms draw on largely separate vocabularies.</p>
     <div class="chart-wrap">{c5}</div>
     <div class="callout">
-      <strong>Production implication:</strong> Headline and variant strategies should be platform-specific, not cross-platform. A sports headline optimized for Apple News audience behavior is unlikely to perform on SmartNews — and vice versa. The zero keyword overlap confirms these audiences select for different content signals entirely.
+      <strong>Production implication:</strong> Headline and variant strategies should be platform-specific, not cross-platform. A sports headline optimized for Apple News audience behavior is unlikely to perform on SmartNews — and vice versa. The near-zero keyword overlap confirms these audiences select for different content signals entirely.
     </div>
-    <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n=3,039); SmartNews 2025 (n=38,251).</p>
+    <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
   </section>
 
   <!-- ENGAGEMENT -->
   <section id="engagement">
     <p class="section-label">Finding 6 · Views vs. Reading Depth</p>
     <h2>Views and reading time are statistically independent. Optimizing for clicks and optimizing for reading are different problems.</h2>
-    <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}, n={len(an_eng):,}). Across all {len(an_eng):,} articles, views and reading time are statistically independent. Articles spanning a 785× range of view counts all cluster within a ~9-second band of active reading time (51–60s).</p>
+    <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman r = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
     <div class="chart-wrap">{c6}</div>
     <table class="findings">
       <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
       <tbody>
-        <tr><td>Avg. active time</td><td>r = {r_views_at:.3f} (not significant)</td><td>Depth of the current read</td></tr>
-        <tr><td>Saves</td><td>r ≈ 0.82 (strong)</td><td>Intent to return / bookmark behavior</td></tr>
-        <tr><td>Likes</td><td>r ≈ 0.77 (strong)</td><td>Affirmation / social signal</td></tr>
-        <tr><td>Article shares</td><td>r ≈ 0.68 (strong)</td><td>Distribution / word of mouth</td></tr>
+        <tr><td>Avg. active time</td><td>r = {r_views_at:.3f} (p = {p_views_at:.2f}, not significant)</td><td>Depth of the current read</td></tr>
+        <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
+        <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
+        <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
       </tbody>
     </table>
     <p>Saves, likes, and shares all scale strongly with views — they measure the same dimension (reach and engagement breadth). Active time measures an orthogonal dimension: whether the reader who clicked actually read. High-view articles are not better-read articles. The two signals are statistically uncoupled.</p>
-    <p>Featured articles illustrate this split directly: 6.74× median view lift, but 51s active time vs. 57s for non-Featured (p&lt;0.0001). Featured drives discovery; it slightly dilutes depth.</p>
+    <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). And subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — subscribers are likely efficient, high-frequency readers who scan and move on, not a quality problem but a behavioral difference that matters when comparing paywalled vs. free article metrics.</p>
     <div class="callout">
       <strong>Implication for the variant allocation model:</strong> View count alone is an incomplete ROI signal. A variant that drives 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate at minimum: views (reach), saves (return intent), and active time (read depth) — weighted by what predicts subscriber behavior for this audience. This dataset measures all three.
     </div>
-    <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). Pearson r for views vs. active time. Saves/likes/shares correlations computed on winsorized data (99th percentile clip) to reduce extreme-outlier leverage.</p>
+    <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric.</p>
   </section>
 
 </div>
