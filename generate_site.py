@@ -9,6 +9,7 @@ Optional args (for monthly ingests with new files):
 """
 
 import argparse
+import math
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -64,6 +65,56 @@ def tag_topic(text):
     return "other"
 
 
+# ── Statistical helpers ───────────────────────────────────────────────────────
+def bh_correct(pvals):
+    """Benjamini-Hochberg FDR correction. Returns adjusted p-values in original order."""
+    n = len(pvals)
+    if n == 0:
+        return []
+    order = sorted(range(n), key=lambda i: pvals[i])
+    sorted_p = [pvals[i] for i in order]
+    adj_sorted = [0.0] * n
+    adj_sorted[n - 1] = sorted_p[n - 1]
+    for i in range(n - 2, -1, -1):
+        adj_sorted[i] = min(adj_sorted[i + 1], sorted_p[i] * n / (i + 1))
+    result = [0.0] * n
+    for rank, orig_i in enumerate(order):
+        result[orig_i] = min(adj_sorted[rank], 1.0)
+    return result
+
+def rank_biserial(u_stat, n1, n2):
+    """Effect size r for Mann-Whitney U. Signed: positive = group1 > group2."""
+    return 1.0 - (2.0 * u_stat) / (n1 * n2)
+
+def bootstrap_ci_lift(grp_vals, base_vals, n_boot=1000, ci=0.95):
+    """Bootstrap 95% CI on median(grp)/median(base) lift ratio. Returns (lo, hi)."""
+    rng = np.random.default_rng(42)
+    boot = []
+    for _ in range(n_boot):
+        sg = rng.choice(grp_vals, size=len(grp_vals), replace=True)
+        sb = rng.choice(base_vals, size=len(base_vals), replace=True)
+        mb = np.median(sb)
+        if mb > 0:
+            boot.append(np.median(sg) / mb)
+    alpha = 1 - ci
+    return float(np.percentile(boot, alpha / 2 * 100)), float(np.percentile(boot, (1 - alpha / 2) * 100))
+
+def required_n_80pct(r_rb):
+    """
+    Approximate per-group n for 80% power (α=0.05, two-tailed) given rank-biserial r.
+    Uses t-test approximation via Cohen's d conversion: d = 2r/sqrt(1-r²).
+    Mann-Whitney has ~95.5% efficiency vs. t-test → multiply by 1.05.
+    """
+    if r_rb is None or r_rb == 0:
+        return None
+    r = abs(r_rb)
+    d = 2 * r / math.sqrt(max(1 - r ** 2, 1e-9))
+    if d < 0.001:
+        return None
+    n = math.ceil(1.05 * 15.69 / d ** 2)  # (z_α/2 + z_β)² = 7.85; ×2 for two groups; ×1.05 MW efficiency
+    return n
+
+
 # ── Load data ─────────────────────────────────────────────────────────────────
 print(f"Loading data…  2025={DATA_2025}  2026={DATA_2026}")
 an    = pd.read_excel(DATA_2025, sheet_name="Apple News")
@@ -113,6 +164,7 @@ print("Computing Q1/Q2…")
 nf = an[~an["is_featured"]].copy()
 overall_median_nf = nf["Total Views"].median()
 baseline = nf[nf["formula"] == "untagged"]["Total Views"]
+base_vals = baseline.values
 
 FORMULA_LABELS = {
     "what_to_know":            "What to know",
@@ -124,24 +176,49 @@ FORMULA_LABELS = {
     "question":                "Question",
 }
 
+# Characterise untagged baseline for methodological transparency
+_ung = nf[nf["formula"] == "untagged"]["Article"]
+_ung_sample = list(_ung.dropna().sample(min(5, len(_ung)), random_state=42)) if len(_ung) >= 5 else list(_ung.dropna())
+UNTAGGED_N = len(_ung)
+UNTAGGED_PCT = UNTAGGED_N / len(nf)
+
 q1_rows = []
+_q1_raw_p = []
+_q1_indices = []
 for f, label in FORMULA_LABELS.items():
     grp = nf[nf["formula"] == f]["Total Views"]
     if len(grp) == 0: continue
     med  = grp.median()
     lift = med / baseline.median()
     if f != "untagged" and len(grp) >= 5:
-        _, p = stats.mannwhitneyu(grp, baseline, alternative="two-sided")
+        u_result = stats.mannwhitneyu(grp, baseline, alternative="two-sided")
+        u_stat, p = u_result.statistic, u_result.pvalue
+        r_rb = rank_biserial(u_stat, len(grp), len(baseline))
+        ci_lo, ci_hi = bootstrap_ci_lift(grp.values, base_vals)
+        req_n = required_n_80pct(r_rb) if p >= 0.05 else None
+        _q1_raw_p.append(p)
+        _q1_indices.append(len(q1_rows))
     else:
-        p = None
-    q1_rows.append(dict(formula=f, label=label, n=len(grp), median=med, lift=lift, p=p))
+        p = None; r_rb = None; ci_lo = None; ci_hi = None; req_n = None
+    q1_rows.append(dict(formula=f, label=label, n=len(grp), median=med, lift=lift,
+                        p=p, r_rb=r_rb, ci_lo=ci_lo, ci_hi=ci_hi, req_n=req_n))
+
+# Benjamini-Hochberg FDR correction across Q1 tests
+_q1_adj = bh_correct(_q1_raw_p)
+for adj_val, row_i in zip(_q1_adj, _q1_indices):
+    q1_rows[row_i]["p_adj"] = adj_val
 
 df_q1 = pd.DataFrame(q1_rows).sort_values("median")
+if "p_adj" not in df_q1.columns:
+    df_q1["p_adj"] = np.nan
+
 
 # ── Q2: Featured rate per formula ─────────────────────────────────────────────
 overall_feat_rate = an["is_featured"].mean()
 _tot_feat = int(an["is_featured"].sum())
 q2_rows = []
+_q2_raw_p = []
+_q2_indices = []
 for f, label in FORMULA_LABELS.items():
     grp = an[an["formula"] == f]
     if len(grp) == 0: continue
@@ -156,11 +233,19 @@ for f, label in FORMULA_LABELS.items():
         _chi2_f, _p_chi_f, _, _ = stats.chi2_contingency(_ctg)
     except Exception:
         _chi2_f, _p_chi_f = np.nan, 1.0
+    _q2_raw_p.append(_p_chi_f)
+    _q2_indices.append(len(q2_rows))
     q2_rows.append(dict(formula=f, label=label, n=len(grp), feat_n=feat_n,
                         featured_rate=feat_rate, featured_lift=lift,
                         chi2=_chi2_f, p_chi=_p_chi_f))
 
+_q2_adj = bh_correct(_q2_raw_p)
+for adj_val, row_i in zip(_q2_adj, _q2_indices):
+    q2_rows[row_i]["p_chi_adj"] = adj_val
+
 df_q2 = pd.DataFrame(q2_rows).sort_values("featured_rate")
+if "p_chi_adj" not in df_q2.columns:
+    df_q2["p_chi_adj"] = np.nan
 
 # Within-featured median views per formula
 feat_an = an[an["is_featured"]].copy()
@@ -171,22 +256,47 @@ for _f in FORMULA_LABELS:
     df_q2.loc[df_q2["formula"] == _f, "feat_med_views"] = _val
 df_q2["feat_views_lift"] = df_q2["feat_med_views"] / feat_avg_views
 
-# ── Q4: SmartNews category ROI ────────────────────────────────────────────────
+
+# ── Q4: SmartNews category ROI + significance tests ───────────────────────────
 print("Computing Q4…")
 top_median_sn = sn[sn["Top"] > 0]["article_view"].median()
+top_views = sn[sn["Top"] > 0]["article_view"].values
 SHOW_CATS = ["Local","U.S.","Football","Business","Health","Science",
              "Politics","World","Lifestyle","Entertainment","Top"]
+
+# Multi-category independence check
+_cat_hits = (sn[CATS] > 0).sum(axis=1)
+SN_MULTI_CAT_N   = int((_cat_hits > 1).sum())
+SN_MULTI_CAT_PCT = SN_MULTI_CAT_N / len(sn)
+
 q4_rows = []
+_q4_raw_p = []
+_q4_indices = []
 for cat in SHOW_CATS:
     in_cat = sn[sn[cat] > 0]
     n = len(in_cat)
     med = in_cat["article_view"].median()
-    q4_rows.append(dict(category=cat, n=n, median_views=med,
-                        pct_share=n/len(sn)))
+    row = dict(category=cat, n=n, median_views=med, pct_share=n/len(sn))
+    if cat != "Top" and len(in_cat) >= 5 and len(top_views) >= 5:
+        u_res = stats.mannwhitneyu(in_cat["article_view"].values, top_views, alternative="two-sided")
+        row["p_mw"] = u_res.pvalue
+        _q4_raw_p.append(u_res.pvalue)
+        _q4_indices.append(len(q4_rows))
+    else:
+        row["p_mw"] = None
+    q4_rows.append(row)
+
+_q4_adj = bh_correct(_q4_raw_p)
+for adj_val, row_i in zip(_q4_adj, _q4_indices):
+    q4_rows[row_i]["p_mw_adj"] = adj_val
+
 df_q4 = pd.DataFrame(q4_rows)
+if "p_mw_adj" not in df_q4.columns:
+    df_q4["p_mw_adj"] = np.nan
 df_q4["lift"] = df_q4["median_views"] / top_median_sn
 
-# ── Q5: Notification CTR features ────────────────────────────────────────────
+
+# ── Q5: Notification CTR features ─────────────────────────────────────────────
 print("Computing Q5…")
 def extract_features(text):
     t  = str(text).strip()
@@ -203,10 +313,12 @@ def extract_features(text):
     }
 
 feats = notif["Notification Text"].apply(extract_features).apply(pd.Series)
-notif_feats = pd.concat([notif[["CTR"]], feats], axis=1)
+notif_feats = pd.concat([notif[["CTR", "Notification Text"]], feats], axis=1)
 overall_ctr_med = notif["CTR"].median()
 
 q5_rows = []
+_q5_raw_p = []
+_q5_indices = []
 for feat in feats.columns:
     yes = notif_feats[notif_feats[feat] == True]["CTR"]
     no  = notif_feats[notif_feats[feat] == False]["CTR"]
@@ -214,11 +326,38 @@ for feat in feats.columns:
     med_yes = yes.median()
     med_no  = no.median()
     lift = med_yes / med_no if med_no > 0 else np.nan
-    _, p = stats.mannwhitneyu(yes, no, alternative="two-sided")
-    q5_rows.append(dict(feature=feat, n_true=len(yes), med_yes=med_yes,
-                        med_no=med_no, lift=lift, p=p))
+    u_res = stats.mannwhitneyu(yes, no, alternative="two-sided")
+    u_stat, p = u_res.statistic, u_res.pvalue
+    r_rb = rank_biserial(u_stat, len(yes), len(no))
+    ci_lo, ci_hi = bootstrap_ci_lift(yes.values, no.values)
+    _q5_raw_p.append(p)
+    _q5_indices.append(len(q5_rows))
+    q5_rows.append(dict(feature=feat, n_true=len(yes), med_yes=med_yes, med_no=med_no,
+                        lift=lift, p=p, r_rb=r_rb, ci_lo=ci_lo, ci_hi=ci_hi))
+
+_q5_adj = bh_correct(_q5_raw_p)
+for adj_val, row_i in zip(_q5_adj, _q5_indices):
+    q5_rows[row_i]["p_adj"] = adj_val
 
 df_q5 = pd.DataFrame(q5_rows).sort_values("lift")
+if "p_adj" not in df_q5.columns:
+    df_q5["p_adj"] = np.nan
+
+# Q5 sensitivity: "Exclusive" lift with and without Guthrie cluster
+_excl_mask = notif_feats["'Exclusive' tag"] == True
+_guthrie_mask = notif_feats["Notification Text"].str.contains(r"Guthrie", na=False)
+_excl_yes_all  = notif_feats[_excl_mask]["CTR"]
+_excl_no       = notif_feats[~_excl_mask]["CTR"]
+_excl_yes_noguth = notif_feats[_excl_mask & ~_guthrie_mask]["CTR"]
+
+_n_excl_guthrie = int((_excl_mask & _guthrie_mask).sum())
+if len(_excl_yes_noguth) >= 3 and len(_excl_no) >= 5:
+    _u_noguth = stats.mannwhitneyu(_excl_yes_noguth, _excl_no, alternative="two-sided")
+    EXCL_NOGUTH_LIFT = float(_excl_yes_noguth.median() / _excl_no.median()) if _excl_no.median() > 0 else None
+    EXCL_NOGUTH_P    = _u_noguth.pvalue
+else:
+    EXCL_NOGUTH_LIFT = None
+    EXCL_NOGUTH_P    = None
 
 
 # ── Q6: Views vs. active time independence ────────────────────────────────────
@@ -290,7 +429,6 @@ def bar_color(lift):
 
 
 # Chart 1 — Q1: Formula lift vs baseline (diverging from 1.0)
-# Show lift ratio directly — cleaner than raw view counts
 colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
 hover_q1 = [f"Median: {int(r['median']):,} views | n={r['n']}" for _, r in df_q1.iterrows()]
 
@@ -341,7 +479,6 @@ fig2.update_layout(
 )
 
 # Chart 3 — Q4: SmartNews — bar chart sorted by median views, annotated with volume
-# Sort by median views descending for the chart
 df_q4_chart = df_q4.sort_values("median_views", ascending=True)
 q4_colors = []
 for _, r in df_q4_chart.iterrows():
@@ -377,7 +514,7 @@ fig3.update_layout(
 colors_q5 = [bar_color(r["lift"]) for _, r in df_q5.iterrows()]
 sig_labels = []
 for _, r in df_q5.iterrows():
-    p = r["p"]
+    p = r.get("p_adj", r["p"])
     s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
     sig_labels.append(f"{r['lift']:.2f}x  {s}  (n={r['n_true']})")
 
@@ -423,10 +560,8 @@ sn_overall = sn["article_view"].median()
 topic_df["an_idx"] = (topic_df["an_median"] / an_overall).tolist()
 topic_df["sn_idx"] = (topic_df["sn_median"] / sn_overall).tolist()
 
-# Sort by Apple News index descending — makes platform inversions visually obvious
 topic_df = topic_df.sort_values("an_idx", ascending=True)
 
-# Key stats for prose (all dynamic)
 an_ranked = topic_df.sort_values("an_idx", ascending=False).reset_index(drop=True)
 sn_ranked = topic_df.sort_values("sn_idx", ascending=False).reset_index(drop=True)
 an_top_label = TOPIC_LABELS.get(an_ranked.iloc[0]["topic"], an_ranked.iloc[0]["topic"])
@@ -435,14 +570,12 @@ an_2nd_label = TOPIC_LABELS.get(an_ranked.iloc[1]["topic"], an_ranked.iloc[1]["t
 an_2nd_med   = int(an_ranked.iloc[1]["an_median"])
 sn_top_label = TOPIC_LABELS.get(sn_ranked.iloc[0]["topic"], sn_ranked.iloc[0]["topic"])
 sn_top_med   = int(sn_ranked.iloc[0]["sn_median"])
-# Sports rank and values on each platform
 sports_an_rank = int(an_ranked[an_ranked["topic"] == "sports"].index[0]) + 1
 sports_sn_rank = int(sn_ranked[sn_ranked["topic"] == "sports"].index[0]) + 1
 sports_an_med  = int(topic_df.loc[topic_df["topic"] == "sports", "an_median"].iloc[0])
 sports_sn_med  = int(topic_df.loc[topic_df["topic"] == "sports", "sn_median"].iloc[0])
 sports_an_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "an_idx"].iloc[0])
 sports_sn_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "sn_idx"].iloc[0])
-# Nature/wildlife inversion
 nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
 nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
 
@@ -623,14 +756,19 @@ EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
 
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
-def _fmt_p(p):
-    """Format p-value with stars for HTML."""
+def _fmt_p(p, adj=False):
+    """Format p-value with stars for HTML. adj=True adds '(adj)' label."""
     if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
     p = float(p)
+    label = "<sub>adj</sub>" if adj else ""
     sig = " ***" if p < 0.001 else " **" if p < 0.01 else " *" if p < 0.05 else ""
-    if p < 0.001: return "&lt;0.001" + sig
-    if p < 0.01:  return f"{p:.3f}" + sig
-    return f"{p:.2f}" + sig
+    if p < 0.001: return f"p{label}&lt;0.001{sig}"
+    if p < 0.01:  return f"p{label}={p:.3f}{sig}"
+    return f"p{label}={p:.2f}{sig}"
+
+def _fmt_ci(lo, hi):
+    if lo is None or hi is None: return ""
+    return f"[{lo:.2f}×–{hi:.2f}×]"
 
 def _q1r(f):
     row = df_q1[df_q1["formula"] == f]
@@ -691,6 +829,22 @@ def _row_tag(lift, is_red=False):
     if lift < 0.8:      return '<span class="tag tag-red">↓</span>'
     return ""
 
+def _q1_table():
+    rows = df_q1[df_q1["formula"] != "untagged"].sort_values("lift", ascending=False)
+    html = ""
+    for _, r in rows.iterrows():
+        p_adj = r.get("p_adj", np.nan)
+        p_raw = r.get("p")
+        p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else _fmt_p(p_raw)
+        r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
+        ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
+        req_n_str = f"~{int(r['req_n'])} needed" if r.get("req_n") else "—"
+        tag = _row_tag(r["lift"])
+        html += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+                 f'<td>{r["lift"]:.2f}×</td><td>{ci_str}</td>'
+                 f'<td>{r_str}</td><td>{p_str}</td><td>{req_n_str}</td></tr>\n')
+    return html
+
 def _q2_table():
     rows = df_q2[df_q2["formula"] != "untagged"].sort_values("featured_rate", ascending=False)
     html = ""
@@ -700,11 +854,13 @@ def _q2_table():
             wf = f"{feat_med:,.0f} views ({float(r['feat_views_lift']):.2f}× Featured avg)"
         else:
             wf = "—"
-        sig = " ***" if r["p_chi"] < 0.001 else " **" if r["p_chi"] < 0.01 else " *" if r["p_chi"] < 0.05 else ""
+        p_adj = r.get("p_chi_adj", np.nan)
+        p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else _fmt_p(r["p_chi"])
         tag = _row_tag(r["featured_lift"])
         html += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
                  f'<td>{r["featured_rate"]:.0%}</td>'
-                 f'<td>{r["featured_lift"]:.2f}×{sig}</td>'
+                 f'<td>{r["featured_lift"]:.2f}×</td>'
+                 f'<td>{p_str}</td>'
                  f'<td>{wf}</td></tr>\n')
     return html
 
@@ -714,29 +870,53 @@ def _q4_table():
     for _, r in rows_sorted.iterrows():
         is_red = (r["lift"] < 2.0 and r["category"] in ("Entertainment", "Lifestyle"))
         tag = _row_tag(r["lift"], is_red=is_red)
+        p_adj = r.get("p_mw_adj", np.nan)
+        p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else "—"
         html += (f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
                  f'<td>{r["pct_share"]:.1%}</td>'
                  f'<td>{r["median_views"]:,.0f}</td>'
-                 f'<td>{r["lift"]:.1f}×</td></tr>\n')
+                 f'<td>{r["lift"]:.1f}×</td>'
+                 f'<td>{p_str}</td></tr>\n')
     if _r4_top is not None:
         html += (f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
                  f'<td>{_r4_top["pct_share"]:.1%}</td>'
-                 f'<td>{_r4_top["median_views"]:,.0f}</td><td>1.00×</td></tr>\n')
+                 f'<td>{_r4_top["median_views"]:,.0f}</td><td>1.00×</td><td>—</td></tr>\n')
     return html
 
 def _q5_table():
-    sig = df_q5[df_q5["p"] < 0.05].sort_values("lift", ascending=False)
+    sig = df_q5[df_q5.apply(
+        lambda r: (r.get("p_adj", r["p"]) if not (isinstance(r.get("p_adj", np.nan), float) and np.isnan(r.get("p_adj", np.nan))) else r["p"]) < 0.05,
+        axis=1
+    )].sort_values("lift", ascending=False)
     html = ""
     for _, r in sig.iterrows():
+        p_adj = r.get("p_adj", np.nan)
+        p_str = _fmt_p(p_adj, adj=True) if not (isinstance(p_adj, float) and np.isnan(p_adj)) else _fmt_p(r["p"])
+        r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
+        ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
         tag = _row_tag(r["lift"])
         html += (f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
                  f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
-                 f'<td>{r["lift"]:.2f}×</td><td>{_fmt_p(r["p"])}</td></tr>\n')
+                 f'<td>{r["lift"]:.2f}× {ci_str}</td>'
+                 f'<td>{r_str}</td>'
+                 f'<td>{p_str}</td></tr>\n')
     return html
 
+_t1 = _q1_table()
 _t2 = _q2_table()
 _t3 = _q4_table()
 _t4 = _q5_table()
+
+# Exclusive sensitivity analysis prose
+_excl_sensitivity_html = ""
+if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
+    _excl_sensitivity_html = f"""
+      <h3>Sensitivity analysis: "Exclusive" with and without Guthrie cluster</h3>
+      <p>The {_r5_excl['n_true']} "exclusive"-tagged notifications include {_n_excl_guthrie} that also mention Guthrie. Removing the Guthrie overlap: the "exclusive" lift falls from {_r5_excl['lift']:.2f}× to {EXCL_NOGUTH_LIFT:.2f}× ({_fmt_p(EXCL_NOGUTH_P)}). {"The effect remains statistically significant — the exclusive signal is not solely a Guthrie artifact." if EXCL_NOGUTH_P is not None and EXCL_NOGUTH_P < 0.05 else "The effect loses statistical significance once the Guthrie cluster is removed — interpret the headline figure with caution."}</p>
+"""
+
+# Q1 power analysis prose for underpowered formulas
+_q1_power_rows = df_q1[(df_q1["formula"] != "untagged") & df_q1["req_n"].notna()]
 
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
@@ -993,9 +1173,17 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
       </div>
-      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×, p{_fmt_p(_r1_num['p']).replace('&lt;','<')}), question format ({_r1_q['lift']:.2f}×, p{_fmt_p(_r1_q['p']).replace('&lt;','<')}), and quoted ledes ({_r1_ql['lift']:.2f}×, p{_fmt_p(_r1_ql['p']).replace('&lt;','<')}). The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
+      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×), question format ({_r1_q['lift']:.2f}×), and quoted ledes ({_r1_ql['lift']:.2f}×) — all with FDR-adjusted p&lt;0.001. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
       <div class="chart-wrap">{c1}</div>
-      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles removed to isolate headline signal from editorial selection effect. Mann-Whitney U vs. untagged baseline. * p&lt;0.05  ** p&lt;0.01  *** p&lt;0.001</p>
+      <table class="findings">
+        <thead><tr><th>Formula</th><th>n</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
+        <tbody>
+          {_t1}
+        </tbody>
+      </table>
+      <h3>Untagged baseline characterisation</h3>
+      <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes that begin with neither a number, a proper noun possessive, "Here's", nor a question mark. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>. This group is heterogeneous by design — it represents the modal production style rather than a controlled condition. Lift ratios should be read as "relative to the full production baseline," not "relative to an optimised control."</p>
+      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles excluded to isolate headline signal from editorial selection confound. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r (signed: positive = formula &gt; baseline). 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). Multiple comparison correction: Benjamini–Hochberg FDR applied across all {len(_q1_raw_p)} formula tests jointly; p<sub>adj</sub> displayed. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05) at the observed effect size, using t-test approximation (Mann–Whitney ~95.5% efficient). Formula classifier: unvalidated regex; precision not formally benchmarked. Seasonal confound not controlled — 2025 treated as a single cross-section.</p>
     </div>
   </details>
 
@@ -1012,19 +1200,20 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> Use "What to know" on high-stakes local stories — health alerts, weather emergencies, civic events. It is the fastest path to Featured placement. Apple's editors strongly favor this format for surfacing to subscribers.
       </div>
-      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured. The overall Featured rate is {overall_feat_rate:.1%}. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, p={_r2_wtn['p_chi']:.4f}).</p>
-      <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, p={_r2_q['p_chi']:.3f}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
+      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
+      <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
       <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured medians — {_r2_ql['feat_med_views']:,.0f} views, {_r2_ql['feat_views_lift']:.2f}× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
+      <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring. This finding should be treated as a signal for A/B testing, not a production rule.</p>
       <div class="chart-wrap">{c2}</div>
       <table class="findings">
-        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>Within-Featured median</th></tr></thead>
+        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH–FDR)</th><th>Within-Featured median</th></tr></thead>
         <tbody>
           {_t2}
         </tbody>
       </table>
       <h3>Featured placement drives reach — not reading depth</h3>
       <p>Featured articles average {feat_at.median():.0f} seconds of active reading time versus {nfeat_at.median():.0f} seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
-      <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test vs. all other formula types combined. Active time: n={len(an_eng):,} articles with valid active time data.</p>
+      <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test: each formula vs. all other articles combined. Multiple comparison correction: BH–FDR across all {len(_q2_raw_p)} formula tests. Active time: n={len(an_eng):,} articles with valid active time data. Causal direction of "What to know" → Featured is unconfirmed; see note above.</p>
     </div>
   </details>
 
@@ -1042,15 +1231,15 @@ html = f"""<!DOCTYPE html>
         <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming {_r4_ent['pct_share']:.1%} of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver {_r4_loc['lift']:.0f}× and {_r4_us['lift']:.0f}× the views at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
         <br><br><em>Caveat:</em> Articles in Local and U.S. channels are likely higher-quality breaking/civic stories that would perform well regardless of channel. Channel assignment partly reflects content type.
       </div>
-      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of {_r4_loc['median_views']:,.0f} total views. Articles in the U.S. National channel: {_r4_us['median_views']:,.0f} views. The Top feed baseline: {_r4_top['median_views']:,.0f} views. World ({_r4_wld['lift']:.1f}×) and Health ({_r4_hlth['lift']:.1f}×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — delivers only {_r4_ent['median_views']:,.0f} views median, barely above baseline.</p>
+      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of {_r4_loc['median_views']:,.0f} total views. Articles in the U.S. National channel: {_r4_us['median_views']:,.0f} views. The Top feed baseline: {_r4_top['median_views']:,.0f} views. World ({_r4_wld['lift']:.1f}×) and Health ({_r4_hlth['lift']:.1f}×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — delivers only {_r4_ent['median_views']:,.0f} views median, barely above baseline. All non-baseline channel differences are statistically significant (Mann-Whitney, BH–FDR corrected; see table).</p>
       <div class="chart-wrap">{c3}</div>
       <table class="findings">
-        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th></tr></thead>
+        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
         <tbody>
           {_t3}
         </tbody>
       </table>
-      <p class="caveat">SmartNews 2025 (n=38,251 article-channel rows). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. 2026 export lacks category breakdown.</p>
+      <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category — category comparisons are therefore not fully independent, and tests should be read as within-dataset signal rather than orthogonal contrasts. 2026 export lacks category breakdown. Content-type confound: high-performing channels (Local, U.S.) are likely populated by higher-stakes stories; channel ROI may reflect story quality as much as placement value.</p>
     </div>
   </details>
 
@@ -1067,21 +1256,20 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
       </div>
-      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects. The "exclusive" tag is the strongest at {EXCL_LIFT} lift — and it is not primarily a Savannah Guthrie effect: only 4 of {_r5_excl['n_true']} exclusive-tagged notifications mention Guthrie. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction ("Savannah Guthrie's husband breaks silence", "Bill Cosby's longtime rep 'blindsided'", "Mike Tomlin's wife was frantic") drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
       <div class="chart-wrap">{c4}</div>
       <table class="findings">
-        <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift</th><th>p</th></tr></thead>
+        <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
         <tbody>
           {_t4}
         </tbody>
       </table>
+      {_excl_sensitivity_html}
       <h3>The serial/escalating story as a content type</h3>
       <p>The top 10 notifications in the dataset by CTR (ranging 6.5–9.6%) are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This isn't just a confound — it defines a content type worth naming: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula is: possessive named entity + new development + escalating stakes, published in installments. Each installment compounds prior audience investment.</p>
       <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
-      <p><em>Signal interference caveat:</em> The Guthrie cluster accounts for the most extreme CTRs in the dataset (n=16 notifications, many above 5%). It's not possible to fully separate the formula from the underlying story interest — a different serial story using identical framing might not replicate these exact numbers. The possessive + full name signal (1.86× lift, p&lt;0.001) holds across non-Guthrie stories, but the very top of the distribution is Guthrie-driven.</p>
-      <h3>What doesn't move the needle in notifications</h3>
-      <p>Neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×, p={_r5_num['p']:.2f}) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×, p={_r5_attr['p']:.2f}) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
-      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
+      <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
+      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR correction applied across all {len(_q5_raw_p)} feature tests. Sensitivity analysis: "exclusive" lift computed both with and without Guthrie-cluster notifications (see above). N=2 months only — findings are directional pending full-year 2025 notification data from Tarrow. Feature classifier unvalidated against hand-labelled sample.</p>
     </div>
   </details>
 
@@ -1111,7 +1299,7 @@ html = f"""<!DOCTYPE html>
           <tr><td>Yahoo</td><td>{N_YAHOO_UNIQ:,}</td><td>{excl_yahoo:.0%}</td><td>Some overlap with Apple News and SmartNews</td></tr>
         </tbody>
       </table>
-      <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match across all four 2025 datasets. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
+      <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text; precision not formally benchmarked against a labelled sample. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match (punctuation/case stripped) — may overstate exclusivity for articles with minor headline rewrites. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal. No significance testing applied to topic-level comparisons — treat as descriptive.</p>
     </div>
   </details>
 
@@ -1131,7 +1319,7 @@ html = f"""<!DOCTYPE html>
       <p>The chart below shows the IQR ÷ median ratio (a robust spread measure) for each topic × platform combination. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance. Where it is low, outcomes are similar regardless of how the headline is written.</p>
       <div class="chart-wrap">{c6}</div>
       <p>On Apple News, crime (cv=3.9) and business (cv=3.8) show the highest spread — a wide gap between underperforming and outperforming headlines within those topics. Nature/wildlife (cv=2.2) is the most consistent: these stories perform similarly regardless of headline, suggesting story quality drives more of the variance than framing does. On SmartNews, local/civic (cv=31) and business (cv=14) show extreme variance — driven by the channel allocation effect identified in Finding 3. Most local/civic articles on SmartNews get very few views, but the small fraction that land in the Local channel reach 16,000+ median views. The variance reflects the value of channel placement, not just headline quality.</p>
-      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded.</p>
+      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded. High IQR/median on SmartNews local/civic is substantially explained by the channel-placement bimodality identified in Finding 3 — it should not be interpreted as pure headline sensitivity.</p>
     </div>
   </details>
 
@@ -1148,12 +1336,12 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
       </div>
-      <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman r = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
+      <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. Spearman is the more appropriate measure here given the highly skewed views distribution; Pearson is reported for completeness. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
       <div class="chart-wrap">{c7}</div>
       <table class="findings">
         <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
         <tbody>
-          <tr><td>Avg. active time</td><td>r = {r_views_at:.3f} (p = {p_views_at:.2f}, not significant)</td><td>Depth of the current read</td></tr>
+          <tr><td>Avg. active time</td><td>r = {r_views_at:.3f}, ρ = {r_views_at_sp:.3f} (not significant)</td><td>Depth of the current read</td></tr>
           <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
           <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
           <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
@@ -1161,7 +1349,7 @@ html = f"""<!DOCTYPE html>
       </table>
       <p>Saves, likes, and shares all scale strongly with views — they measure the same dimension (reach and engagement breadth). Active time measures an orthogonal dimension: whether the reader who clicked actually read. High-view articles are not better-read articles. The two signals are statistically uncoupled.</p>
       <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). And subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — subscribers are likely efficient, high-frequency readers who scan and move on, not a quality problem but a behavioral difference that matters when comparing paywalled vs. free article metrics.</p>
-      <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric.</p>
+      <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric. Spearman ρ is the preferred test for independence given skewed views distribution; Pearson r included for comparability.</p>
     </div>
   </details>
 
