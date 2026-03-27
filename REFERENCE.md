@@ -31,6 +31,9 @@ Stable facts for this project. Updated in place when facts change — not a log.
 | CSA dashboard repo | https://github.com/piercewilliams/csa-dashboard |
 | Branch | main |
 | Dashboard register entries | `rq-apple-news-monitoring`, `rq-content-learning-loop`, `rq-headline-tool`, `rq-title-options` |
+| Tarrow 2026 Google Sheet | https://docs.google.com/spreadsheets/d/1Va8hnBtaX8fEFU8FVPpFcAN82o5RDF9fJBaJvRzrN7s/edit?gid=0#gid=0 |
+| Tarrow 2025 Google Sheet | https://docs.google.com/spreadsheets/d/1LlVmW7KTRRpFWXD07wJXDHJhvLTd-1g88Y9cm5D_9o4/edit?gid=0#gid=0 |
+| Content tracker | `~/Downloads/Tracker Template.xlsx` — Data sheet has Published URL/Link, Author, Vertical, Pub Date |
 
 ---
 

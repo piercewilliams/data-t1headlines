@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
 **Phase:** Phase 2 complete — analysis, site, experiment framework, and tooling all live
-**Status:** Active — awaiting Tarrow data; experiment framework ready to run when data grows
-**Last session:** 2026-03-27 (three sessions)
+**Status:** Active — new data in hand; pipeline changes needed per stakeholder feedback
+**Last session:** 2026-03-27 (four sessions)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,112 +11,100 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Data:** Both Tarrow sheets analyzed (2025 full year + 2026 Jan–Feb); Phase 2 analysis complete
 - **Site:** `docs/index.html` — Phase 2 live; Phase 1 preserved at `docs/v1/`
-- **Generator:** `generate_site.py` — run to regenerate site from raw Excel; fully reproducible
-- **Skills installed:** `polars`, `interactive-report-generator`, `code-data-analysis-scaffolds` added to `~/.claude/skills/`
-- **CSA dashboard:** Separate repo; not touched by this project
+- **Generator:** `generate_site.py` — run to regenerate site from raw Excel; reads two files:
+  - `Top syndication content 2025.xlsx` — 2025 data (Apple News, SmartNews, MSN Dec-only, Yahoo)
+  - `Top Stories 2026 Syndication.xlsx` — 2026 data (currently only Notifications used by pipeline)
+- **Skills installed:** `polars`, `interactive-report-generator`, `code-data-analysis-scaffolds`
 
-## Phase 2 Key Findings (2026-03-26)
+## Data Status (as of 2026-03-27)
 
-**Formulas (Apple News, non-Featured, n=2,229):**
-- "Here's/Here are" (2.97×) and possessive named entity (1.94×) lead — directional, not yet sig (n too small)
-- Number leads (0.65×, p<0.001), questions (0.51×, p<0.001), quoted ledes (0.61×, p<0.001) significantly underperform
+| Source | Status | Notes |
+|--------|--------|-------|
+| Apple News 2025 | ✅ In repo | Full year, all columns |
+| Apple News 2026 | ✅ New file in Downloads | Engagement columns now populated (1,136 rows) |
+| Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 360 rows |
+| SmartNews 2025 | ✅ In repo | Full year, 32 category columns |
+| SmartNews 2026 | ✅ New file in Downloads | 3,633 rows; 7 cols only (no category breakdown); has URL + title |
+| MSN 2025 full year | ⚠️ Needs re-export | Tarrow updated Google Sheet; current repo file = Dec only |
+| MSN 2026 | ✅ New file in Downloads | Jan–Feb only, 355 rows |
+| MSN video 2026 | ✅ New (404 rows) | Not previously in pipeline |
+| Yahoo 2025 | ✅ In repo | Full year |
+| Yahoo 2026 | ✅ New file in Downloads | 2,116 rows |
+| Yahoo video 2026 | ✅ New (129 rows) | Not previously in pipeline |
+| Apple News Notifications 2025 | ❓ May not exist | Tarrow: "I just gave you all data points available" |
+| SmartNews 2026 category breakdown | ❌ Unavailable | Only 7 cols in 2026 export |
 
-**Featuring (Q2):**
-- "What to know" = 62% Featured rate vs. 27% baseline — strongest signal in dataset (p=0.0006)
-- Questions Featured at 37% but underperform within Featured (0.60× vs. Featured avg)
+**Action needed:** Re-export 2025 sheet from Tarrow's Google Sheet (URL unknown — ask Tarrow/Sarah). Move `Top Stories 2026 Syndication.xlsx` from Downloads to repo root.
 
-**SmartNews allocation (Q4):**
-- Local channel: 108× views lift vs. Top feed, only 2.9% of article volume
-- U.S. National: 73× lift, 2.4% of volume
-- Entertainment: 35.9% of volume, 1.46× lift — severely over-indexed
+## Hard Directives (from Chris, 2026-03-27)
 
-**Notifications (Q5, n=351):**
-- "Exclusive" tag: 2.49× CTR lift (partly confounded by Guthrie serial story cluster)
-- Full name present: 1.21× lift (p<0.001)
-- Questions: 0.64× (p<0.001) — hurt CTR
-- Short (≤80 chars): 0.61× — longer notifications perform better
+1. **Normalize all data before every analysis run** — mandatory preprocessing step, not optional. Bake into `generate_site.py` as a `normalize()` function called before any analysis.
+2. **"Different platforms are different" is not a finding** — obvious table stakes. The bar is: *what specifically works, and why* — especially when non-obvious. Reframe or cut Q3/Topics cross-platform isolation section.
 
-**Topics (Q3/cross-platform):**
-- Zero keyword overlap between Apple News and SmartNews top performers
-- Weather + sports lead Apple News; local/civic leads SmartNews
-- Platforms need separate content strategies
+## Stakeholder Feedback (2026-03-27)
 
-## CSA Instrumentation Status (as of 2026-03-26)
+**Chris Palo** (saw the report):
+- Wants O&O + syndication PV data layered together (Amplitude now in Claude)
+- Number leads: subject-first instinct in journalism — round numbers feel fake; type of number matters. "There's a there, there." → deepen this finding.
+- Channel-specific category guidance for Sara is the next editorial action item.
+- Caution: longitudinal view essential — platforms shift week to week; bias toward newer data.
 
-- **Cluster ID (= canon_article_id):** Actively being scoped in CSA. String format: cluster + persona + article type, dash-separated, passed as Q metadata.
-- **Diff tool (#1 CSA priority):** Cosine similarity pairwise comparison (Jim Robinson + Marcelo). Phase 1 = measurement; Phase 2 = generation-time gating.
-- **Reporting pressure:** Paul Barry (data science / Sigma dashboards) left — temporary air cover — but Britney/Justin's team pressure re-emerging.
-- **Personas ticket:** "Fetch audience target definitions" not yet picked up by engineers.
+**Sarah Price** — standing research questions (the recurring core):
+- ✅ Headline formats × platform
+- ✅ Content categories × platform
+- 🔲 Sub-category drill-down (e.g., sports → which sport specifically)
+- 🔲 Top vs. bottom headline comparison within a category + specific improvement guidance (expand crime/business high-variance finding)
+- 🔲 Timeline view — when do changes happen (aligns with Chris Palo)
+- 🔲 Team performance — their writers' top performers (tracker join, see below)
+- Character count: no data in Tarrow's sheet; ≤80 char finding is notification-specific, not general
+
+## Tracker Join (new capability)
+
+Content tracker at `~/Downloads/Tracker Template.xlsx` — `Data` sheet (1,997 rows) has:
+- `Published URL/Link` — join key to Apple News (`Publisher Article ID`) and SmartNews (`url`)
+- `Author`, `Vertical`, `Syndication platform`, `Publication Date`
+- `Word Count` — available for joined articles; proxy for Sarah's character count question
+- `APPLE REWRITE CALENDAR` sheet — articles selected for rewrites with original view counts + rewrite scores; directly relevant to variant allocation model
+
+MSN and Yahoo lack URL columns; title-matching fallback needed.
 
 ## What's Next — Prioritized
 
-**Awaiting Tarrow data (confirmed "asap" 2026-03-26):**
-1. [ ] MSN full year 2025 — filter: <10k article views excluded
-2. [ ] Apple News 2026 engagement columns (17 empty)
-3. [ ] Apple News Notifications 2025 (full-year CTR — would validate Q5 findings)
-4. [ ] SmartNews 2026 category breakdown (32 cols → 7)
-5. [ ] Jan 1–now 2026 pull
+**Pipeline changes (this session):**
+1. [ ] Add mandatory `normalize()` preprocessing to `generate_site.py`
+2. [ ] Expand pipeline to use Apple News 2026 engagement columns (currently unused)
+3. [ ] Add SmartNews 2026 to pipeline (URL + title enables headline analysis)
+4. [ ] Add MSN video + Yahoo video sheets (new data types)
+5. [ ] Reframe Q3/Topics — remove "platforms are different" as a finding; replace with what specifically works and why
+6. [ ] Deepen number leads analysis (Chris Palo request)
+7. [ ] Add sub-category drill-down (Sarah request)
+8. [ ] Add top vs. bottom headline comparison within category (Sarah request)
+9. [ ] Add longitudinal/timeline view (both stakeholders)
+10. [ ] Add team performance view via tracker join (Sarah request)
 
-**When data arrives:**
-6. [ ] Re-run `generate_site.py` with fuller notification dataset to validate CTR findings
-7. [ ] Add MSN full-year to topic × platform analysis (currently Dec only)
-8. [ ] Test possessive named entity formula more deliberately — build sample (currently n=75)
+**Data:**
+11. [ ] Get 2025 sheet URL and re-export (for full-year MSN)
+12. [ ] Move new 2026 file from Downloads to repo root
 
-**Share with stakeholders:**
-9. [ ] Share Phase 2 site with Sarah Price — aligned workstream
-10. [ ] SmartNews allocation finding (Entertainment over-index) → flag to distribution team
-11. [ ] "What to know" Featured rate finding → share with editorial leads
+**Stakeholder shares (still pending):**
+13. [ ] Share Phase 2 site with Sarah Price
+14. [ ] SmartNews Entertainment over-index → distribution team
+15. [ ] "What to know" Featured rate → editorial leads
 
-**Build (instrumentation):**
-12. [ ] Add canon_article_id + variant_count to distribution pipeline (track via Jira "National CSA" label)
+## Session: 2026-03-27c (Academic rigor audit)
 
-## Session: 2026-03-27c (Academic rigor audit — statistical hardening)
+Full statistical rigor pass: BH-FDR multiple comparison correction, rank-biserial effect sizes, bootstrap 95% CIs on lift ratios, power analysis for underpowered formulas, "Exclusive" sensitivity analysis (Guthrie cluster), untagged baseline characterization, multi-category independence warning. New helpers: `bh_correct()`, `rank_biserial()`, `bootstrap_ci_lift()`, `required_n_80pct()`.
 
-Full statistical rigor pass on `generate_site.py`. Every finding now meets academic reporting standards:
+## Session: 2026-03-27b (UX redesign)
 
-**Multiple comparison correction:** Benjamini–Hochberg FDR applied across Q1 (formula Mann-Whitney), Q2 (chi-square), Q4 (SmartNews Mann-Whitney), and Q5 (notification Mann-Whitney). All tables show `p_adj`.
+Full CSS overhaul: off-white background, glass-blur nav, diagonal gradient hero, frosted stat card, shadow-bordered charts, card-style tables with hover rows. Hero h1 rewritten for executive audience.
 
-**Effect sizes:** Rank-biserial r computed from Mann-Whitney U for all Q1 and Q5 tests. New column in both tables.
+## Session: 2026-03-27a (Infrastructure)
 
-**Confidence intervals:** 1,000-iteration bootstrap 95% CI on median lift ratio for every Q1 formula and Q5 feature. Displayed as `[lo×–hi×]` alongside lift.
-
-**Q4 significance tests:** Mann-Whitney U added for each SmartNews channel vs. Top feed baseline, BH-FDR corrected.
-
-**"Exclusive" sensitivity analysis:** CTR lift recomputed excluding Guthrie-cluster notifications. Result displayed inline — labeled "remains significant" or "loses significance" depending on data.
-
-**Power analysis:** `required_n_80pct()` computes per-group n needed for 80% power at observed effect size (Cohen's d conversion). Shown as a column for non-significant formulas only.
-
-**Untagged baseline characterization:** Prose section added with count, %, and 5 random runtime-sampled examples. Explains what "untagged" actually looks like.
-
-**Multi-category independence:** `SN_MULTI_CAT_N/PCT` computed at runtime; displayed in SmartNews caveat with explicit independence warning.
-
-**All caveats updated:** Seasonal confound, unvalidated classifiers, Pearson vs. Spearman rationale, causal direction of WTN → Featured — all now explicitly flagged in the relevant sections.
-
-New helper functions added: `bh_correct()`, `rank_biserial()`, `bootstrap_ci_lift()`, `required_n_80pct()`. New `_q1_table()` with 7 columns. `_fmt_p()` updated with `adj=` parameter and `<sub>adj</sub>` labeling.
-
-## Session: 2026-03-27b (UX redesign + hero headline)
-
-Full CSS redesign of `generate_site.py`: off-white body background, glass-blur nav, diagonal gradient hero, stat numbers grouped in a frosted bordered card, callout converted to light-blue card (no left-border accent), charts use shadow instead of border, tables card-style with rounded corners and hover rows, typography tightened (15px body, sans-serif h2, small-caps h3). Hero h1 rewritten from jargon ("Formula is a signal…") to: *"One headline phrase doubles your chance of being Featured on Apple News. The wrong SmartNews channel cuts your reach by 100×."*
-
-## Session: 2026-03-27a (Infrastructure — accordion UI, archive pipeline, experiment framework, audit)
-
-Four workstreams:
-
-**Accordion UI:** Converted site from flat sections to `<details>`/`<summary>` cards. Executives see only action headlines; click to expand charts + data. "Expand all" toggle in nav. Hash-based auto-open for direct links. Phase 1 link removed from footer (kept in repo at `docs/v1/`).
-
-**Monthly archive pipeline:** `ingest.py` — snapshots current site to `docs/archive/YYYY-MM/`, saves `data_profile.json`, diffs row counts against prior run, fires analysis suggestions from an opportunity map, calls `generate_site.py`, then prints commit instructions. Archive index uses the site's hero h1 as link text (not a date label). `PLAYBOOK.md` — universal 5-step checklist + 7 scenario sections with exact Claude prompts.
-
-**Experiment framework:** `generate_experiment.py` reads YAML+markdown spec files from `experiments/` and produces self-contained HTML reports. Two runnable types: `formula_comparison` (Mann-Whitney or chi-square, A=control/baseline, B=treatment) and `temporal_cohort` (before/after date split with time-series chart). Pending experiments skip cleanly. Two active experiments committed: WTN Featured rate (significant, 2.11× lift) and possessive formula views (1.39×, not yet significant). One pending: notification CTR H2 2026 (awaiting data).
-
-**Audit:** Eliminated all hardcoded stats that would diverge on next ingest. Hero numbers, h2 headlines, action callout figures, prose stats, and all 3 data tables now computed from data on every run. Nav/footer date uses `datetime.now()`. `PLATFORMS` counts loaded sheets. Added chi-square per formula + within-Featured median to Q2. Experiment index: pending experiments show as greyed text (no broken link). Formula comparison statistics table shows formula names, not "before/after".
-
-## Session: 2026-03-26 (Phase 2 — full analysis)
-
-Housekeeping first: versioned Phase 1 to `docs/v1/`, installed 3 new skills (`polars`, `interactive-report-generator`, `code-data-analysis-scaffolds`), updated REFERENCE.md with Phase 2 pipeline. Then ran full analysis across all 6 questions using scaffold → excel-analysis → polars → interactive-report-generator pipeline. Key data notes: Notifications = 359 rows (not 55 as assumed), SmartNews categories are view-count columns (not binary flags), MSN 2025 is December only. All findings grounded in raw Excel; site regenerates from `generate_site.py`.
+Accordion UI (`<details>`/`<summary>`), monthly archive pipeline (`ingest.py`), experiment framework (`generate_experiment.py`), hardcoding audit. Two active experiments live (WTN Featured rate, possessive formula views); one pending (notification CTR H2 2026).
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~130 lines*
+*Current count: ~140 lines*
