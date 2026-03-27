@@ -1,9 +1,14 @@
 """
 T1 Headline Analysis — Phase 2 site generator
-Run: python3 generate_site.py
+Run:    python3 generate_site.py
 Output: docs/index.html
+
+Optional args (for monthly ingests with new files):
+  --data-2025 "path/to/new_2025_file.xlsx"
+  --data-2026 "path/to/new_2026_file.xlsx"
 """
 
+import argparse
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -13,6 +18,15 @@ from pathlib import Path
 from scipy import stats
 
 warnings.filterwarnings("ignore")
+
+parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site")
+parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx",
+                    help="Path to the 2025 data workbook")
+parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx",
+                    help="Path to the 2026 data workbook")
+_args = parser.parse_args()
+DATA_2025 = _args.data_2025
+DATA_2026 = _args.data_2026
 
 # ── Palette (matches v1 site) ─────────────────────────────────────────────────
 NAVY   = "#0f172a"
@@ -50,12 +64,12 @@ def tag_topic(text):
 
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-print("Loading data…")
-an    = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="Apple News")
-sn    = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="SmartNews")
-msn   = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="MSN")
-yahoo = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="Yahoo")
-notif = pd.read_excel("Top Stories 2026 Syndication.xlsx", sheet_name="Apple News Notifications")
+print(f"Loading data…  2025={DATA_2025}  2026={DATA_2026}")
+an    = pd.read_excel(DATA_2025, sheet_name="Apple News")
+sn    = pd.read_excel(DATA_2025, sheet_name="SmartNews")
+msn   = pd.read_excel(DATA_2025, sheet_name="MSN")
+yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
+notif = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
 
 an["is_featured"] = an["Featured by Apple"].fillna("No") == "Yes"
 an["formula"] = an["Article"].apply(classify_formula)
@@ -990,6 +1004,7 @@ document.addEventListener('DOMContentLoaded', openByHash);
   <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · March 2026</p>
   <p style="margin-top: 0.5rem;">
     <a href="v1/">Phase 1 findings</a> &nbsp;·&nbsp;
+    <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
 </footer>
