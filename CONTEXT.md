@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — analysis, site, experiment framework, and tooling all live
 **Status:** Active — awaiting Tarrow data; experiment framework ready to run when data grows
-**Last session:** 2026-03-27 (two sessions)
+**Last session:** 2026-03-27 (three sessions)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -72,6 +72,30 @@ For session history: see [sessions/](sessions/)
 **Build (instrumentation):**
 12. [ ] Add canon_article_id + variant_count to distribution pipeline (track via Jira "National CSA" label)
 
+## Session: 2026-03-27c (Academic rigor audit — statistical hardening)
+
+Full statistical rigor pass on `generate_site.py`. Every finding now meets academic reporting standards:
+
+**Multiple comparison correction:** Benjamini–Hochberg FDR applied across Q1 (formula Mann-Whitney), Q2 (chi-square), Q4 (SmartNews Mann-Whitney), and Q5 (notification Mann-Whitney). All tables show `p_adj`.
+
+**Effect sizes:** Rank-biserial r computed from Mann-Whitney U for all Q1 and Q5 tests. New column in both tables.
+
+**Confidence intervals:** 1,000-iteration bootstrap 95% CI on median lift ratio for every Q1 formula and Q5 feature. Displayed as `[lo×–hi×]` alongside lift.
+
+**Q4 significance tests:** Mann-Whitney U added for each SmartNews channel vs. Top feed baseline, BH-FDR corrected.
+
+**"Exclusive" sensitivity analysis:** CTR lift recomputed excluding Guthrie-cluster notifications. Result displayed inline — labeled "remains significant" or "loses significance" depending on data.
+
+**Power analysis:** `required_n_80pct()` computes per-group n needed for 80% power at observed effect size (Cohen's d conversion). Shown as a column for non-significant formulas only.
+
+**Untagged baseline characterization:** Prose section added with count, %, and 5 random runtime-sampled examples. Explains what "untagged" actually looks like.
+
+**Multi-category independence:** `SN_MULTI_CAT_N/PCT` computed at runtime; displayed in SmartNews caveat with explicit independence warning.
+
+**All caveats updated:** Seasonal confound, unvalidated classifiers, Pearson vs. Spearman rationale, causal direction of WTN → Featured — all now explicitly flagged in the relevant sections.
+
+New helper functions added: `bh_correct()`, `rank_biserial()`, `bootstrap_ci_lift()`, `required_n_80pct()`. New `_q1_table()` with 7 columns. `_fmt_p()` updated with `adj=` parameter and `<sub>adj</sub>` labeling.
+
 ## Session: 2026-03-27b (UX redesign + hero headline)
 
 Full CSS redesign of `generate_site.py`: off-white body background, glass-blur nav, diagonal gradient hero, stat numbers grouped in a frosted bordered card, callout converted to light-blue card (no left-border accent), charts use shadow instead of border, tables card-style with rounded corners and hover rows, typography tightened (15px body, sans-serif h2, small-caps h3). Hero h1 rewritten from jargon ("Formula is a signal…") to: *"One headline phrase doubles your chance of being Featured on Apple News. The wrong SmartNews channel cuts your reach by 100×."*
@@ -95,4 +119,4 @@ Housekeeping first: versioned Phase 1 to `docs/v1/`, installed 3 new skills (`po
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~103 lines*
+*Current count: ~130 lines*
