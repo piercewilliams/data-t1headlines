@@ -115,8 +115,8 @@ Things to get or build to make the variant allocation model more powerful. Prior
 
 | Priority | What to build | Why it matters |
 |----------|--------------|---------------|
-| 🔴 High | **Canon article ID field** — a stable ID linking every variant back to its source article | Without this, variant count → ROI correlation is impossible. This is the single most important field for the model. |
-| 🔴 High | **Variant count per canon article** — how many variants were generated and distributed per article | The dependent variable in the allocation model |
+| 🔴 High | **Canon article ID field** — a stable ID linking every variant back to its source article. CSA calls this "Cluster ID" (string: cluster+persona+article type, dash-separated, passed as Q metadata). Actively being scoped as of 2026-03-26. | Without this, variant count → ROI correlation is impossible. This is the single most important field for the model. |
+| 🔴 High | **Variant count per canon article** — how many variants were generated and distributed per article. Diff tool (cosine similarity pairwise comparison) is #1 CSA engineering priority as of 2026-03-26; Phase 1 = measurement, Phase 2 = generation-time gating. | The dependent variable in the allocation model |
 | 🟡 Medium | **Article type / topic tag at publish time** — content category label applied upstream (e.g., crime, politics, local business, weather, sports) | Currently must be inferred by regex from headlines; upstream tagging is cleaner and more consistent |
 | 🟡 Medium | **Headline formula tag at generation time** — which template/formula was used (number lead, "What to know", possessive named entity, etc.) | Currently inferred post-hoc; tagging at generation makes formula → CTR analysis systematic |
 | 🟡 Medium | **Platform-targeted variant flag** — was this variant written for Apple News, MSN, SmartNews, or Yahoo specifically? | Platforms operate as separate content ecosystems (94–99% exclusive content); platform-specific variants will outperform generic ones |
