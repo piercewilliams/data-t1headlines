@@ -5,27 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-          max-width:760px; margin:3rem auto; padding:0 1.5rem; color:#0f172a; line-height:1.6; }
-  h1 { font-family:Georgia,serif; font-size:1.5rem; margin-bottom:0.4rem; }
-  .back { color:#2563eb; text-decoration:none; font-size:0.85rem; display:block; margin-bottom:2rem; }
-  p.sub { color:#64748b; font-size:0.88rem; margin-bottom:2rem; }
-  ul { list-style:none; padding:0; margin:0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; }
+  nav { background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+         -webkit-backdrop-filter:blur(10px); padding:0 2rem;
+         display:flex; align-items:center; gap:1.5rem; height:46px;
+         border-bottom:1px solid rgba(255,255,255,0.04); }
+  nav .brand { color:#fff; font-weight:700; font-size:0.72rem;
+                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }
+  nav a { color:rgba(255,255,255,0.45); text-decoration:none;
+           font-size:0.73rem; transition:color 0.15s; }
+  nav a:hover { color:rgba(255,255,255,0.85); }
+  .container { max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }
+  h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
+        margin-bottom:0.4rem; line-height:1.25; }
+  .sub { color:#64748b; font-size:0.875rem; margin-bottom:2.5rem; }
+  code { font-size:0.8rem; background:#f1f5f9; padding:1px 5px; border-radius:3px; }
+  ul { list-style:none; padding:0; margin:0; border-top:1px solid #e2e8f0; }
   li { padding:1rem 0; border-bottom:1px solid #e2e8f0; }
-  li:last-child { border-bottom:none; }
-  li a { font-family:Georgia,serif; font-size:1.05rem; color:#0f172a;
-          text-decoration:none; display:block; margin-bottom:0.2rem; }
+  li a { font-size:0.9375rem; font-weight:500; color:#0f172a;
+          text-decoration:none; display:block; margin-bottom:0.25rem;
+          transition:color 0.15s; }
   li a:hover { color:#2563eb; }
-  .meta { display:block; font-size:0.78rem; color:#94a3b8; }
-  .status { display:inline-block; font-size:0.67rem; font-weight:600; text-transform:uppercase;
-             letter-spacing:0.06em; padding:1px 6px; border-radius:2px; }
-  .status-complete { background:#dcfce7; color:#15803d; }
-  .status-active   { background:#dbeafe; color:#1d4ed8; }
-  .status-pending  { background:#f1f5f9; color:#64748b; }
+  .meta { display:block; font-size:0.74rem; color:#94a3b8; letter-spacing:0.01em; }
+  .status { display:inline-block; font-size:0.6rem; font-weight:700; text-transform:uppercase;
+             letter-spacing:0.07em; padding:1px 5px; border-radius:3px; margin-left:4px; }
+  .status-complete { background:#f0fdf4; color:#15803d; }
+  .status-active   { background:#eff6ff; color:#1d4ed8; }
+  .status-pending  { background:#f8fafc; color:#94a3b8; }
 </style>
 </head>
 <body>
-<a class="back" href="../index.html">← Current analysis</a>
+<nav>
+  <span class="brand">McClatchy CSA · T1 Headlines</span>
+  <a href="../index.html">← Current analysis</a>
+</nav>
+<div class="container">
 <h1>Experiments</h1>
 <p class="sub">Before/after comparisons and formula tests. Add a spec to <code>experiments/</code>
   and run <code>python3 generate_experiment.py experiments/SLUG.md</code>.</p>
@@ -34,5 +51,6 @@
 <li><a href="what-to-know-featured-rate/index.html">Does "What to Know" headline formula improve Featured placement rates?</a><span class="meta">Apple News · featured rate · <span class="status status-active">active</span></span></li>
 <li><span style="color:#94a3b8">Do notification CTR patterns from Jan–Feb 2026 hold through H2 2026?</span><span class="meta">Notifications · ctr · <span class="status status-pending">pending</span></span></li>
 </ul>
+</div>
 </body>
 </html>
