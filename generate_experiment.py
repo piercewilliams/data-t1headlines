@@ -334,7 +334,7 @@ def make_timeseries_chart(df, spec, metric_info):
 
 # ── Report HTML ───────────────────────────────────────────────────────────────
 
-def render_report(spec, result, metric_info, chart_html, timeseries_html=None):
+def render_report(spec, result, metric_info, chart_html, timeseries_html=None, label_a="A", label_b="B"):
     fmt = metric_info["fmt"]
     slug = spec["_slug"]
     title = spec.get("title", slug)
@@ -446,8 +446,8 @@ def render_report(spec, result, metric_info, chart_html, timeseries_html=None):
   <table>
     <thead><tr><th>Group</th><th>n</th><th>{metric_info['label']}</th><th>Lift</th><th>p-value</th><th>Significant?</th></tr></thead>
     <tbody>
-      <tr><td>A (before / formula A)</td><td>{result['n_a']:,}</td><td>{fmt(result['stat_a']) if result['stat_a'] is not None else '—'}</td><td>—</td><td rowspan="2" style="vertical-align:middle">{p_str}</td><td rowspan="2" style="vertical-align:middle">{'Yes ✓' if result['conclusion'] == 'significant' else 'No' if result['conclusion'] == 'not_significant' else '—'}</td></tr>
-      <tr><td>B (after / formula B)</td><td>{result['n_b']:,}</td><td>{fmt(result['stat_b']) if result['stat_b'] is not None else '—'}</td><td>{lift_str}</td></tr>
+      <tr><td>{"A (before)" if spec.get("experiment_type") == "temporal_cohort" else f"A — {label_a}"}</td><td>{result['n_a']:,}</td><td>{fmt(result['stat_a']) if result['stat_a'] is not None else '—'}</td><td>—</td><td rowspan="2" style="vertical-align:middle">{p_str}</td><td rowspan="2" style="vertical-align:middle">{'Yes ✓' if result['conclusion'] == 'significant' else 'No' if result['conclusion'] == 'not_significant' else '—'}</td></tr>
+      <tr><td>{"B (after)" if spec.get("experiment_type") == "temporal_cohort" else f"B — {label_b}"}</td><td>{result['n_b']:,}</td><td>{fmt(result['stat_b']) if result['stat_b'] is not None else '—'}</td><td>{lift_str}</td></tr>
     </tbody>
   </table>
 
@@ -474,9 +474,11 @@ def update_experiment_index(specs):
         status = spec.get("status", "pending")
         platform = spec.get("platform", "").replace("_", " ").title()
         metric = spec.get("metric", "").replace("_", " ")
+        link = (f'<a href="{slug}/index.html">{title}</a>'
+                if status != "pending" else f'<span style="color:#94a3b8">{title}</span>')
         rows += (
             f'<li>'
-            f'<a href="{slug}/index.html">{title}</a>'
+            f'{link}'
             f'<span class="meta">{platform} · {metric} · '
             f'<span class="status status-{status}">{status}</span></span>'
             f'</li>\n'
@@ -565,7 +567,8 @@ def run_experiment(spec_path):
         except Exception:
             ts_html = None
 
-    report = render_report(spec, result, metric_info, chart_html, ts_html)
+    report = render_report(spec, result, metric_info, chart_html, ts_html,
+                           label_a=label_a, label_b=label_b)
 
     out_dir = Path("docs/experiments") / slug
     out_dir.mkdir(parents=True, exist_ok=True)
