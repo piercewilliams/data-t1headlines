@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — analysis, site, experiment framework, and tooling all live
 **Status:** Active — awaiting Tarrow data; experiment framework ready to run when data grows
-**Last session:** 2026-03-27
+**Last session:** 2026-03-27 (two sessions)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -72,7 +72,11 @@ For session history: see [sessions/](sessions/)
 **Build (instrumentation):**
 12. [ ] Add canon_article_id + variant_count to distribution pipeline (track via Jira "National CSA" label)
 
-## Session: 2026-03-27 (Infrastructure — accordion UI, archive pipeline, experiment framework, audit)
+## Session: 2026-03-27b (UX redesign + hero headline)
+
+Full CSS redesign of `generate_site.py`: off-white body background, glass-blur nav, diagonal gradient hero, stat numbers grouped in a frosted bordered card, callout converted to light-blue card (no left-border accent), charts use shadow instead of border, tables card-style with rounded corners and hover rows, typography tightened (15px body, sans-serif h2, small-caps h3). Hero h1 rewritten from jargon ("Formula is a signal…") to: *"One headline phrase doubles your chance of being Featured on Apple News. The wrong SmartNews channel cuts your reach by 100×."*
+
+## Session: 2026-03-27a (Infrastructure — accordion UI, archive pipeline, experiment framework, audit)
 
 Four workstreams:
 
@@ -91,4 +95,4 @@ Housekeeping first: versioned Phase 1 to `docs/v1/`, installed 3 new skills (`po
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~94 lines*
+*Current count: ~103 lines*
