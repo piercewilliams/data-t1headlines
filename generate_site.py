@@ -88,7 +88,7 @@ for f, label in FORMULA_LABELS.items():
     grp = nf[nf["formula"] == f]["Total Views"]
     if len(grp) == 0: continue
     med  = grp.median()
-    lift = med / overall_median_nf
+    lift = med / baseline.median()
     if f != "untagged" and len(grp) >= 5:
         _, p = stats.mannwhitneyu(grp, baseline, alternative="two-sided")
     else:
@@ -487,7 +487,7 @@ html = f"""<!DOCTYPE html>
   <section id="formulas">
     <p class="section-label">Finding 1 · Apple News Formulas</p>
     <h2>Number leads and questions consistently underperform. "Here's" and possessive named entities lead — but sample sizes are small.</h2>
-    <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads (0.70×, p&lt;0.001), question format (0.55×, p&lt;0.001), and quoted ledes (0.66×, p&lt;0.001). The better-performing formulas — "Here's / Here are" (3.20×) and possessive named entity (2.08×) — show strong directional signal but lack statistical significance at current sample sizes (n=16 and n=75 respectively).</p>
+    <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads (0.65×, p&lt;0.001), question format (0.51×, p&lt;0.001), and quoted ledes (0.61×, p&lt;0.001). The better-performing formulas — "Here's / Here are" (2.97×) and possessive named entity (1.94×) — show strong directional signal but lack statistical significance at current sample sizes (n=16 and n=75 respectively).</p>
     <div class="chart-wrap">{c1}</div>
     <div class="callout">
       <strong>Production implication:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
@@ -499,14 +499,16 @@ html = f"""<!DOCTYPE html>
   <section id="featuring">
     <p class="section-label">Finding 2 · Featured by Apple</p>
     <h2>"What to know" headlines get Featured at 62% — more than double the 27% baseline rate.</h2>
-    <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: 13 of 21 (62%) were Featured. The overall Featured rate is 26.7%. This is the strongest statistically significant formula signal in the dataset (χ²=11.9, p=0.0006).</p>
+    <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: 13 of 21 (62%) were Featured. The overall Featured rate is 26.7%. This is the strongest statistically significant formula signal in the dataset (χ²=11.7, p=0.0006).</p>
     <p>Question-format headlines are also Featured more often than expected (37%, 1.39× lift, p=0.005) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
+    <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate (33%), but once Featured they deliver the highest within-Featured median of any formula — 17,608 views, 1.61× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
     <div class="chart-wrap">{c2}</div>
     <table class="findings">
       <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>Within-Featured median</th></tr></thead>
       <tbody>
         <tr><td><span class="tag tag-green">★</span>What to know</td><td>21</td><td>62%</td><td>2.32×</td><td>16,933 views (1.55× Featured avg)</td></tr>
-        <tr><td>Quoted lede</td><td>187</td><td>33%</td><td>1.22×</td><td>17,608 views (1.61× Featured avg)</td></tr>
+        <tr><td><span class="tag tag-green">★</span>Quoted lede</td><td>187</td><td>33%</td><td>1.22×</td><td>17,608 views (1.61× Featured avg)</td></tr>
+        <tr><td>Here's / Here are</td><td>24</td><td>33%</td><td>1.25×</td><td>7,892 views (0.72× Featured avg)</td></tr>
         <tr><td>Question</td><td>146</td><td>37%</td><td>1.39×</td><td>6,574 views (0.60× Featured avg)</td></tr>
         <tr><td>Number lead</td><td>175</td><td>18%</td><td>0.69×</td><td>11,410 views (1.05× Featured avg)</td></tr>
       </tbody>
@@ -521,7 +523,7 @@ html = f"""<!DOCTYPE html>
   <section id="smartnews">
     <p class="section-label">Finding 3 · SmartNews Allocation</p>
     <h2>SmartNews Local delivers 108× the views of average Top-feed articles. Entertainment gets 12× more articles and performs like average.</h2>
-    <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of 16,593 total views. Articles in the U.S. National channel: 11,153 views. The Top feed baseline: 153 views. Meanwhile, Entertainment — which accounts for 35.9% of all SmartNews articles — delivers only 224 views median, barely above baseline.</p>
+    <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of 16,593 total views. Articles in the U.S. National channel: 11,153 views. The Top feed baseline: 153 views. World (3.8×) and Health (3.7×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for 35.9% of all SmartNews articles — delivers only 224 views median, barely above baseline.</p>
     <div class="chart-wrap">{c3}</div>
     <table class="findings">
       <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th></tr></thead>
@@ -530,6 +532,9 @@ html = f"""<!DOCTYPE html>
         <tr><td><span class="tag tag-green">↑</span>U.S. National</td><td>909</td><td>2.4%</td><td>11,153</td><td>73×</td></tr>
         <tr><td>Football</td><td>276</td><td>0.7%</td><td>1,934</td><td>12.6×</td></tr>
         <tr><td>Business</td><td>125</td><td>0.3%</td><td>1,933</td><td>12.6×</td></tr>
+        <tr><td>World</td><td>120</td><td>0.3%</td><td>580</td><td>3.8×</td></tr>
+        <tr><td>Health</td><td>235</td><td>0.6%</td><td>565</td><td>3.7×</td></tr>
+        <tr><td>Politics</td><td>607</td><td>1.6%</td><td>331</td><td>2.2×</td></tr>
         <tr><td><span class="tag tag-red">↓</span>Entertainment</td><td>13,713</td><td>35.9%</td><td>224</td><td>1.46×</td></tr>
         <tr><td>Top feed (baseline)</td><td>34,006</td><td>88.9%</td><td>153</td><td>1.00×</td></tr>
       </tbody>
@@ -544,7 +549,7 @@ html = f"""<!DOCTYPE html>
   <section id="notifications">
     <p class="section-label">Finding 4 · Push Notification CTR</p>
     <h2>"Exclusive" delivers 2.49× CTR lift. Questions in notifications hurt performance. Full names help.</h2>
-    <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR 1.68%), three features show statistically significant effects. The "exclusive" tag is the strongest signal at 2.49× lift — though it is partly confounded by the Savannah Guthrie story cluster, which drove some of the highest CTRs in the dataset. Even excluding the Guthrie stories, exclusive-tagged notifications consistently outperform. Full name presence (e.g., "Savannah Guthrie" vs. "TV anchor") adds 1.21× lift. Question-format notifications hurt CTR at 0.64× — consistent with the Apple News article finding.</p>
+    <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR 1.68%), three features show statistically significant effects. The "exclusive" tag is the strongest signal at 2.49× lift. The Savannah Guthrie story cluster (n=16) drove some of the highest CTRs in the dataset, but only 4 of the 16 exclusive-tagged notifications are Guthrie stories — the two groups are mostly independent. The exclusive signal is not primarily a Guthrie effect. Full name presence (e.g., "Savannah Guthrie" vs. "TV anchor") adds 1.21× lift. Question-format notifications hurt CTR at 0.64× — consistent with the Apple News article finding.</p>
     <div class="chart-wrap">{c4}</div>
     <table class="findings">
       <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift</th><th>p</th></tr></thead>
@@ -558,7 +563,9 @@ html = f"""<!DOCTYPE html>
     <div class="callout">
       <strong>Production implication:</strong> Use full names in notification copy. Write longer notifications (more detail = more context = more clicks). Reserve "exclusive" for actual exclusives — the tag carries genuine signal. Avoid question format in notification copy.
     </div>
-    <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=17) drove outsized CTR; noted as a serial-installment content type distinct from formula effects.</p>
+    <h3>What doesn't move the needle in notifications</h3>
+    <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
+    <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
   </section>
 
   <!-- TOPICS -->
