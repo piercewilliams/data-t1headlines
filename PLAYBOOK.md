@@ -1,29 +1,70 @@
 # T1 Headline Analysis — Monthly Analysis Playbook
 
-When new data arrives from Tarrow, run:
+---
 
+## Every time new data arrives — do this first
+
+**Step 1 — Run ingest**
 ```bash
-python ingest.py --data-2026 "New file.xlsx" --note "what changed"
+python3 ingest.py --data-2026 "New file.xlsx" --note "brief description of what changed"
+# If the 2025 file also changed:
+python3 ingest.py --data-2025 "new_2025.xlsx" --data-2026 "new_2026.xlsx"
 ```
 
-The script profiles the data, diffs against the last run, and prints suggested next steps.
-This playbook explains what to do in each scenario.
+**Step 2 — Read the diff output**
+
+The terminal output will show:
+- Row count changes per sheet
+- Any columns that flipped from mostly-null to populated
+- Suggested analysis steps if structural changes were detected
+
+If it says "No structural changes detected" → skip to Step 4.
+If suggestions fired → note which scenarios, then go to those sections below.
+
+**Step 3 — Open the regenerated site and verify these 5 things**
+
+Open `docs/index.html` in a browser and check:
+
+1. **Hero numbers** — do the three stat boxes still read sensibly?
+   - "What to know" Featured rate should be near 62% unless editorial behavior changed
+   - SmartNews Local lift should be near 108× (stable unless data structure changed)
+   - "Exclusive" CTR lift should be near 2.49× (may drift as Guthrie story ages out)
+
+2. **Formula chart (Finding 1)** — are all 7 formula types still visible? If a formula dropped
+   to n=0 in the new data, it disappears silently.
+
+3. **Platform separation (Finding 5)** — does Sports still lead Apple News? Does Local/Civic
+   still lead SmartNews? These rankings can shift month-to-month. If they flip materially,
+   update the hero h1 headline before pushing.
+
+4. **Variance chart (Finding 6)** — do the cv values look in the same ballpark? Extreme
+   outliers (cv > 50 on Apple News) suggest a data anomaly, not a real finding.
+
+5. **Caveat row counts** — scan the grey caveat lines at the bottom of each finding.
+   Do the n= numbers match your expectation from the diff output?
+
+**Step 4 — If everything looks clean: push**
+```bash
+! git push origin main
+```
+
+**Step 5 — If suggestions fired: follow the scenario section below**
+
+Then return to Step 3 after any additional analysis to verify the site before pushing.
 
 ---
 
 ## Scenario 1: Standard monthly update
 
 **What changed:** Same file structure, more rows. No new columns or sheets.
+Ingest will say "No structural changes detected."
 
-**What updates automatically:** Everything. `generate_site.py` is fully dynamic — all 7
-findings recompute from the new data. Push to GitHub Pages and the site is live.
+**What updates automatically:** Everything. All 7 findings recompute from the new data.
 
-**What to verify manually:**
-- Do the hero numbers still read correctly? (WTN featured rate, Local lift, exclusive CTR)
-- Did any sample sizes cross significance thresholds? (Here's/possessive in Q1 need n≥30 for sig)
-- Did the platform separation finding flip? (Sports #1 AN, Local/Civic #1 SN — check if still true)
-
-**Skills needed:** None beyond `generate_site.py` — it already ran.
+**Additional checks beyond the universal Step 3:**
+- Check if Here's/possessive formula sample sizes crossed n≥30 or n≥100 (see thresholds table)
+- If n crossed a threshold, run: *"Re-run Q1 formula lift analysis. Flag whether Here's or
+  possessive named entity now have statistical significance."* Skills: `polars`
 
 ---
 
