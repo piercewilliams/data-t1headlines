@@ -662,6 +662,68 @@ html = f"""<!DOCTYPE html>
   /* CAVEAT */
   .caveat {{ font-size: 0.78rem; color: var(--gray); margin-top: 0.5rem; font-style: italic; }}
 
+  /* FINDING CARDS (accordion) */
+  .finding-card {{
+    border-bottom: 1px solid var(--border);
+  }}
+  .finding-card:last-of-type {{
+    border-bottom: none;
+  }}
+  .finding-card > summary {{
+    list-style: none;
+    cursor: pointer;
+    padding: 2.25rem 0 2.25rem 0;
+    display: grid;
+    grid-template-columns: 1.5rem 1fr;
+    gap: 0 0.6rem;
+    align-items: start;
+    user-select: none;
+  }}
+  .finding-card > summary::-webkit-details-marker {{ display: none; }}
+  .finding-card > summary::marker {{ display: none; }}
+  .finding-chevron {{
+    margin-top: 0.3rem;
+    color: var(--blue);
+    font-size: 0.7rem;
+    transition: transform 0.18s ease;
+    display: inline-block;
+    flex-shrink: 0;
+  }}
+  .finding-card[open] > summary .finding-chevron {{
+    transform: rotate(90deg);
+  }}
+  .finding-card > summary:hover h2 {{
+    color: var(--blue);
+    transition: color 0.15s;
+  }}
+  .finding-card > summary h2 {{
+    transition: color 0.15s;
+  }}
+  .finding-body {{
+    padding: 0 0 3rem 2.1rem;
+  }}
+  .finding-body > .callout:first-child {{
+    margin-top: 0;
+  }}
+
+  /* NAV TOGGLE BUTTON */
+  .nav-toggle {{
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.65);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+  }}
+  .nav-toggle:hover {{
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+  }}
+
   /* FOOTER */
   footer {{ padding: 3rem 0; text-align: center; color: var(--gray); font-size: 0.8rem; }}
   footer a {{ color: var(--blue); text-decoration: none; }}
@@ -682,6 +744,7 @@ html = f"""<!DOCTYPE html>
     <a href="#engagement">Engagement</a>
   </div>
   <span class="spacer"></span>
+  <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
   <span class="date">Phase 2 · March 2026</span>
 </nav>
 
@@ -699,157 +762,229 @@ html = f"""<!DOCTYPE html>
 <div class="container">
 
   <!-- FORMULAS -->
-  <section id="formulas">
-    <p class="section-label">Finding 1 · Apple News Formulas</p>
-    <h2>Number leads and questions consistently underperform. "Here's" and possessive named entities lead — but sample sizes are small.</h2>
-    <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads (0.65×, p&lt;0.001), question format (0.51×, p&lt;0.001), and quoted ledes (0.61×, p&lt;0.001). The better-performing formulas — "Here's / Here are" (2.97×) and possessive named entity (1.94×) — show strong directional signal but lack statistical significance at current sample sizes (n=16 and n=75 respectively).</p>
-    <div class="chart-wrap">{c1}</div>
-    <div class="callout">
-      <strong>Production implication:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
+  <details id="formulas" class="finding-card" open>
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 1 · Apple News Formulas</p>
+        <h2>Number leads and questions consistently underperform. "Here's" and possessive named entities lead — but sample sizes are small.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
+      </div>
+      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads (0.65×, p&lt;0.001), question format (0.51×, p&lt;0.001), and quoted ledes (0.61×, p&lt;0.001). The better-performing formulas — "Here's / Here are" (2.97×) and possessive named entity (1.94×) — show strong directional signal but lack statistical significance at current sample sizes (n=16 and n=75 respectively).</p>
+      <div class="chart-wrap">{c1}</div>
+      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles removed to isolate headline signal from editorial selection effect. Mann-Whitney U vs. untagged baseline. * p&lt;0.05  ** p&lt;0.01  *** p&lt;0.001</p>
     </div>
-    <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles removed to isolate headline signal from editorial selection effect. Mann-Whitney U vs. untagged baseline. * p&lt;0.05  ** p&lt;0.01  *** p&lt;0.001</p>
-  </section>
+  </details>
 
   <!-- FEATURING -->
-  <section id="featuring">
-    <p class="section-label">Finding 2 · Featured by Apple</p>
-    <h2>"What to know" headlines get Featured at 62% — more than double the 27% baseline rate.</h2>
-    <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: 13 of 21 (62%) were Featured. The overall Featured rate is 26.7%. This is the strongest statistically significant formula signal in the dataset (χ²=11.7, p=0.0006).</p>
-    <p>Question-format headlines are also Featured more often than expected (37%, 1.39× lift, p=0.005) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
-    <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate (33%), but once Featured they deliver the highest within-Featured median of any formula — 17,608 views, 1.61× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
-    <div class="chart-wrap">{c2}</div>
-    <table class="findings">
-      <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>Within-Featured median</th></tr></thead>
-      <tbody>
-        <tr><td><span class="tag tag-green">★</span>What to know</td><td>21</td><td>62%</td><td>2.32×</td><td>16,933 views (1.55× Featured avg)</td></tr>
-        <tr><td><span class="tag tag-green">★</span>Quoted lede</td><td>187</td><td>33%</td><td>1.22×</td><td>17,608 views (1.61× Featured avg)</td></tr>
-        <tr><td>Here's / Here are</td><td>24</td><td>33%</td><td>1.25×</td><td>7,892 views (0.72× Featured avg)</td></tr>
-        <tr><td>Question</td><td>146</td><td>37%</td><td>1.39×</td><td>6,574 views (0.60× Featured avg)</td></tr>
-        <tr><td>Number lead</td><td>175</td><td>18%</td><td>0.69×</td><td>11,410 views (1.05× Featured avg)</td></tr>
-      </tbody>
-    </table>
-    <div class="callout">
-      <strong>Production implication:</strong> "What to know" is the fastest path to Featured placement. Apply it to high-stakes local stories — health alerts, weather emergencies, civic events. The data shows Apple's editors strongly favor this format for surfacing to subscribers.
+  <details id="featuring" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 2 · Featured by Apple</p>
+        <h2>"What to know" headlines get Featured at 62% — more than double the 27% baseline rate.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Use "What to know" on high-stakes local stories — health alerts, weather emergencies, civic events. It is the fastest path to Featured placement. Apple's editors strongly favor this format for surfacing to subscribers.
+      </div>
+      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: 13 of 21 (62%) were Featured. The overall Featured rate is 26.7%. This is the strongest statistically significant formula signal in the dataset (χ²=11.7, p=0.0006).</p>
+      <p>Question-format headlines are also Featured more often than expected (37%, 1.39× lift, p=0.005) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
+      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate (33%), but once Featured they deliver the highest within-Featured median of any formula — 17,608 views, 1.61× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
+      <div class="chart-wrap">{c2}</div>
+      <table class="findings">
+        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>Within-Featured median</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-green">★</span>What to know</td><td>21</td><td>62%</td><td>2.32×</td><td>16,933 views (1.55× Featured avg)</td></tr>
+          <tr><td><span class="tag tag-green">★</span>Quoted lede</td><td>187</td><td>33%</td><td>1.22×</td><td>17,608 views (1.61× Featured avg)</td></tr>
+          <tr><td>Here's / Here are</td><td>24</td><td>33%</td><td>1.25×</td><td>7,892 views (0.72× Featured avg)</td></tr>
+          <tr><td>Question</td><td>146</td><td>37%</td><td>1.39×</td><td>6,574 views (0.60× Featured avg)</td></tr>
+          <tr><td>Number lead</td><td>175</td><td>18%</td><td>0.69×</td><td>11,410 views (1.05× Featured avg)</td></tr>
+        </tbody>
+      </table>
+      <h3>Featured placement drives reach — not reading depth</h3>
+      <p>Featured articles average {feat_at.median():.0f} seconds of active reading time versus {nfeat_at.median():.0f} seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
+      <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test vs. all other formula types combined. Active time: n={len(an_eng):,} articles with valid active time data.</p>
     </div>
-    <h3>Featured placement drives reach — not reading depth</h3>
-    <p>Featured articles average {feat_at.median():.0f} seconds of active reading time versus {nfeat_at.median():.0f} seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
-    <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test vs. all other formula types combined. Active time: n={len(an_eng):,} articles with valid active time data.</p>
-  </section>
+  </details>
 
   <!-- SMARTNEWS -->
-  <section id="smartnews">
-    <p class="section-label">Finding 3 · SmartNews Allocation</p>
-    <h2>SmartNews Local delivers 108× the views of average Top-feed articles. Entertainment gets 12× more articles and performs like average.</h2>
-    <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of 16,593 total views. Articles in the U.S. National channel: 11,153 views. The Top feed baseline: 153 views. World (3.8×) and Health (3.7×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for 35.9% of all SmartNews articles — delivers only 224 views median, barely above baseline.</p>
-    <div class="chart-wrap">{c3}</div>
-    <table class="findings">
-      <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th></tr></thead>
-      <tbody>
-        <tr><td><span class="tag tag-green">↑</span>Local</td><td>1,097</td><td>2.9%</td><td>16,593</td><td>108×</td></tr>
-        <tr><td><span class="tag tag-green">↑</span>U.S. National</td><td>909</td><td>2.4%</td><td>11,153</td><td>73×</td></tr>
-        <tr><td>Football</td><td>276</td><td>0.7%</td><td>1,934</td><td>12.6×</td></tr>
-        <tr><td>Business</td><td>125</td><td>0.3%</td><td>1,933</td><td>12.6×</td></tr>
-        <tr><td>World</td><td>120</td><td>0.3%</td><td>580</td><td>3.8×</td></tr>
-        <tr><td>Health</td><td>235</td><td>0.6%</td><td>565</td><td>3.7×</td></tr>
-        <tr><td>Politics</td><td>607</td><td>1.6%</td><td>331</td><td>2.2×</td></tr>
-        <tr><td><span class="tag tag-red">↓</span>Entertainment</td><td>13,713</td><td>35.9%</td><td>224</td><td>1.46×</td></tr>
-        <tr><td>Top feed (baseline)</td><td>34,006</td><td>88.9%</td><td>153</td><td>1.00×</td></tr>
-      </tbody>
-    </table>
-    <div class="callout">
-      <strong>Caveat:</strong> Articles appearing in Local and U.S. channels are likely high-quality breaking or civic news articles that would perform well regardless. The channel assignment partly reflects content type, not just headline formula. That said, the magnitude of the gap — 108× — and the scale of the Entertainment over-investment make this a clear reallocation signal.
+  <details id="smartnews" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 3 · SmartNews Allocation</p>
+        <h2>SmartNews Local delivers 108× the views of average Top-feed articles. Entertainment gets 12× more articles and performs like average.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming 35.9% of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver 108× and 73× the views at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
+        <br><br><em>Caveat:</em> Articles in Local and U.S. channels are likely higher-quality breaking/civic stories that would perform well regardless of channel. Channel assignment partly reflects content type.
+      </div>
+      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of 16,593 total views. Articles in the U.S. National channel: 11,153 views. The Top feed baseline: 153 views. World (3.8×) and Health (3.7×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for 35.9% of all SmartNews articles — delivers only 224 views median, barely above baseline.</p>
+      <div class="chart-wrap">{c3}</div>
+      <table class="findings">
+        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-green">↑</span>Local</td><td>1,097</td><td>2.9%</td><td>16,593</td><td>108×</td></tr>
+          <tr><td><span class="tag tag-green">↑</span>U.S. National</td><td>909</td><td>2.4%</td><td>11,153</td><td>73×</td></tr>
+          <tr><td>Football</td><td>276</td><td>0.7%</td><td>1,934</td><td>12.6×</td></tr>
+          <tr><td>Business</td><td>125</td><td>0.3%</td><td>1,933</td><td>12.6×</td></tr>
+          <tr><td>World</td><td>120</td><td>0.3%</td><td>580</td><td>3.8×</td></tr>
+          <tr><td>Health</td><td>235</td><td>0.6%</td><td>565</td><td>3.7×</td></tr>
+          <tr><td>Politics</td><td>607</td><td>1.6%</td><td>331</td><td>2.2×</td></tr>
+          <tr><td><span class="tag tag-red">↓</span>Entertainment</td><td>13,713</td><td>35.9%</td><td>224</td><td>1.46×</td></tr>
+          <tr><td>Top feed (baseline)</td><td>34,006</td><td>88.9%</td><td>153</td><td>1.00×</td></tr>
+        </tbody>
+      </table>
+      <p class="caveat">SmartNews 2025 (n=38,251 article-channel rows). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. 2026 export lacks category breakdown.</p>
     </div>
-    <p class="caveat">SmartNews 2025 (n=38,251 article-channel rows). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. 2026 export lacks category breakdown.</p>
-  </section>
+  </details>
 
   <!-- NOTIFICATIONS -->
-  <section id="notifications">
-    <p class="section-label">Finding 4 · Push Notification CTR</p>
-    <h2>"Exclusive" delivers 2.49× CTR lift. Possessive framing on a full name adds 1.86×. Questions hurt.</h2>
-    <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR 1.68%), four features show statistically significant positive effects. The "exclusive" tag is the strongest at 2.49× lift — and it is not primarily a Savannah Guthrie effect: only 4 of 16 exclusive-tagged notifications mention Guthrie. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction ("Savannah Guthrie's husband breaks silence", "Bill Cosby's longtime rep 'blindsided'", "Mike Tomlin's wife was frantic") drive 1.86× CTR vs. 1.21× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at 0.64×, consistent with the Apple News article finding.</p>
-    <div class="chart-wrap">{c4}</div>
-    <table class="findings">
-      <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift</th><th>p</th></tr></thead>
-      <tbody>
-        <tr><td><span class="tag tag-green">↑</span>'Exclusive' tag</td><td>16</td><td>4.01%</td><td>1.61%</td><td>2.49×</td><td>&lt;0.001 ***</td></tr>
-        <tr><td><span class="tag tag-green">↑</span>Named person + possessive</td><td>74</td><td>2.90%</td><td>1.56%</td><td>1.86×</td><td>&lt;0.001 ***</td></tr>
-        <tr><td><span class="tag tag-green">↑</span>Full name present</td><td>196</td><td>1.88%</td><td>1.55%</td><td>1.21×</td><td>0.001 ***</td></tr>
-        <tr><td><span class="tag tag-red">↓</span>Question format</td><td>23</td><td>1.12%</td><td>1.75%</td><td>0.64×</td><td>&lt;0.001 ***</td></tr>
-        <tr><td><span class="tag tag-red">↓</span>Short (≤80 chars)</td><td>217</td><td>1.50%</td><td>2.44%</td><td>0.61×</td><td>&lt;0.001 ***</td></tr>
-      </tbody>
-    </table>
-    <div class="callout">
-      <strong>Production implication:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." The possessive construction signals insider access and relational proximity, not just name recognition. Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
+  <details id="notifications" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 4 · Push Notification CTR</p>
+        <h2>"Exclusive" delivers 2.49× CTR lift. Possessive framing on a full name adds 1.86×. Questions hurt.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
+      </div>
+      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR 1.68%), four features show statistically significant positive effects. The "exclusive" tag is the strongest at 2.49× lift — and it is not primarily a Savannah Guthrie effect: only 4 of 16 exclusive-tagged notifications mention Guthrie. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction ("Savannah Guthrie's husband breaks silence", "Bill Cosby's longtime rep 'blindsided'", "Mike Tomlin's wife was frantic") drive 1.86× CTR vs. 1.21× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at 0.64×, consistent with the Apple News article finding.</p>
+      <div class="chart-wrap">{c4}</div>
+      <table class="findings">
+        <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift</th><th>p</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-green">↑</span>'Exclusive' tag</td><td>16</td><td>4.01%</td><td>1.61%</td><td>2.49×</td><td>&lt;0.001 ***</td></tr>
+          <tr><td><span class="tag tag-green">↑</span>Named person + possessive</td><td>74</td><td>2.90%</td><td>1.56%</td><td>1.86×</td><td>&lt;0.001 ***</td></tr>
+          <tr><td><span class="tag tag-green">↑</span>Full name present</td><td>196</td><td>1.88%</td><td>1.55%</td><td>1.21×</td><td>0.001 ***</td></tr>
+          <tr><td><span class="tag tag-red">↓</span>Question format</td><td>23</td><td>1.12%</td><td>1.75%</td><td>0.64×</td><td>&lt;0.001 ***</td></tr>
+          <tr><td><span class="tag tag-red">↓</span>Short (≤80 chars)</td><td>217</td><td>1.50%</td><td>2.44%</td><td>0.61×</td><td>&lt;0.001 ***</td></tr>
+        </tbody>
+      </table>
+      <h3>The serial/escalating story as a content type</h3>
+      <p>The top 10 notifications in the dataset by CTR (ranging 6.5–9.6%) are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This isn't just a confound — it defines a content type worth naming: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula is: possessive named entity + new development + escalating stakes, published in installments. Each installment compounds prior audience investment.</p>
+      <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
+      <p><em>Signal interference caveat:</em> The Guthrie cluster accounts for the most extreme CTRs in the dataset (n=16 notifications, many above 5%). It's not possible to fully separate the formula from the underlying story interest — a different serial story using identical framing might not replicate these exact numbers. The possessive + full name signal (1.86× lift, p&lt;0.001) holds across non-Guthrie stories, but the very top of the distribution is Guthrie-driven.</p>
+      <h3>What doesn't move the needle in notifications</h3>
+      <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
+      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
     </div>
-    <h3>The serial/escalating story as a content type</h3>
-    <p>The top 10 notifications in the dataset by CTR (ranging 6.5–9.6%) are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This isn't just a confound — it defines a content type worth naming: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula is: possessive named entity + new development + escalating stakes, published in installments. Each installment compounds prior audience investment.</p>
-    <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
-    <p><em>Signal interference caveat:</em> The Guthrie cluster accounts for the most extreme CTRs in the dataset (n=16 notifications, many above 5%). It's not possible to fully separate the formula from the underlying story interest — a different serial story using identical framing might not replicate these exact numbers. The possessive + full name signal (1.86× lift, p&lt;0.001) holds across non-Guthrie stories, but the very top of the distribution is Guthrie-driven.</p>
-    <h3>What doesn't move the needle in notifications</h3>
-    <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
-    <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
-  </section>
+  </details>
 
   <!-- TOPICS -->
-  <section id="topics">
-    <p class="section-label">Finding 5 · Platform Separation</p>
-    <h2>{an_top_label} leads Apple News. {sn_top_label} leads SmartNews. Sports ranks #{sports_an_rank} on Apple News and last on SmartNews — the starkest evidence that these platforms serve different audiences entirely.</h2>
-    <p>Topic performance diverges sharply — and in many cases inverts — by platform. {an_top_label} leads Apple News ({an_top_med:,} median views), followed by {an_2nd_label} ({an_2nd_med:,}). On SmartNews, {sn_top_label.lower()} leads ({sn_top_med} median views), while sports ranks last at {sports_sn_med} views — the same sports content that ranks #{sports_an_rank} on Apple News ({sports_an_med:,} median views) performs worst on SmartNews ({sports_sn_idx:.2f}x platform median). Nature/wildlife shows the same inversion in reverse: bottom of Apple News ({nw_an_idx:.2f}x) but near the top of SmartNews ({nw_sn_idx:.2f}x). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
-    <div class="chart-wrap">{c5}</div>
-    <h3>Platforms are drawing from separate content pools</h3>
-    <p>Exact title matching across all four platforms confirms: {overlap_all4} articles appear on all four simultaneously. Only {overlap_3plus} appear on three or more. Each platform operates on largely independent content.</p>
-    <table class="findings">
-      <thead><tr><th>Platform</th><th>Unique titles</th><th>Exclusive to this platform</th><th>Note</th></tr></thead>
-      <tbody>
-        <tr><td>SmartNews</td><td>{N_SN_UNIQ:,}</td><td>{excl_sn:.0%}</td><td>Highest exclusivity — nearly closed ecosystem</td></tr>
-        <tr><td>MSN</td><td>{N_MSN_UNIQ:,}</td><td>{excl_msn:.0%}</td><td>December only; seasonal news cycle increases overlap</td></tr>
-        <tr><td>Apple News</td><td>{N_AN_UNIQ:,}</td><td>{excl_an:.0%}</td><td>Small amount of title sharing with Yahoo/SmartNews</td></tr>
-        <tr><td>Yahoo</td><td>{N_YAHOO_UNIQ:,}</td><td>{excl_yahoo:.0%}</td><td>Some overlap with Apple News and SmartNews</td></tr>
-      </tbody>
-    </table>
-    <div class="callout">
-      <strong>Production implication:</strong> These platforms are not seeing the same articles, and their audiences are not the same readers. Platform-specific variant briefs will outperform generic variants. Apple News: weather, sports, and serial/escalating framing — high-specificity national and regional stories. SmartNews: nature/wildlife, business, and crime — topic types that are underserved on Apple News but over-index significantly on SmartNews. A single undifferentiated variant deployed across platforms leaves measurable performance on the table.
+  <details id="topics" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 5 · Platform Separation</p>
+        <h2>{an_top_label} leads Apple News. {sn_top_label} leads SmartNews. Sports ranks #{sports_an_rank} on Apple News and last on SmartNews — the starkest evidence that these platforms serve different audiences entirely.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Write platform-specific variant briefs — not generic copy deployed everywhere. Apple News: sports, weather, serial/escalating framing. SmartNews: local/civic, nature/wildlife, business. These platforms are not seeing the same articles ({excl_sn:.0%} of SmartNews content appears nowhere else), and their audiences are not the same readers.
+      </div>
+      <p>Topic performance diverges sharply — and in many cases inverts — by platform. {an_top_label} leads Apple News ({an_top_med:,} median views), followed by {an_2nd_label} ({an_2nd_med:,}). On SmartNews, {sn_top_label.lower()} leads ({sn_top_med} median views), while sports ranks last at {sports_sn_med} views — the same sports content that ranks #{sports_an_rank} on Apple News ({sports_an_med:,} median views) performs worst on SmartNews ({sports_sn_idx:.2f}x platform median). Nature/wildlife shows the same inversion in reverse: bottom of Apple News ({nw_an_idx:.2f}x) but near the top of SmartNews ({nw_sn_idx:.2f}x). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
+      <div class="chart-wrap">{c5}</div>
+      <h3>Platforms are drawing from separate content pools</h3>
+      <p>Exact title matching across all four platforms confirms: {overlap_all4} articles appear on all four simultaneously. Only {overlap_3plus} appear on three or more. Each platform operates on largely independent content.</p>
+      <table class="findings">
+        <thead><tr><th>Platform</th><th>Unique titles</th><th>Exclusive to this platform</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>SmartNews</td><td>{N_SN_UNIQ:,}</td><td>{excl_sn:.0%}</td><td>Highest exclusivity — nearly closed ecosystem</td></tr>
+          <tr><td>MSN</td><td>{N_MSN_UNIQ:,}</td><td>{excl_msn:.0%}</td><td>December only; seasonal news cycle increases overlap</td></tr>
+          <tr><td>Apple News</td><td>{N_AN_UNIQ:,}</td><td>{excl_an:.0%}</td><td>Small amount of title sharing with Yahoo/SmartNews</td></tr>
+          <tr><td>Yahoo</td><td>{N_YAHOO_UNIQ:,}</td><td>{excl_yahoo:.0%}</td><td>Some overlap with Apple News and SmartNews</td></tr>
+        </tbody>
+      </table>
+      <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match across all four 2025 datasets. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
     </div>
-    <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match across all four 2025 datasets. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
-  </section>
+  </details>
 
   <!-- ALLOCATION -->
-  <section id="allocation">
-    <p class="section-label">Finding 6 · Headline Variance by Topic</p>
-    <h2>Crime shows the widest outcome spread on both platforms. On Apple News, business is second. On SmartNews, local/civic variance reflects the channel placement effect.</h2>
-    <p>The chart below shows the IQR ÷ median ratio (a robust spread measure) for each topic × platform combination. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance. Where it is low, outcomes are similar regardless of how the headline is written.</p>
-    <div class="chart-wrap">{c6}</div>
-    <p>On Apple News, crime (cv=3.9) and business (cv=3.8) show the highest spread — a wide gap between underperforming and outperforming headlines within those topics. Nature/wildlife (cv=2.2) is the most consistent: these stories perform similarly regardless of headline, suggesting story quality drives more of the variance than framing does. On SmartNews, local/civic (cv=31) and business (cv=14) show extreme variance — driven by the channel allocation effect identified in Finding 3. Most local/civic articles on SmartNews get very few views, but the small fraction that land in the Local channel reach 16,000+ median views. The variance reflects the value of channel placement, not just headline quality.</p>
-    <div class="callout">
-      <strong>Implication for variant allocation:</strong> Concentrate variant production on high-median × high-variance combinations — where the potential payoff and headline sensitivity are both greatest. For Apple News: crime and business. For SmartNews: crime and local/civic (where framing that signals geographic/civic relevance may influence channel placement). Low-variance combinations — nature/wildlife on Apple News, weather on SmartNews — have less to gain from headline optimization; the story drives performance more than the headline does.
+  <details id="allocation" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 6 · Headline Variance by Topic</p>
+        <h2>Crime shows the widest outcome spread on both platforms. On Apple News, business is second. On SmartNews, local/civic variance reflects the channel placement effect.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Concentrate variant production on high-median × high-variance topic combinations — where headline optimization has the most room to move performance. For Apple News: crime and business. For SmartNews: crime and local/civic (where framing that signals geographic/civic relevance may influence channel placement). Low-variance topics — nature/wildlife on Apple News, weather on SmartNews — have less to gain from headline optimization; the story drives performance more than the headline does.
+      </div>
+      <p>The chart below shows the IQR ÷ median ratio (a robust spread measure) for each topic × platform combination. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance. Where it is low, outcomes are similar regardless of how the headline is written.</p>
+      <div class="chart-wrap">{c6}</div>
+      <p>On Apple News, crime (cv=3.9) and business (cv=3.8) show the highest spread — a wide gap between underperforming and outperforming headlines within those topics. Nature/wildlife (cv=2.2) is the most consistent: these stories perform similarly regardless of headline, suggesting story quality drives more of the variance than framing does. On SmartNews, local/civic (cv=31) and business (cv=14) show extreme variance — driven by the channel allocation effect identified in Finding 3. Most local/civic articles on SmartNews get very few views, but the small fraction that land in the Local channel reach 16,000+ median views. The variance reflects the value of channel placement, not just headline quality.</p>
+      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded.</p>
     </div>
-    <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded.</p>
-  </section>
+  </details>
 
   <!-- ENGAGEMENT -->
-  <section id="engagement">
-    <p class="section-label">Finding 7 · Views vs. Reading Depth</p>
-    <h2>Views and reading time are statistically independent. Optimizing for clicks and optimizing for reading are different problems.</h2>
-    <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman r = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
-    <div class="chart-wrap">{c7}</div>
-    <table class="findings">
-      <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
-      <tbody>
-        <tr><td>Avg. active time</td><td>r = {r_views_at:.3f} (p = {p_views_at:.2f}, not significant)</td><td>Depth of the current read</td></tr>
-        <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
-        <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
-        <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
-      </tbody>
-    </table>
-    <p>Saves, likes, and shares all scale strongly with views — they measure the same dimension (reach and engagement breadth). Active time measures an orthogonal dimension: whether the reader who clicked actually read. High-view articles are not better-read articles. The two signals are statistically uncoupled.</p>
-    <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). And subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — subscribers are likely efficient, high-frequency readers who scan and move on, not a quality problem but a behavioral difference that matters when comparing paywalled vs. free article metrics.</p>
-    <div class="callout">
-      <strong>Implication for the variant allocation model:</strong> View count alone is an incomplete ROI signal. A variant that drives 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate at minimum: views (reach), saves (return intent), and active time (read depth) — weighted by what predicts subscriber behavior for this audience. This dataset measures all three.
+  <details id="engagement" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 7 · Views vs. Reading Depth</p>
+        <h2>Views and reading time are statistically independent. Optimizing for clicks and optimizing for reading are different problems.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
+      </div>
+      <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman r = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
+      <div class="chart-wrap">{c7}</div>
+      <table class="findings">
+        <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
+        <tbody>
+          <tr><td>Avg. active time</td><td>r = {r_views_at:.3f} (p = {p_views_at:.2f}, not significant)</td><td>Depth of the current read</td></tr>
+          <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
+          <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
+          <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
+        </tbody>
+      </table>
+      <p>Saves, likes, and shares all scale strongly with views — they measure the same dimension (reach and engagement breadth). Active time measures an orthogonal dimension: whether the reader who clicked actually read. High-view articles are not better-read articles. The two signals are statistically uncoupled.</p>
+      <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). And subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — subscribers are likely efficient, high-frequency readers who scan and move on, not a quality problem but a behavioral difference that matters when comparing paywalled vs. free article metrics.</p>
+      <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric.</p>
     </div>
-    <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric.</p>
-  </section>
+  </details>
 
 </div>
+
+<script>
+function toggleAll() {{
+  const cards = document.querySelectorAll('.finding-card');
+  const anyOpen = Array.from(cards).some(d => d.open);
+  cards.forEach(d => d.open = !anyOpen);
+  document.getElementById('expand-btn').textContent = anyOpen ? 'Expand all' : 'Collapse all';
+}}
+
+// Auto-open finding when navigating via nav link or hash
+function openByHash() {{
+  const hash = window.location.hash;
+  if (!hash) return;
+  const target = document.querySelector(hash);
+  if (target && target.tagName === 'DETAILS') {{
+    target.open = true;
+    setTimeout(() => target.scrollIntoView({{behavior: 'smooth', block: 'start'}}), 50);
+  }}
+}}
+window.addEventListener('hashchange', openByHash);
+document.addEventListener('DOMContentLoaded', openByHash);
+</script>
 
 <footer>
   <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · March 2026</p>
