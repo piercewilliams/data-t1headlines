@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config:*)",
+      "Bash(git lfs:*)",
+      "Bash(git fetch:*)",
+      "Bash(git describe:*)",
+      "Bash(/Users/pierce/Documents/GitHub/data-t1headlines/sessions/2026-03.md:*)",
+      "Read(//Users/pierce/.claude/skills/**)",
+      "Bash(cp -r ~/Downloads/aiskillstore-excel-analysis ~/.claude/skills/excel-analysis)",
+      "Bash(cp -r ~/Downloads/petekp-data-sleuth ~/.claude/skills/data-sleuth)",
+      "Bash(cp -r ~/Downloads/majiayu000-data-analysis-skill ~/.claude/skills/data-analysis)",
+      "Bash(cp -r ~/Downloads/majiayu000-data-analysis-sql ~/.claude/skills/data-analysis-sql)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(gh api:*)",
+      "Bash(git -C /Users/pierce/Documents/GitHub/data-t1headlines show origin/main:docs/index.html)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(extends, and complicates\" table. Reframe the core argument as building the:*)",
+      "Bash(ls ~/Downloads/*.xlsx)",
+      "Bash(ls ~/Downloads/*.csv)",
+      "Bash(mkdir -p /Users/pierce/Documents/GitHub/data-t1headlines/docs/v1)",
+      "Bash(cp -r /Users/pierce/Documents/GitHub/data-t1headlines/docs/charts /Users/pierce/Documents/GitHub/data-t1headlines/docs/v1/charts)",
+      "Bash(cp /Users/pierce/Documents/GitHub/data-t1headlines/docs/index.html /Users/pierce/Documents/GitHub/data-t1headlines/docs/v1/index.html)",
+      "Bash(grep -v '^[[:space:]]*$')",
+      "Bash(python:*)",
+      "Bash(grep:*)",
+      "Bash(open:*)"
+    ]
+  }
+}
