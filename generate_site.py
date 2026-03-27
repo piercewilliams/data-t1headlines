@@ -1003,7 +1003,6 @@ document.addEventListener('DOMContentLoaded', openByHash);
 <footer>
   <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · March 2026</p>
   <p style="margin-top: 0.5rem;">
-    <a href="v1/">Phase 1 findings</a> &nbsp;·&nbsp;
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
