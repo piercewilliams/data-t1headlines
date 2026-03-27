@@ -52,8 +52,15 @@ def main():
     archive_dir.mkdir(parents=True, exist_ok=True)
     snapshot_path = archive_dir / "index.html"
 
+    hero_headline = ""
     if current_site.exists():
         content = current_site.read_text(encoding="utf-8")
+
+        # Extract hero h1 to use as the link text in the archive index
+        hero_match = re.search(r'class="hero".*?<h1>(.*?)</h1>', content, re.DOTALL)
+        if hero_match:
+            hero_headline = re.sub(r"<[^>]+>", "", hero_match.group(1)).strip()
+
         banner = (
             f'<div style="background:#b45309;color:#fff;padding:0.75rem 1.5rem;'
             f'text-align:center;font-size:0.85rem;font-family:system-ui,sans-serif;">'
@@ -68,7 +75,7 @@ def main():
         print("⚠  No existing docs/index.html to archive — skipping snapshot step")
 
     # 2. Update archive index
-    _update_archive_index(period, period_label, generated_date, args)
+    _update_archive_index(period, period_label, generated_date, hero_headline, args)
 
     # 3. Regenerate site with new data files
     cmd = [
@@ -99,7 +106,7 @@ def main():
     return 0
 
 
-def _update_archive_index(period, period_label, generated_date, args):
+def _update_archive_index(period, period_label, generated_date, hero_headline, args):
     archive_index = Path("docs/archive/index.html")
 
     # Read existing entries from embedded JSON comment
@@ -118,6 +125,7 @@ def _update_archive_index(period, period_label, generated_date, args):
         "period": period,
         "label": period_label,
         "generated": generated_date,
+        "headline": hero_headline,
         "data_2025": args.data_2025,
         "data_2026": args.data_2026,
         "note": args.note,
@@ -125,18 +133,19 @@ def _update_archive_index(period, period_label, generated_date, args):
     entries = [e for e in entries if e["period"] != period]
     entries.insert(0, entry)
 
-    # Build rows HTML
-    rows = ""
+    # Build edition list HTML — link text = hero headline, metadata below
+    items = ""
     for e in entries:
-        note_cell = e.get("note", "") or "—"
-        rows += (
-            f"<tr>"
-            f'<td><a href="{e["period"]}/index.html">{e["label"]}</a></td>'
-            f'<td>{e["generated"]}</td>'
-            f'<td style="font-size:0.82rem;color:#64748b;">'
-            f'{e.get("data_2025","")}<br>{e.get("data_2026","")}</td>'
-            f'<td>{note_cell}</td>'
-            f"</tr>\n"
+        headline = e.get("headline") or e["label"]
+        meta_parts = [e["label"], e["generated"]]
+        if e.get("note"):
+            meta_parts.append(e["note"])
+        meta = " · ".join(meta_parts)
+        items += (
+            f'<li>'
+            f'<a href="{e["period"]}/index.html">{headline}</a>'
+            f'<span class="meta">{meta}</span>'
+            f'</li>\n'
         )
 
     entries_json = json.dumps(entries)
@@ -145,36 +154,31 @@ def _update_archive_index(period, period_label, generated_date, args):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T1 Headline Analysis · Past Runs</title>
+<title>T1 Headline Analysis · Past Editions</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-          max-width: 820px; margin: 3rem auto; padding: 0 1.5rem; color: #0f172a; }}
-  h1 {{ font-family: Georgia, serif; font-size: 1.55rem; margin-bottom: 0.4rem; }}
+          max-width: 760px; margin: 3rem auto; padding: 0 1.5rem; color: #0f172a;
+          line-height: 1.6; }}
+  h1 {{ font-family: Georgia, serif; font-size: 1.5rem; margin-bottom: 0.4rem; }}
   .back {{ color: #2563eb; text-decoration: none; font-size: 0.85rem;
            display: block; margin-bottom: 2rem; }}
-  p.sub {{ color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem; }}
-  table {{ width: 100%; border-collapse: collapse; }}
-  th {{ text-align: left; padding: 6px 10px; border-bottom: 2px solid #e2e8f0;
-        color: #64748b; font-size: 0.72rem; text-transform: uppercase;
-        letter-spacing: 0.06em; }}
-  td {{ padding: 10px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top;
-        font-size: 0.9rem; }}
-  a {{ color: #2563eb; }}
+  p.sub {{ color: #64748b; font-size: 0.88rem; margin-bottom: 2rem; }}
+  ul {{ list-style: none; padding: 0; margin: 0; }}
+  li {{ padding: 1.1rem 0; border-bottom: 1px solid #e2e8f0; }}
+  li:last-child {{ border-bottom: none; }}
+  li a {{ font-family: Georgia, serif; font-size: 1.05rem; color: #0f172a;
+          text-decoration: none; display: block; margin-bottom: 0.2rem; }}
+  li a:hover {{ color: #2563eb; }}
+  .meta {{ display: block; font-size: 0.78rem; color: #94a3b8; }}
 </style>
 </head>
 <body>
 <!--ENTRIES:{entries_json}-->
 <a class="back" href="../index.html">← Current analysis</a>
-<h1>T1 Headline Analysis · Past Runs</h1>
-<p class="sub">Each snapshot preserves the site exactly as generated from that month's data.
-  Run <code>python ingest.py</code> to add a new entry.</p>
-<table>
-  <thead>
-    <tr><th>Period</th><th>Generated</th><th>Data files</th><th>Notes</th></tr>
-  </thead>
-  <tbody>
-{rows}  </tbody>
-</table>
+<h1>Past Editions</h1>
+<p class="sub">Each snapshot is the full site as it existed when that data was ingested.</p>
+<ul>
+{items}</ul>
 </body>
 </html>"""
 
