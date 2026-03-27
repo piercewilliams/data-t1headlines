@@ -380,39 +380,48 @@ def render_report(spec, result, metric_info, chart_html, timeseries_html=None, l
 <title>{title} · T1 Experiment</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  :root {{ --navy:{NAVY}; --blue:{BLUE}; --green:{GREEN}; --red:{RED}; --gray:{GRAY}; --border:{BORDER}; }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
-  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-          color:var(--navy); background:#fff; font-size:16px; line-height:1.65; }}
-  nav {{ background:var(--navy); padding:0 1.5rem; display:flex; align-items:center;
-         gap:1.25rem; height:52px; }}
-  nav a {{ color:rgba(255,255,255,0.55); text-decoration:none; font-size:0.8rem; }}
-  nav a:hover {{ color:#fff; }}
-  nav .brand {{ color:#fff; font-weight:600; font-size:0.82rem; opacity:0.9; }}
-  .container {{ max-width:820px; margin:0 auto; padding:2.5rem 1.75rem 4rem; }}
-  .eyebrow {{ text-transform:uppercase; letter-spacing:0.1em; font-size:0.67rem;
-              color:var(--blue); font-weight:600; margin-bottom:0.5rem; }}
-  h1 {{ font-family:Georgia,serif; font-size:1.65rem; line-height:1.3;
-        margin-bottom:0.6rem; letter-spacing:-0.01em; }}
-  .meta {{ font-size:0.82rem; color:var(--gray); margin-bottom:2rem; }}
-  .callout {{ padding:1rem 1.25rem; border-radius:6px; margin:1.5rem 0;
-              font-size:0.92rem; border-left:3px solid; }}
-  h3 {{ font-size:1rem; font-weight:600; margin:1.75rem 0 0.5rem; }}
-  p {{ color:#475569; margin-bottom:1rem; font-size:0.95rem; }}
-  .chart-wrap {{ margin:1.25rem 0; border:1px solid var(--border);
-                 border-radius:8px; overflow:hidden; padding:1rem; }}
-  table {{ width:100%; border-collapse:collapse; font-size:0.88rem; margin:1.25rem 0; }}
-  th {{ text-align:left; padding:6px 10px; border-bottom:2px solid var(--border);
-        color:var(--gray); font-weight:600; font-size:0.72rem; text-transform:uppercase;
-        letter-spacing:0.06em; }}
-  td {{ padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }}
-  .caveat {{ font-size:0.78rem; color:var(--gray); font-style:italic; margin-top:1.5rem; }}
-  .status {{ display:inline-block; font-size:0.67rem; font-weight:600;
-             text-transform:uppercase; letter-spacing:0.07em; padding:2px 8px;
-             border-radius:2px; margin-left:0.5rem; }}
-  .status-complete {{ background:#dcfce7; color:#15803d; }}
-  .status-active   {{ background:#dbeafe; color:#1d4ed8; }}
-  .status-pending  {{ background:#f1f5f9; color:#64748b; }}
+  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; }}
+  nav {{ background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+         -webkit-backdrop-filter:blur(10px); padding:0 2rem;
+         display:flex; align-items:center; gap:1.5rem; height:46px;
+         border-bottom:1px solid rgba(255,255,255,0.04); }}
+  nav .brand {{ color:#fff; font-weight:700; font-size:0.72rem;
+                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
+           font-size:0.73rem; transition:color 0.15s; }}
+  nav a:hover {{ color:rgba(255,255,255,0.85); }}
+  .container {{ max-width:800px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
+  .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
+              color:{BLUE}; font-weight:700; margin-bottom:0.5rem; display:block; }}
+  h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
+        letter-spacing:-0.02em; margin-bottom:0.5rem; }}
+  .meta {{ font-size:0.8rem; color:#64748b; margin-bottom:2rem; line-height:1.6; }}
+  .callout {{ padding:1rem 1.25rem; border-radius:8px; margin:1.5rem 0; font-size:0.875rem; }}
+  h3 {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+        color:#64748b; margin:2rem 0 0.6rem; }}
+  p {{ color:#4b5563; margin-bottom:0.9rem; font-size:0.9375rem; }}
+  p:last-child {{ margin-bottom:0; }}
+  .chart-wrap {{ margin:1.5rem 0; border-radius:10px; overflow:hidden; background:#fff;
+                 padding:0.5rem;
+                 box-shadow:0 1px 3px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.05); }}
+  table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:1.25rem 0;
+           background:#fff; border-radius:8px; overflow:hidden;
+           box-shadow:0 0 0 1px #e2e8f0,0 1px 3px rgba(0,0,0,0.04); }}
+  th {{ text-align:left; padding:8px 12px; background:#f8fafc; color:#64748b;
+        font-weight:600; font-size:0.62rem; text-transform:uppercase;
+        letter-spacing:0.08em; border-bottom:1px solid #e2e8f0; }}
+  td {{ padding:8px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; color:#4b5563; }}
+  tr:last-child td {{ border-bottom:none; }}
+  .caveat {{ font-size:0.74rem; color:#94a3b8; margin-top:0.75rem; line-height:1.6; }}
+  .status {{ display:inline-block; font-size:0.6rem; font-weight:700;
+             text-transform:uppercase; letter-spacing:0.07em; padding:2px 6px;
+             border-radius:3px; margin-left:0.5rem; vertical-align:middle; }}
+  .status-complete {{ background:#f0fdf4; color:#15803d; }}
+  .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
+  .status-pending  {{ background:#f8fafc; color:#94a3b8; }}
 </style>
 </head>
 <body>
@@ -491,32 +500,50 @@ def update_experiment_index(specs):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
-  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-          max-width:760px; margin:3rem auto; padding:0 1.5rem; color:#0f172a; line-height:1.6; }}
-  h1 {{ font-family:Georgia,serif; font-size:1.5rem; margin-bottom:0.4rem; }}
-  .back {{ color:#2563eb; text-decoration:none; font-size:0.85rem; display:block; margin-bottom:2rem; }}
-  p.sub {{ color:#64748b; font-size:0.88rem; margin-bottom:2rem; }}
-  ul {{ list-style:none; padding:0; margin:0; }}
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; }}
+  nav {{ background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+         -webkit-backdrop-filter:blur(10px); padding:0 2rem;
+         display:flex; align-items:center; gap:1.5rem; height:46px;
+         border-bottom:1px solid rgba(255,255,255,0.04); }}
+  nav .brand {{ color:#fff; font-weight:700; font-size:0.72rem;
+                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
+           font-size:0.73rem; transition:color 0.15s; }}
+  nav a:hover {{ color:rgba(255,255,255,0.85); }}
+  .container {{ max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }}
+  h1 {{ font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
+        margin-bottom:0.4rem; line-height:1.25; }}
+  .sub {{ color:#64748b; font-size:0.875rem; margin-bottom:2.5rem; }}
+  code {{ font-size:0.8rem; background:#f1f5f9; padding:1px 5px; border-radius:3px; }}
+  ul {{ list-style:none; padding:0; margin:0; border-top:1px solid #e2e8f0; }}
   li {{ padding:1rem 0; border-bottom:1px solid #e2e8f0; }}
-  li:last-child {{ border-bottom:none; }}
-  li a {{ font-family:Georgia,serif; font-size:1.05rem; color:#0f172a;
-          text-decoration:none; display:block; margin-bottom:0.2rem; }}
+  li a {{ font-size:0.9375rem; font-weight:500; color:#0f172a;
+          text-decoration:none; display:block; margin-bottom:0.25rem;
+          transition:color 0.15s; }}
   li a:hover {{ color:#2563eb; }}
-  .meta {{ display:block; font-size:0.78rem; color:#94a3b8; }}
-  .status {{ display:inline-block; font-size:0.67rem; font-weight:600; text-transform:uppercase;
-             letter-spacing:0.06em; padding:1px 6px; border-radius:2px; }}
-  .status-complete {{ background:#dcfce7; color:#15803d; }}
-  .status-active   {{ background:#dbeafe; color:#1d4ed8; }}
-  .status-pending  {{ background:#f1f5f9; color:#64748b; }}
+  .meta {{ display:block; font-size:0.74rem; color:#94a3b8; letter-spacing:0.01em; }}
+  .status {{ display:inline-block; font-size:0.6rem; font-weight:700; text-transform:uppercase;
+             letter-spacing:0.07em; padding:1px 5px; border-radius:3px; margin-left:4px; }}
+  .status-complete {{ background:#f0fdf4; color:#15803d; }}
+  .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
+  .status-pending  {{ background:#f8fafc; color:#94a3b8; }}
 </style>
 </head>
 <body>
-<a class="back" href="../index.html">← Current analysis</a>
+<nav>
+  <span class="brand">McClatchy CSA · T1 Headlines</span>
+  <a href="../index.html">← Current analysis</a>
+</nav>
+<div class="container">
 <h1>Experiments</h1>
 <p class="sub">Before/after comparisons and formula tests. Add a spec to <code>experiments/</code>
   and run <code>python3 generate_experiment.py experiments/SLUG.md</code>.</p>
 <ul>
 {rows}</ul>
+</div>
 </body>
 </html>"""
 
