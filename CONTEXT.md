@@ -20,8 +20,8 @@ For session history: see [sessions/](sessions/)
 ## Phase 2 Key Findings (2026-03-26)
 
 **Formulas (Apple News, non-Featured, n=2,229):**
-- "Here's/Here are" (3.20×) and possessive named entity (2.08×) lead — directional, not yet sig (n too small)
-- Number leads (0.70×, p<0.001), questions (0.55×, p<0.001), quoted ledes (0.66×, p<0.001) significantly underperform
+- "Here's/Here are" (2.97×) and possessive named entity (1.94×) lead — directional, not yet sig (n too small)
+- Number leads (0.65×, p<0.001), questions (0.51×, p<0.001), quoted ledes (0.61×, p<0.001) significantly underperform
 
 **Featuring (Q2):**
 - "What to know" = 62% Featured rate vs. 27% baseline — strongest signal in dataset (p=0.0006)
