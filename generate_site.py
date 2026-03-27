@@ -163,6 +163,14 @@ if "Date" in an_2026.columns:
     an_2026 = an_2026.drop(columns=["Date"])
 an_2026["year"] = 2026
 
+# Fix MacRoman/UTF-8 double-encoding in 2026 headline text (2025 file is unaffected)
+def _fix_mac_encoding(text):
+    try:
+        return str(text).encode("mac_roman").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return str(text)
+an_2026["Article"] = an_2026["Article"].dropna().apply(_fix_mac_encoding).reindex(an_2026.index)
+
 # Common columns for concat
 _common_cols = [c for c in an_2025.columns if c in an_2026.columns]
 an = pd.concat([an_2025[_common_cols], an_2026[_common_cols]], ignore_index=True)
