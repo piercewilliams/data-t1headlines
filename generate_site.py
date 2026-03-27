@@ -749,147 +749,202 @@ html = f"""<!DOCTYPE html>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
   :root {{
-    --navy: {NAVY};
-    --blue: {BLUE};
-    --green: {GREEN};
-    --red: {RED};
-    --amber: {AMBER};
-    --gray: {GRAY};
-    --light: {LIGHT};
-    --border: {BORDER};
-    --text: {NAVY};
-    --subtext: #475569;
+    --navy:   {NAVY};
+    --blue:   {BLUE};
+    --green:  {GREEN};
+    --red:    {RED};
+    --amber:  {AMBER};
+    --gray:   {GRAY};
+    --light:  {LIGHT};
+    --border: #e2e8f0;
+    --text:   {NAVY};
+    --sub:    #4b5563;
+    --bg:     #f8fafc;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-    color: var(--text); background: #fff; font-size: 16px; line-height: 1.65;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text); background: var(--bg); font-size: 15px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
   }}
 
-  /* NAV */
+  /* ── NAV ─────────────────────────────────────────────────────────────────── */
   nav {{
     position: sticky; top: 0; z-index: 100;
-    background: var(--navy); padding: 0 1.5rem;
-    display: flex; align-items: center; gap: 1.5rem; height: 52px;
-    border-bottom: 1px solid rgba(255,255,255,0.07); overflow-x: auto;
+    background: rgba(15,23,42,0.96);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    padding: 0 2rem;
+    display: flex; align-items: center; gap: 1.5rem; height: 46px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    overflow-x: auto;
   }}
   nav::-webkit-scrollbar {{ display: none; }}
-  nav .brand {{ color: #fff; font-weight: 600; font-size: 0.82rem; letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0; opacity: 0.9; }}
-  nav .nav-links {{ display: flex; gap: 1.25rem; align-items: center; }}
-  nav a {{ color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.78rem; white-space: nowrap; padding: 4px 0; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }}
-  nav a:hover {{ color: rgba(255,255,255,0.9); }}
+  nav .brand {{
+    color: #fff; font-weight: 700; font-size: 0.72rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    white-space: nowrap; flex-shrink: 0;
+  }}
+  nav .nav-links {{ display: flex; gap: 1rem; align-items: center; }}
+  nav a {{
+    color: rgba(255,255,255,0.38); text-decoration: none;
+    font-size: 0.73rem; white-space: nowrap;
+    transition: color 0.15s; letter-spacing: 0.01em;
+  }}
+  nav a:hover {{ color: rgba(255,255,255,0.82); }}
   nav .spacer {{ flex: 1; min-width: 1rem; }}
-  nav .date {{ color: rgba(255,255,255,0.35); font-size: 0.72rem; white-space: nowrap; flex-shrink: 0; letter-spacing: 0.02em; }}
+  nav .date {{
+    color: rgba(255,255,255,0.22); font-size: 0.68rem;
+    white-space: nowrap; flex-shrink: 0; letter-spacing: 0.02em;
+  }}
 
-  /* HERO */
-  .hero {{ background: var(--navy); color: #fff; padding: 4.5rem 2rem 4rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }}
-  .hero .eyebrow {{ text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.67rem; color: rgba(255,255,255,0.38); margin-bottom: 1rem; font-weight: 500; }}
-  .hero h1 {{ font-family: Georgia, serif; font-size: 2.1rem; font-weight: 700; line-height: 1.28; max-width: 720px; margin: 0 auto 1.1rem; letter-spacing: -0.01em; }}
-  .hero .sub {{ font-size: 0.96rem; color: rgba(255,255,255,0.5); max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.7; }}
-  .hero .meta {{ display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; }}
-  .hero .meta-item {{ text-align: center; }}
-  .hero .meta-item .num {{ font-size: 1.8rem; font-weight: 700; color: #fff; display: block; letter-spacing: -0.02em; }}
-  .hero .meta-item .label {{ font-size: 0.67rem; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; display: block; }}
+  /* ── HERO ────────────────────────────────────────────────────────────────── */
+  .hero {{
+    background: linear-gradient(150deg, #0f172a 0%, #1a2744 100%);
+    color: #fff; padding: 5.5rem 2rem 5rem; text-align: center;
+  }}
+  .hero .eyebrow {{
+    text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.6rem;
+    color: rgba(255,255,255,0.28); margin-bottom: 1.4rem; font-weight: 600;
+  }}
+  .hero h1 {{
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 2.35rem; font-weight: 700; line-height: 1.22;
+    max-width: 700px; margin: 0 auto 1rem; letter-spacing: -0.015em;
+  }}
+  .hero .sub {{
+    font-size: 0.85rem; color: rgba(255,255,255,0.32);
+    max-width: 540px; margin: 0 auto 3.5rem; letter-spacing: 0.01em;
+  }}
+  .hero .meta {{
+    display: inline-flex; flex-wrap: wrap; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    overflow: hidden; background: rgba(255,255,255,0.03);
+  }}
+  .hero .meta-item {{
+    text-align: center; padding: 1.4rem 2.5rem;
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }}
+  .hero .meta-item:last-child {{ border-right: none; }}
+  .hero .meta-item .num {{
+    font-size: 2.4rem; font-weight: 700; color: #fff;
+    display: block; letter-spacing: -0.035em; line-height: 1;
+    margin-bottom: 0.45rem;
+  }}
+  .hero .meta-item .label {{
+    font-size: 0.6rem; color: rgba(255,255,255,0.28);
+    text-transform: uppercase; letter-spacing: 0.1em; display: block; line-height: 1.5;
+  }}
 
-  /* LAYOUT */
-  .container {{ max-width: 880px; margin: 0 auto; padding: 0 1.75rem; }}
-  section {{ padding: 3.5rem 0; border-bottom: 1px solid var(--border); }}
-  section:last-of-type {{ border-bottom: none; }}
+  /* ── LAYOUT ──────────────────────────────────────────────────────────────── */
+  .container {{ max-width: 840px; margin: 0 auto; padding: 0 2rem; }}
 
-  /* SECTION LABELS */
-  .section-label {{ text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.67rem; color: var(--blue); font-weight: 600; margin-bottom: 0.5rem; }}
-  h2 {{ font-family: Georgia, serif; font-size: 1.55rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.75rem; letter-spacing: -0.01em; }}
-  h3 {{ font-size: 1rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }}
-  p {{ color: var(--subtext); margin-bottom: 1rem; font-size: 0.95rem; }}
+  /* ── TYPOGRAPHY ──────────────────────────────────────────────────────────── */
+  .section-label {{
+    text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem;
+    color: var(--blue); font-weight: 700; margin-bottom: 0.5rem; display: block;
+  }}
+  h2 {{
+    font-size: 1.45rem; font-weight: 700; line-height: 1.3;
+    letter-spacing: -0.02em; color: var(--text);
+  }}
+  h3 {{
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gray); margin: 2rem 0 0.6rem;
+  }}
+  p {{ color: var(--sub); margin-bottom: 0.9rem; font-size: 0.9375rem; }}
   p:last-child {{ margin-bottom: 0; }}
 
-  /* CHART */
-  .chart-wrap {{ margin: 1.75rem 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; padding: 1rem; }}
+  /* ── CHART ───────────────────────────────────────────────────────────────── */
+  .chart-wrap {{
+    margin: 1.5rem 0; border-radius: 10px; overflow: hidden;
+    background: #fff; padding: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
+  }}
 
-  /* CALLOUT */
-  .callout {{ background: var(--light); border-left: 3px solid var(--blue); padding: 1rem 1.25rem; border-radius: 0 6px 6px 0; margin: 1.25rem 0; font-size: 0.9rem; color: var(--text); }}
-  .callout strong {{ color: var(--navy); }}
+  /* ── CALLOUT ─────────────────────────────────────────────────────────────── */
+  .callout {{
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    padding: 1rem 1.25rem; border-radius: 8px;
+    margin: 1.5rem 0; font-size: 0.875rem; color: var(--text); line-height: 1.65;
+  }}
+  .callout strong {{ color: #1e40af; }}
+  .callout em {{ color: var(--sub); }}
 
-  /* TAG */
-  .tag {{ display: inline-block; font-size: 0.67rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 7px; border-radius: 2px; margin-right: 6px; }}
-  .tag-blue  {{ background: #dbeafe; color: #1d4ed8; }}
-  .tag-green {{ background: #dcfce7; color: #15803d; }}
-  .tag-red   {{ background: #fee2e2; color: #b91c1c; }}
-  .tag-amber {{ background: #fef3c7; color: #b45309; }}
+  /* ── TAGS ────────────────────────────────────────────────────────────────── */
+  .tag {{
+    display: inline-block; font-size: 0.6rem; font-weight: 700;
+    padding: 1px 5px; border-radius: 3px; margin-right: 5px; vertical-align: middle;
+  }}
+  .tag-blue  {{ background: #eff6ff; color: #1d4ed8; }}
+  .tag-green {{ background: #f0fdf4; color: #15803d; }}
+  .tag-red   {{ background: #fff1f2; color: #be123c; }}
+  .tag-amber {{ background: #fffbeb; color: #b45309; }}
 
-  /* FINDINGS TABLE */
-  .findings {{ width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 1.25rem 0; }}
-  .findings th {{ text-align: left; padding: 6px 10px; border-bottom: 2px solid var(--border); color: var(--gray); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }}
-  .findings td {{ padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }}
-  .findings tr:last-child td {{ border-bottom: none; }}
-
-  /* CAVEAT */
-  .caveat {{ font-size: 0.78rem; color: var(--gray); margin-top: 0.5rem; font-style: italic; }}
-
-  /* FINDING CARDS (accordion) */
-  .finding-card {{
+  /* ── FINDINGS TABLE ──────────────────────────────────────────────────────── */
+  .findings {{
+    width: 100%; border-collapse: collapse; font-size: 0.84rem; margin: 1.25rem 0;
+    background: #fff; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 1px 3px rgba(0,0,0,0.04);
+  }}
+  .findings th {{
+    text-align: left; padding: 8px 12px; background: #f8fafc;
+    color: var(--gray); font-weight: 600; font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
   }}
-  .finding-card:last-of-type {{
-    border-bottom: none;
+  .findings td {{
+    padding: 8px 12px; border-bottom: 1px solid #f1f5f9;
+    vertical-align: top; color: var(--sub);
   }}
+  .findings tr:last-child td {{ border-bottom: none; }}
+  .findings tr:hover td {{ background: #fafbfd; }}
+  .findings td:nth-child(n+2) {{ font-variant-numeric: tabular-nums; }}
+
+  /* ── CAVEAT ──────────────────────────────────────────────────────────────── */
+  .caveat {{ font-size: 0.74rem; color: #94a3b8; margin-top: 0.75rem; line-height: 1.6; }}
+
+  /* ── FINDING CARDS ───────────────────────────────────────────────────────── */
+  .finding-card {{ border-bottom: 1px solid var(--border); }}
+  .finding-card:first-of-type {{ border-top: 1px solid var(--border); margin-top: 2.5rem; }}
+  .finding-card:last-of-type {{ border-bottom: 1px solid var(--border); margin-bottom: 3rem; }}
   .finding-card > summary {{
-    list-style: none;
-    cursor: pointer;
-    padding: 2.25rem 0 2.25rem 0;
-    display: grid;
-    grid-template-columns: 1.5rem 1fr;
-    gap: 0 0.6rem;
-    align-items: start;
-    user-select: none;
+    list-style: none; cursor: pointer;
+    padding: 1.75rem 0;
+    display: grid; grid-template-columns: 1.1rem 1fr;
+    gap: 0 0.85rem; align-items: start; user-select: none;
   }}
   .finding-card > summary::-webkit-details-marker {{ display: none; }}
   .finding-card > summary::marker {{ display: none; }}
   .finding-chevron {{
-    margin-top: 0.3rem;
-    color: var(--blue);
-    font-size: 0.7rem;
-    transition: transform 0.18s ease;
-    display: inline-block;
-    flex-shrink: 0;
+    margin-top: 0.4rem; color: #cbd5e1; font-size: 0.55rem;
+    transition: transform 0.2s ease, color 0.15s; display: inline-block;
   }}
   .finding-card[open] > summary .finding-chevron {{
-    transform: rotate(90deg);
+    transform: rotate(90deg); color: var(--blue);
   }}
-  .finding-card > summary:hover h2 {{
-    color: var(--blue);
-    transition: color 0.15s;
-  }}
-  .finding-card > summary h2 {{
-    transition: color 0.15s;
-  }}
-  .finding-body {{
-    padding: 0 0 3rem 2.1rem;
-  }}
-  .finding-body > .callout:first-child {{
-    margin-top: 0;
-  }}
+  .finding-card > summary:hover .finding-chevron {{ color: var(--blue); }}
+  .finding-card > summary h2 {{ transition: color 0.15s; }}
+  .finding-card > summary:hover h2 {{ color: var(--blue); }}
+  .finding-body {{ padding: 0 0 2.5rem 1.95rem; }}
+  .finding-body > .callout:first-child {{ margin-top: 0; }}
 
-  /* NAV TOGGLE BUTTON */
+  /* ── NAV TOGGLE ──────────────────────────────────────────────────────────── */
   .nav-toggle {{
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: rgba(255,255,255,0.65);
-    border-radius: 4px;
-    padding: 3px 10px;
-    font-size: 0.72rem;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    font-family: inherit;
+    background: transparent; border: 1px solid rgba(255,255,255,0.16);
+    color: rgba(255,255,255,0.42); border-radius: 4px;
+    padding: 3px 10px; font-size: 0.66rem; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0; font-family: inherit;
+    letter-spacing: 0.04em; transition: all 0.15s;
   }}
-  .nav-toggle:hover {{
-    background: rgba(255,255,255,0.18);
-    color: #fff;
-  }}
+  .nav-toggle:hover {{ border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.8); }}
 
-  /* FOOTER */
-  footer {{ padding: 3rem 0; text-align: center; color: var(--gray); font-size: 0.8rem; }}
+  /* ── FOOTER ──────────────────────────────────────────────────────────────── */
+  footer {{
+    padding: 3.5rem 0; text-align: center; color: #94a3b8;
+    font-size: 0.75rem; border-top: 1px solid var(--border);
+    background: #fff; margin-top: 1rem;
+    letter-spacing: 0.01em;
+  }}
   footer a {{ color: var(--blue); text-decoration: none; }}
   footer a:hover {{ text-decoration: underline; }}
 </style>
@@ -914,7 +969,7 @@ html = f"""<!DOCTYPE html>
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · Phase 2</p>
-  <h1>Formula is a signal to Apple's editors. Platform allocation is where the money is.</h1>
+  <h1>One headline phrase doubles your chance of being Featured on Apple News. The wrong SmartNews channel cuts your reach by 100×.</h1>
   <p class="sub">{N_AN:,} Apple News articles · {N_SN:,} SmartNews articles · {N_NOTIF} push notifications · {PLATFORMS} platforms · 2025–2026</p>
   <div class="meta">
     <div class="meta-item"><span class="num">{WTN_FEAT}</span><span class="label">Featured rate for "What to know" headlines</span></div>
