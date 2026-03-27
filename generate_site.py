@@ -1193,6 +1193,7 @@ document.addEventListener('DOMContentLoaded', openByHash);
   <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · {REPORT_DATE}</p>
   <p style="margin-top: 0.5rem;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
+    <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
 </footer>
