@@ -1,5 +1,5 @@
 """
-T1 Headline Analysis — Phase 2 site generator
+T1 Headline Analysis site generator
 Run:    python3 generate_site.py
 Output: docs/index.html
 
@@ -1069,14 +1069,14 @@ fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
                annotation_text="Platform median", annotation_position="top")
 fig5.update_layout(
     **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Topic performance index by platform (percentile rank, 1.0 = platform median)",
+    title=dict(text="Topic performance by platform — percentile rank vs. platform median",
                font=dict(size=13, color=NAVY), x=0),
     barmode="group",
-    xaxis=dict(title="Percentile index vs. platform median", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="Percentile index (1.0 = platform median)", gridcolor=BORDER, zeroline=False),
     yaxis=dict(title=""),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=450,
-    margin=dict(l=20, r=40, t=70, b=40),
+    legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+    height=480,
+    margin=dict(l=20, r=40, t=50, b=80),
 )
 
 # Chart 6 — Variance (IQR/median of percentile)
@@ -1099,15 +1099,15 @@ fig6.add_trace(go.Bar(
 ))
 fig6.update_layout(
     **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Percentile spread by topic (IQR ÷ median) — where headline choice moves the needle most",
+    title=dict(text="Outcome spread by topic — where headline choice has the most room to move performance",
                font=dict(size=13, color=NAVY), x=0),
     barmode="group",
-    xaxis=dict(title="IQR / median percentile (higher = wider spread, more headline lift potential)",
+    xaxis=dict(title="IQR ÷ median percentile (higher = wider spread between top and bottom articles)",
                gridcolor=BORDER, zeroline=False),
     yaxis=dict(title=""),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=450,
-    margin=dict(l=20, r=140, t=70, b=40),
+    legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+    height=480,
+    margin=dict(l=20, r=140, t=50, b=80),
 )
 
 # Chart 7 — Views vs active time scatter
@@ -1137,9 +1137,9 @@ fig7.update_layout(
     xaxis=dict(title="Total views (log scale)", type="log", gridcolor=BORDER),
     yaxis=dict(title="Avg. active time (seconds)", gridcolor=BORDER,
                range=[0, max(an_eng[AT_COL].quantile(0.99), 180)]),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=420,
-    margin=dict(l=20, r=40, t=60, b=40),
+    legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+    height=460,
+    margin=dict(l=20, r=40, t=50, b=80),
 )
 
 # Chart 8 — Longitudinal: monthly median percentile by formula
@@ -1168,21 +1168,22 @@ if not df_long.empty:
             y=sub["med_pct"].tolist(),
             mode="lines+markers",
             name=FORMULA_DISPLAY.get(f, f),
-            line=dict(color=FORMULA_COLORS.get(f, GRAY), width=2),
-            marker=dict(size=6),
+            line=dict(color=FORMULA_COLORS.get(f, GRAY), width=2.5),
+            marker=dict(size=7),
             hovertemplate="<b>" + FORMULA_DISPLAY.get(f, f) + "</b><br>%{x}<br>Median percentile: %{y:.0%}<extra></extra>",
         ))
 
 fig8.update_layout(
     **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Monthly median percentile rank by formula type — Jan 2025 through 2026",
+    title=dict(text="Formula performance trend — monthly percentile rank, Jan 2025–Feb 2026",
                font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Month", gridcolor=BORDER, tickangle=-30),
-    yaxis=dict(title="Median percentile within monthly cohort", gridcolor=BORDER,
+    xaxis=dict(title="", gridcolor=BORDER, tickangle=-30),
+    yaxis=dict(title="Percentile vs. same-month articles", gridcolor=BORDER,
                tickformat=".0%", range=[0, 1]),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=420,
-    margin=dict(l=20, r=40, t=70, b=60),
+    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5,
+                font=dict(size=11)),
+    height=480,
+    margin=dict(l=20, r=40, t=50, b=100),
 )
 
 
@@ -1236,7 +1237,7 @@ html = f"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T1 Headline Performance Analysis · Phase 2 · McClatchy CSA</title>
+<title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
   :root {{
@@ -1468,11 +1469,11 @@ html = f"""<!DOCTYPE html>
   </div>
   <span class="spacer"></span>
   <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
-  <span class="date">Phase 2 · {REPORT_DATE}</span>
+  <span class="date">{REPORT_DATE}</span>
 </nav>
 
 <div class="hero">
-  <p class="eyebrow">T1 Headline Performance Analysis · Phase 2</p>
+  <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
   <h1>One headline phrase doubles your chance of being Featured on Apple News. Sports is top-3 on Apple News and dead last on SmartNews.</h1>
   <p class="sub">{N_AN:,} Apple News articles · {N_SN:,} SmartNews articles · {N_NOTIF} push notifications · {PLATFORMS} platforms · 2025–2026</p>
   <div class="meta">
@@ -1742,7 +1743,7 @@ document.addEventListener('DOMContentLoaded', openByHash);
 </script>
 
 <footer>
-  <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · {REPORT_DATE}</p>
+  <p>McClatchy CSA · T1 Headline Performance Analysis · {REPORT_DATE}</p>
   <p style="margin-top: 0.5rem;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
