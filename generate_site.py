@@ -3,12 +3,14 @@ T1 Headline Analysis — Phase 2 site generator
 Run:    python3 generate_site.py
 Output: docs/index.html
 
-Optional args (for monthly ingests with new files):
+Optional args:
   --data-2025 "path/to/new_2025_file.xlsx"
   --data-2026 "path/to/new_2026_file.xlsx"
+  --tracker   "path/to/Tracker Template.xlsx"
 """
 
 import argparse
+import html as html_module
 import math
 import pandas as pd
 import numpy as np
@@ -22,15 +24,17 @@ from scipy import stats
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site")
-parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx",
-                    help="Path to the 2025 data workbook")
-parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx",
-                    help="Path to the 2026 data workbook")
+parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
+parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx")
+parser.add_argument("--tracker",   default="Tracker Template.xlsx")
 _args = parser.parse_args()
 DATA_2025 = _args.data_2025
 DATA_2026 = _args.data_2026
+TRACKER   = _args.tracker
 
-# ── Palette (matches v1 site) ─────────────────────────────────────────────────
+REFERENCE_DATE = pd.Timestamp.today().normalize()
+
+# ── Palette ───────────────────────────────────────────────────────────────────
 NAVY   = "#0f172a"
 BLUE   = "#2563eb"
 GREEN  = "#16a34a"
@@ -41,7 +45,7 @@ LIGHT  = "#f8fafc"
 BORDER = "#e2e8f0"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Classifiers ───────────────────────────────────────────────────────────────
 def classify_formula(text):
     t = str(text).strip()
     tl = t.lower()
@@ -64,13 +68,30 @@ def tag_topic(text):
     if re.search(r"\b(animal|creature|species|wildlife|shark|bear|alligator|snake|bird|dog|cat|pet)\b", t): return "nature_wildlife"
     return "other"
 
+def tag_subtopic(text, topic):
+    """Two-level classifier. Returns subtopic for sports and crime, None for others."""
+    t = str(text).lower()
+    if topic == "sports":
+        if re.search(r"\bnfl\b|football|quarterback|touchdown|super bowl|chiefs|patriots|cowboys|seahawks|49ers|ravens|bengals|packers|steelers", t): return "football"
+        if re.search(r"\bnba\b|basketball|lakers|celtics|knicks|warriors|heat|bulls|lebron|curry", t): return "basketball"
+        if re.search(r"\bmlb\b|baseball|yankees|dodgers|astros|braves|mets|red sox|world series|pitcher", t): return "baseball"
+        if re.search(r"\bnhl\b|hockey|stanley cup", t): return "hockey"
+        if re.search(r"\bsoccer\b|mls|fifa|world cup|premier league", t): return "soccer"
+        if re.search(r"\bcollege\b|ncaa|sec|acc|big ten|march madness|college football|college basketball", t): return "college"
+        return "sports_other"
+    if topic == "crime":
+        if re.search(r"\bshot\b|shooting|murder|killed|stabbed|homicide|gunfire", t): return "violent_crime"
+        if re.search(r"\btrial\b|verdict|sentence|sentenced|judge|charged|indicted|guilty|plea|court|lawsuit", t): return "court_legal"
+        if re.search(r"\bmissing\b|disappeared|search|kidnap|abduct|last seen", t): return "missing_persons"
+        if re.search(r"\barrested\b|arrest|suspect|detained|taken into custody", t): return "arrest"
+        return "crime_other"
+    return None
+
 
 # ── Statistical helpers ───────────────────────────────────────────────────────
 def bh_correct(pvals):
-    """Benjamini-Hochberg FDR correction. Returns adjusted p-values in original order."""
     n = len(pvals)
-    if n == 0:
-        return []
+    if n == 0: return []
     order = sorted(range(n), key=lambda i: pvals[i])
     sorted_p = [pvals[i] for i in order]
     adj_sorted = [0.0] * n
@@ -83,11 +104,9 @@ def bh_correct(pvals):
     return result
 
 def rank_biserial(u_stat, n1, n2):
-    """Effect size r for Mann-Whitney U. Signed: positive = group1 > group2."""
     return 1.0 - (2.0 * u_stat) / (n1 * n2)
 
 def bootstrap_ci_lift(grp_vals, base_vals, n_boot=1000, ci=0.95):
-    """Bootstrap 95% CI on median(grp)/median(base) lift ratio. Returns (lo, hi)."""
     rng = np.random.default_rng(42)
     boot = []
     for _ in range(n_boot):
@@ -100,43 +119,96 @@ def bootstrap_ci_lift(grp_vals, base_vals, n_boot=1000, ci=0.95):
     return float(np.percentile(boot, alpha / 2 * 100)), float(np.percentile(boot, (1 - alpha / 2) * 100))
 
 def required_n_80pct(r_rb):
-    """
-    Approximate per-group n for 80% power (α=0.05, two-tailed) given rank-biserial r.
-    Uses t-test approximation via Cohen's d conversion: d = 2r/sqrt(1-r²).
-    Mann-Whitney has ~95.5% efficiency vs. t-test → multiply by 1.05.
-    """
-    if r_rb is None or r_rb == 0:
-        return None
+    if r_rb is None or r_rb == 0: return None
     r = abs(r_rb)
     d = 2 * r / math.sqrt(max(1 - r ** 2, 1e-9))
-    if d < 0.001:
-        return None
-    n = math.ceil(1.05 * 15.69 / d ** 2)  # (z_α/2 + z_β)² = 7.85; ×2 for two groups; ×1.05 MW efficiency
-    return n
+    if d < 0.001: return None
+    return math.ceil(1.05 * 15.69 / d ** 2)
+
+
+# ── normalize() ───────────────────────────────────────────────────────────────
+def normalize(df, views_col, date_col=None, group_col=None):
+    """
+    Add two normalized columns to df (in-place):
+    - views_per_day: views / days since publish (only if date_col provided)
+    - percentile_within_cohort: percentile rank within same publication month
+    """
+    df = df.copy()
+    if date_col is not None:
+        dates = pd.to_datetime(df[date_col], errors="coerce")
+        days = (REFERENCE_DATE - dates).dt.days.clip(lower=1)
+        df["views_per_day"] = df[views_col] / days
+    else:
+        df["views_per_day"] = np.nan
+
+    if group_col is not None:
+        df["percentile_within_cohort"] = df.groupby(group_col)[views_col].rank(pct=True)
+    else:
+        df["percentile_within_cohort"] = df[views_col].rank(pct=True)
+    return df
+
+VIEWS_METRIC = "percentile_within_cohort"
 
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 print(f"Loading data…  2025={DATA_2025}  2026={DATA_2026}")
-an    = pd.read_excel(DATA_2025, sheet_name="Apple News")
-sn    = pd.read_excel(DATA_2025, sheet_name="SmartNews")
+
+# Apple News — load separately then combine
+an_2025 = pd.read_excel(DATA_2025, sheet_name="Apple News")
+an_2025 = an_2025.rename(columns={"Channel": "Brand"})
+an_2025["year"] = 2025
+
+an_2026 = pd.read_excel(DATA_2026, sheet_name="Apple News")
+if "Date" in an_2026.columns:
+    an_2026 = an_2026.drop(columns=["Date"])
+an_2026["year"] = 2026
+
+# Common columns for concat
+_common_cols = [c for c in an_2025.columns if c in an_2026.columns]
+an = pd.concat([an_2025[_common_cols], an_2026[_common_cols]], ignore_index=True)
+
+# SmartNews — 2025 primary (has category columns)
+sn = pd.read_excel(DATA_2025, sheet_name="SmartNews")
+
+# Notifications from 2026
+notif = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
+notif = notif.dropna(subset=["CTR"]).copy()
+
+# MSN and Yahoo from 2025
 msn   = pd.read_excel(DATA_2025, sheet_name="MSN")
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
-notif = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
 
+# ── Feature engineering ───────────────────────────────────────────────────────
 an["is_featured"] = an["Featured by Apple"].fillna("No") == "Yes"
-an["formula"] = an["Article"].apply(classify_formula)
-an["topic"]   = an["Article"].apply(tag_topic)
+an["formula"]     = an["Article"].apply(classify_formula)
+an["topic"]       = an["Article"].apply(tag_topic)
+an["_pub_month"]  = pd.to_datetime(an["Date Published"], errors="coerce").dt.to_period("M").astype(str)
 
-sn["topic"]   = sn["title"].apply(tag_topic)
+sn["topic"] = sn["title"].apply(tag_topic)
+sn["_sn_month"] = sn["date"].astype(str)
+
+yahoo["_pub_month"] = pd.to_datetime(yahoo["Publish Date"], errors="coerce").dt.to_period("M").astype(str)
 
 CATS = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
         "Technology","Science","Politics","Health","Local","Football","LGBTQ"]
 for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
 
-notif = notif.dropna(subset=["CTR"]).copy()
+# ── Normalize ────────────────────────────────────────────────────────────────
+print("Normalizing…")
+an    = normalize(an,    views_col="Total Views",   date_col="Date Published", group_col="_pub_month")
+sn    = normalize(sn,    views_col="article_view",  date_col=None,             group_col="_sn_month")
+yahoo = normalize(yahoo, views_col="Content Views", date_col="Publish Date",   group_col="_pub_month")
 
-# ── Platform exclusivity (exact normalised title match) ───────────────────────
+# Subtopics
+an["subtopic"] = an.apply(lambda r: tag_subtopic(r["Article"], r["topic"]), axis=1)
+sn["subtopic"] = sn.apply(lambda r: tag_subtopic(r["title"],   r["topic"]), axis=1)
+
+# Also normalize 2025/2026 subsets for YoY
+an_2025_norm = an[an["year"] == 2025].copy()
+an_2026_norm = an[an["year"] == 2026].copy()
+
+# ── Platform exclusivity ──────────────────────────────────────────────────────
 def _norm(t):
     return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
 
@@ -159,11 +231,11 @@ N_MSN_UNIQ   = len(msn_t)
 N_YAHOO_UNIQ = len(yahoo_t)
 
 
-# ── Q1: Formula → median views (non-Featured) ────────────────────────────────
+# ── Q1: Formula → percentile_within_cohort (non-Featured) ────────────────────
 print("Computing Q1/Q2…")
 nf = an[~an["is_featured"]].copy()
-overall_median_nf = nf["Total Views"].median()
-baseline = nf[nf["formula"] == "untagged"]["Total Views"]
+overall_median_nf = nf[VIEWS_METRIC].median()
+baseline = nf[nf["formula"] == "untagged"][VIEWS_METRIC]
 base_vals = baseline.values
 
 FORMULA_LABELS = {
@@ -176,20 +248,19 @@ FORMULA_LABELS = {
     "question":                "Question",
 }
 
-# Characterise untagged baseline for methodological transparency
 _ung = nf[nf["formula"] == "untagged"]["Article"]
 _ung_sample = list(_ung.dropna().sample(min(5, len(_ung)), random_state=42)) if len(_ung) >= 5 else list(_ung.dropna())
-UNTAGGED_N = len(_ung)
+UNTAGGED_N   = len(_ung)
 UNTAGGED_PCT = UNTAGGED_N / len(nf)
 
 q1_rows = []
 _q1_raw_p = []
 _q1_indices = []
 for f, label in FORMULA_LABELS.items():
-    grp = nf[nf["formula"] == f]["Total Views"]
+    grp = nf[nf["formula"] == f][VIEWS_METRIC]
     if len(grp) == 0: continue
     med  = grp.median()
-    lift = med / baseline.median()
+    lift = med / baseline.median() if baseline.median() > 0 else 1.0
     if f != "untagged" and len(grp) >= 5:
         u_result = stats.mannwhitneyu(grp, baseline, alternative="two-sided")
         u_stat, p = u_result.statistic, u_result.pvalue
@@ -203,7 +274,6 @@ for f, label in FORMULA_LABELS.items():
     q1_rows.append(dict(formula=f, label=label, n=len(grp), median=med, lift=lift,
                         p=p, r_rb=r_rb, ci_lo=ci_lo, ci_hi=ci_hi, req_n=req_n))
 
-# Benjamini-Hochberg FDR correction across Q1 tests
 _q1_adj = bh_correct(_q1_raw_p)
 for adj_val, row_i in zip(_q1_adj, _q1_indices):
     q1_rows[row_i]["p_adj"] = adj_val
@@ -247,27 +317,33 @@ df_q2 = pd.DataFrame(q2_rows).sort_values("featured_rate")
 if "p_chi_adj" not in df_q2.columns:
     df_q2["p_chi_adj"] = np.nan
 
-# Within-featured median views per formula
+# Within-featured median percentile per formula
 feat_an = an[an["is_featured"]].copy()
-feat_avg_views = feat_an["Total Views"].median()
+feat_avg_pct = feat_an[VIEWS_METRIC].median()
 for _f in FORMULA_LABELS:
-    _grp_feat = feat_an[feat_an["formula"] == _f]["Total Views"]
+    _grp_feat = feat_an[feat_an["formula"] == _f][VIEWS_METRIC]
     _val = _grp_feat.median() if len(_grp_feat) >= 3 else np.nan
     df_q2.loc[df_q2["formula"] == _f, "feat_med_views"] = _val
-df_q2["feat_views_lift"] = df_q2["feat_med_views"] / feat_avg_views
+df_q2["feat_views_lift"] = df_q2["feat_med_views"] / feat_avg_pct
+
+feat_at_col = "Avg. Active Time (in seconds)"
+_feat_at_an  = an[an["is_featured"]][feat_at_col].dropna()
+_nfeat_at_an = an[~an["is_featured"]][feat_at_col].dropna()
+_, p_feat_at = stats.mannwhitneyu(_feat_at_an, _nfeat_at_an, alternative="two-sided")
 
 
-# ── Q4: SmartNews category ROI + significance tests ───────────────────────────
+# ── Q4: SmartNews category ROI ────────────────────────────────────────────────
 print("Computing Q4…")
-top_median_sn = sn[sn["Top"] > 0]["article_view"].median()
-top_views = sn[sn["Top"] > 0]["article_view"].values
-SHOW_CATS = ["Local","U.S.","Football","Business","Health","Science",
-             "Politics","World","Lifestyle","Entertainment","Top"]
+top_median_sn_pct = sn[sn["Top"] > 0][VIEWS_METRIC].median()
+top_pct_vals = sn[sn["Top"] > 0][VIEWS_METRIC].values
+top_median_sn_raw = sn[sn["Top"] > 0]["article_view"].median()
 
-# Multi-category independence check
 _cat_hits = (sn[CATS] > 0).sum(axis=1)
 SN_MULTI_CAT_N   = int((_cat_hits > 1).sum())
 SN_MULTI_CAT_PCT = SN_MULTI_CAT_N / len(sn)
+
+SHOW_CATS = ["Local","U.S.","Football","Business","Health","Science",
+             "Politics","World","Lifestyle","Entertainment","Top"]
 
 q4_rows = []
 _q4_raw_p = []
@@ -275,10 +351,12 @@ _q4_indices = []
 for cat in SHOW_CATS:
     in_cat = sn[sn[cat] > 0]
     n = len(in_cat)
-    med = in_cat["article_view"].median()
-    row = dict(category=cat, n=n, median_views=med, pct_share=n/len(sn))
-    if cat != "Top" and len(in_cat) >= 5 and len(top_views) >= 5:
-        u_res = stats.mannwhitneyu(in_cat["article_view"].values, top_views, alternative="two-sided")
+    med_pct = in_cat[VIEWS_METRIC].median()
+    med_raw = in_cat["article_view"].median()
+    row = dict(category=cat, n=n, median_pct=med_pct, median_views=med_raw,
+               pct_share=n/len(sn))
+    if cat != "Top" and len(in_cat) >= 5 and len(top_pct_vals) >= 5:
+        u_res = stats.mannwhitneyu(in_cat[VIEWS_METRIC].values, top_pct_vals, alternative="two-sided")
         row["p_mw"] = u_res.pvalue
         _q4_raw_p.append(u_res.pvalue)
         _q4_indices.append(len(q4_rows))
@@ -293,7 +371,7 @@ for adj_val, row_i in zip(_q4_adj, _q4_indices):
 df_q4 = pd.DataFrame(q4_rows)
 if "p_mw_adj" not in df_q4.columns:
     df_q4["p_mw_adj"] = np.nan
-df_q4["lift"] = df_q4["median_views"] / top_median_sn
+df_q4["lift"] = df_q4["median_pct"] / top_median_sn_pct
 
 
 # ── Q5: Notification CTR features ─────────────────────────────────────────────
@@ -343,14 +421,12 @@ df_q5 = pd.DataFrame(q5_rows).sort_values("lift")
 if "p_adj" not in df_q5.columns:
     df_q5["p_adj"] = np.nan
 
-# Q5 sensitivity: "Exclusive" lift with and without Guthrie cluster
-_excl_mask = notif_feats["'Exclusive' tag"] == True
+_excl_mask   = notif_feats["'Exclusive' tag"] == True
 _guthrie_mask = notif_feats["Notification Text"].str.contains(r"Guthrie", na=False)
-_excl_yes_all  = notif_feats[_excl_mask]["CTR"]
-_excl_no       = notif_feats[~_excl_mask]["CTR"]
+_excl_yes_all    = notif_feats[_excl_mask]["CTR"]
+_excl_no         = notif_feats[~_excl_mask]["CTR"]
 _excl_yes_noguth = notif_feats[_excl_mask & ~_guthrie_mask]["CTR"]
-
-_n_excl_guthrie = int((_excl_mask & _guthrie_mask).sum())
+_n_excl_guthrie  = int((_excl_mask & _guthrie_mask).sum())
 if len(_excl_yes_noguth) >= 3 and len(_excl_no) >= 5:
     _u_noguth = stats.mannwhitneyu(_excl_yes_noguth, _excl_no, alternative="two-sided")
     EXCL_NOGUTH_LIFT = float(_excl_yes_noguth.median() / _excl_no.median()) if _excl_no.median() > 0 else None
@@ -360,19 +436,18 @@ else:
     EXCL_NOGUTH_P    = None
 
 
-# ── Q6: Views vs. active time independence ────────────────────────────────────
+# ── Q6: Variance by topic ─────────────────────────────────────────────────────
 print("Computing Q6…")
 AT_COL  = "Avg. Active Time (in seconds)"
 SAV_COL = "Saves"
 LIK_COL = "Likes"
 SHA_COL = "Article Shares"
-
 SUB_AT_COL  = "Avg. Active Time (in seconds), Subscribers, Subscription Content"
 NSUB_AT_COL = "Avg. Active Time (in seconds), Non-subscribers, Free Content"
 
 an_eng = an[[AT_COL, SAV_COL, LIK_COL, SHA_COL,
              SUB_AT_COL, NSUB_AT_COL,
-             "Total Views", "is_featured"]].dropna(subset=[AT_COL, "Total Views"])
+             "Total Views", VIEWS_METRIC, "is_featured"]].dropna(subset=[AT_COL, "Total Views"])
 
 r_views_at,    p_views_at    = stats.pearsonr(an_eng["Total Views"], an_eng[AT_COL])
 r_views_at_sp, p_views_at_sp = stats.spearmanr(an_eng["Total Views"], an_eng[AT_COL])
@@ -387,325 +462,114 @@ r_shares = _r(SHA_COL)
 
 feat_at  = an_eng[an_eng["is_featured"]][AT_COL].dropna()
 nfeat_at = an_eng[~an_eng["is_featured"]][AT_COL].dropna()
-_, p_feat_at = stats.mannwhitneyu(feat_at, nfeat_at, alternative="two-sided")
-
-# Subscriber vs non-subscriber active time
 sub_at_med  = an_eng[SUB_AT_COL].dropna().median()
 nsub_at_med = an_eng[NSUB_AT_COL].dropna().median()
 
-# Decile table
 an_eng["decile"] = pd.qcut(an_eng["Total Views"], 10, labels=False) + 1
 decile_tbl = an_eng.groupby("decile").agg(
     med_views=("Total Views", "median"),
-    med_at=(   AT_COL,        "median"),
+    med_at=(AT_COL, "median"),
 ).reset_index()
-at_range_s = decile_tbl["med_at"].max() - decile_tbl["med_at"].min()
+at_range_s    = decile_tbl["med_at"].max() - decile_tbl["med_at"].min()
 views_range_x = int(decile_tbl["med_views"].max() / decile_tbl["med_views"].min())
-
-# Active time outliers for caveat
 at_low_n  = int((an_eng[AT_COL] < 10).sum())
 at_high_n = int((an_eng[AT_COL] > 300).sum())
 
-# Chart 6 scatter — views vs active time (log x), coloured by Featured (all points)
-q6_sample = an_eng
-
-
-# ── Chart builder ─────────────────────────────────────────────────────────────
-CHART_H = 400
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="white",
-    plot_bgcolor="white",
-    font=dict(family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
-              size=12, color=NAVY),
-    margin=dict(l=20, r=120, t=50, b=40),
-    height=CHART_H,
-)
-
-def bar_color(lift):
-    if lift >= 1.5:   return GREEN
-    if lift >= 1.0:   return BLUE
-    if lift >= 0.8:   return AMBER
-    return RED
-
-
-# Chart 1 — Q1: Formula lift vs baseline (diverging from 1.0)
-colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
-hover_q1 = [f"Median: {int(r['median']):,} views | n={r['n']}" for _, r in df_q1.iterrows()]
-
-fig1 = go.Figure(go.Bar(
-    y=df_q1["label"].tolist(),
-    x=df_q1["lift"].tolist(),
-    orientation="h",
-    marker_color=colors_q1,
-    text=[f"{v:.2f}x  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())],
-    textposition="outside",
-    hovertext=hover_q1,
-    hoverinfo="y+text",
-))
-fig1.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
-               annotation_text="Baseline", annotation_position="top")
-fig1.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="Views lift vs. baseline by formula type — non-Featured articles only",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Median views relative to untagged baseline (1.0 = same as baseline)",
-               gridcolor=BORDER, zeroline=False, range=[0, 4.5]),
-    yaxis=dict(title=""),
-    showlegend=False,
-)
-
-# Chart 2 — Q2: Featured rate per formula
-colors_q2 = [bar_color(r["featured_lift"]) for _, r in df_q2.iterrows()]
-fig2 = go.Figure(go.Bar(
-    y=df_q2["label"].tolist(),
-    x=(df_q2["featured_rate"] * 100).tolist(),
-    orientation="h",
-    marker_color=colors_q2,
-    text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}x)" for _, r in df_q2.iterrows()],
-    textposition="outside",
-    hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
-    hoverinfo="y+x+text",
-))
-fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=GRAY,
-               annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
-fig2.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="% of articles Featured by Apple, by headline formula",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="% of articles in formula group that were Featured by Apple",
-               gridcolor=BORDER, zeroline=False, range=[0, 85]),
-    yaxis=dict(title=""),
-    showlegend=False,
-)
-
-# Chart 3 — Q4: SmartNews — bar chart sorted by median views, annotated with volume
-df_q4_chart = df_q4.sort_values("median_views", ascending=True)
-q4_colors = []
-for _, r in df_q4_chart.iterrows():
-    if r["median_views"] > 5000:    q4_colors.append(GREEN)
-    elif r["median_views"] > 500:   q4_colors.append(BLUE)
-    elif r["pct_share"] > 0.20:     q4_colors.append(RED)
-    else:                           q4_colors.append(GRAY)
-
-fig3 = go.Figure(go.Bar(
-    y=df_q4_chart["category"].tolist(),
-    x=df_q4_chart["median_views"].tolist(),
-    orientation="h",
-    marker_color=q4_colors,
-    text=[f"{int(v):,} views  ({p:.0%} of articles)"
-          for v, p in zip(df_q4_chart["median_views"].tolist(),
-                          df_q4_chart["pct_share"].tolist())],
-    textposition="outside",
-    hovertext=[f"n={n:,} articles" for n in df_q4_chart["n"].tolist()],
-    hoverinfo="y+x+text",
-))
-fig3.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
-    title=dict(text="Median article views by SmartNews channel — with share of total article volume",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Median total article views", gridcolor=BORDER, zeroline=False,
-               range=[0, 21000]),
-    yaxis=dict(title=""),
-    showlegend=False,
-    margin=dict(l=20, r=280, t=50, b=40),
-)
-
-# Chart 4 — Q5: Notification CTR lift
-colors_q5 = [bar_color(r["lift"]) for _, r in df_q5.iterrows()]
-sig_labels = []
-for _, r in df_q5.iterrows():
-    p = r.get("p_adj", r["p"])
-    s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
-    sig_labels.append(f"{r['lift']:.2f}x  {s}  (n={r['n_true']})")
-
-fig4 = go.Figure(go.Bar(
-    y=df_q5["feature"].tolist(),
-    x=df_q5["lift"].tolist(),
-    orientation="h",
-    marker_color=colors_q5,
-    text=sig_labels,
-    textposition="outside",
-    hovertext=[f"CTR present: {r['med_yes']*100:.2f}%  |  CTR absent: {r['med_no']*100:.2f}%"
-               for _, r in df_q5.iterrows()],
-    hoverinfo="y+text",
-))
-fig4.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
-               annotation_text="No effect", annotation_position="top")
-fig4.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
-    title=dict(text="Notification CTR lift by headline feature (median CTR, feature present vs. absent)",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=BORDER, zeroline=False,
-               range=[0, 3.8]),
-    yaxis=dict(title=""),
-    showlegend=False,
-    margin=dict(l=20, r=220, t=50, b=40),
-)
-
-# Chart 5 — Topic performance Apple News vs SmartNews
-an_topic = an.groupby("topic")["Total Views"].median().reset_index()
-an_topic.columns = ["topic", "an_median"]
-sn_topic = sn.groupby("topic")["article_view"].median().reset_index()
-sn_topic.columns = ["topic", "sn_median"]
-topic_df = an_topic.merge(sn_topic, on="topic")
 TOPIC_LABELS = {
     "weather":"Weather","sports":"Sports","crime":"Crime","business":"Business",
     "local_civic":"Local/Civic","lifestyle":"Lifestyle",
     "nature_wildlife":"Nature/Wildlife","other":"Other"
 }
+
+var_rows = []
+for topic, label in TOPIC_LABELS.items():
+    an_tv = an[an["topic"] == topic][VIEWS_METRIC].dropna()
+    sn_tv = sn[sn["topic"] == topic][VIEWS_METRIC].dropna()
+    an_cv = (an_tv.quantile(0.75) - an_tv.quantile(0.25)) / an_tv.median() if len(an_tv) >= 10 and an_tv.median() > 0 else None
+    sn_cv = (sn_tv.quantile(0.75) - sn_tv.quantile(0.25)) / sn_tv.median() if len(sn_tv) >= 10 and sn_tv.median() > 0 else None
+    var_rows.append(dict(topic=topic, label=label, an_cv=an_cv, sn_cv=sn_cv,
+                         an_n=len(an_tv), sn_n=len(sn_tv)))
+
+df_var = pd.DataFrame(var_rows).dropna(subset=["an_cv", "sn_cv"])
+df_var = df_var.sort_values("an_cv", ascending=True)
+
+
+# ── Topics ────────────────────────────────────────────────────────────────────
+an_topic = an.groupby("topic")[VIEWS_METRIC].median().reset_index()
+an_topic.columns = ["topic", "an_median"]
+sn_topic = sn.groupby("topic")[VIEWS_METRIC].median().reset_index()
+sn_topic.columns = ["topic", "sn_median"]
+topic_df = an_topic.merge(sn_topic, on="topic")
 topic_df["label"] = topic_df["topic"].map(TOPIC_LABELS)
 
-an_overall = an["Total Views"].median()
-sn_overall = sn["article_view"].median()
-topic_df["an_idx"] = (topic_df["an_median"] / an_overall).tolist()
-topic_df["sn_idx"] = (topic_df["sn_median"] / sn_overall).tolist()
-
+an_overall = an[VIEWS_METRIC].median()
+sn_overall = sn[VIEWS_METRIC].median()
+topic_df["an_idx"] = topic_df["an_median"] / an_overall
+topic_df["sn_idx"] = topic_df["sn_median"] / sn_overall
 topic_df = topic_df.sort_values("an_idx", ascending=True)
 
 an_ranked = topic_df.sort_values("an_idx", ascending=False).reset_index(drop=True)
 sn_ranked = topic_df.sort_values("sn_idx", ascending=False).reset_index(drop=True)
 an_top_label = TOPIC_LABELS.get(an_ranked.iloc[0]["topic"], an_ranked.iloc[0]["topic"])
-an_top_med   = int(an_ranked.iloc[0]["an_median"])
+an_top_med   = float(an_ranked.iloc[0]["an_median"])
 an_2nd_label = TOPIC_LABELS.get(an_ranked.iloc[1]["topic"], an_ranked.iloc[1]["topic"])
-an_2nd_med   = int(an_ranked.iloc[1]["an_median"])
+an_2nd_med   = float(an_ranked.iloc[1]["an_median"])
 sn_top_label = TOPIC_LABELS.get(sn_ranked.iloc[0]["topic"], sn_ranked.iloc[0]["topic"])
-sn_top_med   = int(sn_ranked.iloc[0]["sn_median"])
+sn_top_med   = float(sn_ranked.iloc[0]["sn_median"])
 sports_an_rank = int(an_ranked[an_ranked["topic"] == "sports"].index[0]) + 1
 sports_sn_rank = int(sn_ranked[sn_ranked["topic"] == "sports"].index[0]) + 1
-sports_an_med  = int(topic_df.loc[topic_df["topic"] == "sports", "an_median"].iloc[0])
-sports_sn_med  = int(topic_df.loc[topic_df["topic"] == "sports", "sn_median"].iloc[0])
 sports_an_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "an_idx"].iloc[0])
 sports_sn_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "sn_idx"].iloc[0])
 nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
 nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
 
-fig5 = go.Figure()
-fig5.add_trace(go.Bar(
-    y=topic_df["label"].tolist(), x=topic_df["an_idx"],
-    name="Apple News", orientation="h",
-    marker_color=BLUE, opacity=0.85,
-    hovertemplate="<b>%{y}</b><br>Apple News: %{x:.2f}x platform median<extra></extra>",
-))
-fig5.add_trace(go.Bar(
-    y=topic_df["label"].tolist(), x=topic_df["sn_idx"],
-    name="SmartNews", orientation="h",
-    marker_color=GREEN, opacity=0.85,
-    hovertemplate="<b>%{y}</b><br>SmartNews: %{x:.2f}x platform median<extra></extra>",
-))
-fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
-               annotation_text="Platform median", annotation_position="top")
-fig5.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Topic performance index by platform (1.0 = platform median views)",
-               font=dict(size=13, color=NAVY), x=0),
-    barmode="group",
-    xaxis=dict(title="Views index vs. platform median", gridcolor=BORDER, zeroline=False),
-    yaxis=dict(title=""),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=450,
-    margin=dict(l=20, r=40, t=70, b=40),
-)
+
+# ── Sports subtopic drill-down ────────────────────────────────────────────────
+sports_an = an[an["topic"] == "sports"].copy()
+sports_sn = sn[sn["topic"] == "sports"].copy()
+
+sports_subtopic_rows = []
+for sub in ["football","basketball","baseball","hockey","soccer","college","sports_other"]:
+    an_vals = sports_an[sports_an["subtopic"] == sub][VIEWS_METRIC].dropna()
+    sn_vals = sports_sn[sports_sn["subtopic"] == sub][VIEWS_METRIC].dropna()
+    sports_subtopic_rows.append(dict(
+        subtopic=sub,
+        an_n=len(an_vals),
+        sn_n=len(sn_vals),
+        an_med=an_vals.median() if len(an_vals) >= 3 else np.nan,
+        sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
+    ))
+df_sports_subtopic = pd.DataFrame(sports_subtopic_rows).sort_values("an_med", ascending=False)
+
+# Crime subtopic on Apple News
+crime_an = an[an["topic"] == "crime"].copy()
+crime_subtopic_rows = []
+for sub in ["violent_crime","court_legal","missing_persons","arrest","crime_other"]:
+    vals = crime_an[crime_an["subtopic"] == sub][VIEWS_METRIC].dropna()
+    crime_subtopic_rows.append(dict(
+        subtopic=sub,
+        n=len(vals),
+        med=vals.median() if len(vals) >= 3 else np.nan,
+    ))
+df_crime_subtopic = pd.DataFrame(crime_subtopic_rows).sort_values("med", ascending=False)
 
 
-# Chart 6 — Q6 variance: IQR/median by topic × platform
-var_rows = []
-for topic, label in TOPIC_LABELS.items():
-    an_t = an[an["topic"] == topic]["Total Views"].dropna()
-    sn_t = sn[sn["topic"] == topic]["article_view"].dropna()
-    if len(an_t) >= 10 and an_t.median() > 0:
-        an_cv = (an_t.quantile(0.75) - an_t.quantile(0.25)) / an_t.median()
-    else:
-        an_cv = None
-    if len(sn_t) >= 10 and sn_t.median() > 0:
-        sn_cv = (sn_t.quantile(0.75) - sn_t.quantile(0.25)) / sn_t.median()
-    else:
-        sn_cv = None
-    var_rows.append(dict(topic=topic, label=label, an_cv=an_cv, sn_cv=sn_cv,
-                         an_n=len(an_t), sn_n=len(sn_t)))
+# ── Top/bottom headline examples ──────────────────────────────────────────────
+def top_bottom_html(df, text_col, views_col, topic, n=6):
+    subset = df[df["topic"] == topic].dropna(subset=[views_col, text_col])
+    q75 = subset[views_col].quantile(0.75)
+    q25 = subset[views_col].quantile(0.25)
+    top = subset[subset[views_col] >= q75].nlargest(n, views_col)[text_col].tolist()
+    bot = subset[subset[views_col] <= q25].nsmallest(n, views_col)[text_col].tolist()
+    top_h = "".join(f"<li>{html_module.escape(str(h))}</li>" for h in top)
+    bot_h = "".join(f"<li>{html_module.escape(str(h))}</li>" for h in bot)
+    return top_h, bot_h
 
-df_var = pd.DataFrame(var_rows).dropna(subset=["an_cv", "sn_cv"])
-df_var = df_var.sort_values("an_cv", ascending=True)
-
-fig6 = go.Figure()
-fig6.add_trace(go.Bar(
-    y=df_var["label"].tolist(), x=df_var["an_cv"].tolist(),
-    name="Apple News", orientation="h",
-    marker_color=BLUE, opacity=0.85,
-    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["an_cv"].tolist(), df_var["an_n"].tolist())],
-    textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Apple News IQR/median: %{x:.2f}<extra></extra>",
-))
-fig6.add_trace(go.Bar(
-    y=df_var["label"].tolist(), x=df_var["sn_cv"].tolist(),
-    name="SmartNews", orientation="h",
-    marker_color=GREEN, opacity=0.85,
-    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["sn_cv"].tolist(), df_var["sn_n"].tolist())],
-    textposition="outside",
-    hovertemplate="<b>%{y}</b><br>SmartNews IQR/median: %{x:.2f}<extra></extra>",
-))
-fig6.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Views spread by topic (IQR ÷ median) — where headline choice moves the needle most",
-               font=dict(size=13, color=NAVY), x=0),
-    barmode="group",
-    xaxis=dict(title="IQR / median views (higher = wider spread, more headline lift potential)",
-               gridcolor=BORDER, zeroline=False),
-    yaxis=dict(title=""),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=450,
-    margin=dict(l=20, r=140, t=70, b=40),
-)
+crime_top_h, crime_bot_h   = top_bottom_html(an, "Article", VIEWS_METRIC, "crime")
+biz_top_h,   biz_bot_h     = top_bottom_html(an, "Article", VIEWS_METRIC, "business")
 
 
-# Chart 7 — Views vs. active time scatter (log x)
-feat_mask  = q6_sample["is_featured"]
-nfeat_mask = ~q6_sample["is_featured"]
-
-fig7 = go.Figure()
-fig7.add_trace(go.Scatter(
-    x=q6_sample[nfeat_mask]["Total Views"].tolist(),
-    y=q6_sample[nfeat_mask][AT_COL].tolist(),
-    mode="markers",
-    name="Not Featured",
-    marker=dict(color=BLUE, size=4, opacity=0.35),
-    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Not Featured</extra>",
-))
-fig7.add_trace(go.Scatter(
-    x=q6_sample[feat_mask]["Total Views"].tolist(),
-    y=q6_sample[feat_mask][AT_COL].tolist(),
-    mode="markers",
-    name="Featured by Apple",
-    marker=dict(color=GREEN, size=5, opacity=0.6),
-    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Featured</extra>",
-))
-fig7.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Total views (log scale)", type="log", gridcolor=BORDER),
-    yaxis=dict(title="Avg. active time (seconds)", gridcolor=BORDER,
-               range=[0, max(an_eng[AT_COL].quantile(0.99), 180)]),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    height=420,
-    margin=dict(l=20, r=40, t=60, b=40),
-)
-
-
-# ── Render charts to HTML strings ────────────────────────────────────────────
-def chart_html(fig):
-    return fig.to_html(full_html=False, include_plotlyjs=False, config={"responsive": True})
-
-
-c1 = chart_html(fig1)
-c2 = chart_html(fig2)
-c3 = chart_html(fig3)
-c4 = chart_html(fig4)
-c5 = chart_html(fig5)
-c6 = chart_html(fig6)
-c7 = chart_html(fig7)
-
-
-# ── Keyword overlap (top quartile Apple News vs SmartNews) ───────────────────
+# ── Keyword overlap ───────────────────────────────────────────────────────────
 STOPWORDS = {
     "the","a","an","and","or","but","in","on","at","to","for","of","with",
     "is","are","was","were","be","been","being","have","has","had","do","does",
@@ -726,12 +590,104 @@ def top_words(texts, n=30):
                 words[w] = words.get(w, 0) + 1
     return set(sorted(words, key=lambda x: -words[x])[:n])
 
-q75_an = an["Total Views"].quantile(0.75)
-q75_sn = sn["article_view"].quantile(0.75)
-top_an_words = top_words(an[an["Total Views"] >= q75_an]["Article"])
-top_sn_words = top_words(sn[sn["article_view"] >= q75_sn]["title"])
+q75_an = an[VIEWS_METRIC].quantile(0.75)
+q75_sn = sn[VIEWS_METRIC].quantile(0.75)
+top_an_words = top_words(an[an[VIEWS_METRIC] >= q75_an]["Article"])
+top_sn_words = top_words(sn[sn[VIEWS_METRIC] >= q75_sn]["title"])
 kw_overlap   = top_an_words & top_sn_words
 kw_overlap_n = len(kw_overlap)
+
+
+# ── Longitudinal: monthly median percentile by formula ────────────────────────
+print("Computing longitudinal…")
+an["_pub_dt"] = pd.to_datetime(an["Date Published"], errors="coerce")
+an["_month_str"] = an["_pub_dt"].dt.to_period("M").astype(str)
+
+_LONG_FORMULAS = ["heres_formula", "what_to_know", "number_lead", "question", "possessive_named_entity"]
+long_rows = []
+for month in sorted(an["_month_str"].dropna().unique()):
+    for f in _LONG_FORMULAS:
+        sub = an[(an["_month_str"] == month) & (an["formula"] == f)][VIEWS_METRIC].dropna()
+        if len(sub) >= 3:
+            long_rows.append(dict(month=month, formula=f, med_pct=sub.median(), n=len(sub)))
+
+df_long = pd.DataFrame(long_rows)
+
+
+# ── YoY: Jan-Feb 2025 vs Jan-Feb 2026 ────────────────────────────────────────
+print("Computing YoY…")
+an_2025_jf = an_2025_norm[pd.to_datetime(an_2025_norm["Date Published"], errors="coerce").dt.month.isin([1, 2])].copy()
+an_2026_jf = an_2026_norm.copy()
+
+yoy_rows = []
+for f, label in FORMULA_LABELS.items():
+    g25 = an_2025_jf[an_2025_jf["formula"] == f]
+    g26 = an_2026_jf[an_2026_jf["formula"] == f]
+    yoy_rows.append(dict(
+        formula=f, label=label,
+        n_2025=len(g25), n_2026=len(g26),
+        feat_2025=g25["is_featured"].mean() if len(g25) > 0 else np.nan,
+        feat_2026=g26["is_featured"].mean() if len(g26) > 0 else np.nan,
+        pct_2025=g25[VIEWS_METRIC].median() if len(g25) >= 3 else np.nan,
+        pct_2026=g26[VIEWS_METRIC].median() if len(g26) >= 3 else np.nan,
+    ))
+df_yoy = pd.DataFrame(yoy_rows)
+
+# Formula with biggest change YoY
+df_yoy_valid = df_yoy.dropna(subset=["pct_2025", "pct_2026"])
+if len(df_yoy_valid) > 0:
+    df_yoy_valid = df_yoy_valid.copy()
+    df_yoy_valid["_delta"] = (df_yoy_valid["pct_2026"] - df_yoy_valid["pct_2025"]).abs()
+    _biggest_change_row = df_yoy_valid.sort_values("_delta", ascending=False).iloc[0]
+    YOY_CHANGING_FORMULA = _biggest_change_row["label"]
+    YOY_CHANGING_DELTA   = _biggest_change_row["pct_2026"] - _biggest_change_row["pct_2025"]
+else:
+    YOY_CHANGING_FORMULA = "—"
+    YOY_CHANGING_DELTA   = 0.0
+
+
+# ── Tracker join ──────────────────────────────────────────────────────────────
+print("Computing tracker join…")
+HAS_TRACKER = False
+tracker_df  = None
+an_tracked  = pd.DataFrame()
+author_stats = pd.DataFrame()
+team_top     = pd.DataFrame()
+N_TRACKED_AN = 0
+
+try:
+    tracker_df = pd.read_excel(TRACKER, sheet_name="Data")
+    tracker_df = tracker_df[["Published URL/Link", "Author", "Vertical", "Word Count"]].copy()
+    tracker_df = tracker_df.dropna(subset=["Published URL/Link"])
+    tracker_df["_url_key"] = tracker_df["Published URL/Link"].str.strip().str.lower()
+    HAS_TRACKER = True
+except Exception as e:
+    print(f"Tracker not loaded: {e}")
+
+if HAS_TRACKER:
+    an_url = an.copy()
+    an_url["_url_key"] = an_url["Publisher Article ID"].fillna("").str.strip().str.lower()
+    an_tracked = an_url[an_url["_url_key"] != ""].merge(tracker_df, on="_url_key", how="inner")
+    N_TRACKED_AN = len(an_tracked)
+    print(f"Tracker join: {N_TRACKED_AN} Apple News articles matched ({N_TRACKED_AN/len(an):.1%} of {len(an)} total)")
+
+    if N_TRACKED_AN > 0:
+        author_stats = (an_tracked.groupby("Author_x")
+            .agg(
+                n=("Article", "count"),
+                med_views=("Total Views", "median"),
+                med_pct=(VIEWS_METRIC, "median"),
+                feat_rate=("is_featured", "mean"),
+            )
+            .reset_index()
+            .rename(columns={"Author_x": "Author"})
+            .sort_values("med_pct", ascending=False)
+            .head(15))
+
+        team_top = (an_tracked.sort_values(VIEWS_METRIC, ascending=False)
+            [["Article", "Brand", "Author_x", "Date Published", "Total Views", VIEWS_METRIC, "is_featured"]]
+            .rename(columns={"Author_x": "Author"})
+            .head(15))
 
 
 # ── Key stats ─────────────────────────────────────────────────────────────────
@@ -741,14 +697,13 @@ N_NOTIF     = len(notif)
 PLATFORMS   = sum(1 for _df in [an, sn, msn, yahoo] if _df is not None and len(_df) > 0)
 REPORT_DATE = datetime.now().strftime("%B %Y")
 
-# Hero numbers — computed from data, not hardcoded
 _wtn_row  = df_q2[df_q2["formula"] == "what_to_know"]
 WTN_FEAT_RATE = float(_wtn_row["featured_rate"].iloc[0]) if len(_wtn_row) else overall_feat_rate
 WTN_FEAT  = f"{WTN_FEAT_RATE:.0%}"
 
 _local_row = df_q4[df_q4["category"] == "Local"]
-_local_med = float(_local_row["median_views"].iloc[0]) if len(_local_row) else 0
-LOCAL_LIFT = f"{_local_med / top_median_sn:.0f}×" if top_median_sn > 0 else "—"
+_local_pct = float(_local_row["median_pct"].iloc[0]) if len(_local_row) else 0
+LOCAL_LIFT = f"{_local_pct / top_median_sn_pct:.1f}×" if top_median_sn_pct > 0 else "—"
 
 _excl_row  = df_q5[df_q5["feature"] == "'Exclusive' tag"]
 _excl_lift_val = float(_excl_row["lift"].iloc[0]) if len(_excl_row) else None
@@ -757,7 +712,6 @@ EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
 def _fmt_p(p, adj=False):
-    """Format p-value with stars for HTML. adj=True adds '(adj)' label."""
     if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
     p = float(p)
     label = "<sub>adj</sub>" if adj else ""
@@ -786,14 +740,12 @@ def _q5r(feat):
     row = df_q5[df_q5["feature"] == feat]
     return row.iloc[0] if len(row) else None
 
-# Finding 1 helpers
 _r1_num = _q1r("number_lead")
 _r1_q   = _q1r("question")
 _r1_ql  = _q1r("quoted_lede")
 _r1_h   = _q1r("heres_formula")
 _r1_pne = _q1r("possessive_named_entity")
 
-# Finding 2 helpers
 _r2_wtn = _q2r("what_to_know")
 _r2_q   = _q2r("question")
 _r2_ql  = _q2r("quoted_lede")
@@ -801,7 +753,6 @@ _wtn_feat_n   = int(_r2_wtn["feat_n"])      if _r2_wtn is not None else 0
 _wtn_total    = int(_r2_wtn["n"])            if _r2_wtn is not None else 0
 WTN_FEAT_LIFT = float(_r2_wtn["featured_lift"]) if _r2_wtn is not None else 0
 
-# Finding 3 helpers
 _r4_loc  = _q4r("Local")
 _r4_us   = _q4r("U.S.")
 _r4_ent  = _q4r("Entertainment")
@@ -811,7 +762,6 @@ _r4_top  = _q4r("Top")
 _ent_local_ratio = (int(round(_r4_ent["n"] / _r4_loc["n"]))
                     if _r4_ent is not None and _r4_loc is not None and _r4_loc["n"] > 0 else 0)
 
-# Finding 4 helpers
 _r5_excl = _q5r("'Exclusive' tag")
 _r5_poss = _q5r("Named person + possessive")
 _r5_full = _q5r("Full name present")
@@ -831,83 +781,137 @@ def _row_tag(lift, is_red=False):
 
 def _q1_table():
     rows = df_q1[df_q1["formula"] != "untagged"].sort_values("lift", ascending=False)
-    html = ""
+    html_out = ""
     for _, r in rows.iterrows():
         p_adj = r.get("p_adj", np.nan)
         p_raw = r.get("p")
         p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else _fmt_p(p_raw)
         r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
         ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
-        req_n_str = f"~{int(r['req_n'])} needed" if r.get("req_n") else "—"
+        _rn = r.get("req_n")
+        req_n_str = f"~{int(_rn)} needed" if (_rn is not None and pd.notna(_rn)) else "—"
+        pct_str = f"{r['median']:.0%}"
         tag = _row_tag(r["lift"])
-        html += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
-                 f'<td>{r["lift"]:.2f}×</td><td>{ci_str}</td>'
-                 f'<td>{r_str}</td><td>{p_str}</td><td>{req_n_str}</td></tr>\n')
-    return html
+        html_out += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+                     f'<td>{pct_str}</td><td>{r["lift"]:.2f}×</td><td>{ci_str}</td>'
+                     f'<td>{r_str}</td><td>{p_str}</td><td>{req_n_str}</td></tr>\n')
+    return html_out
 
 def _q2_table():
     rows = df_q2[df_q2["formula"] != "untagged"].sort_values("featured_rate", ascending=False)
-    html = ""
+    html_out = ""
     for _, r in rows.iterrows():
         feat_med = r.get("feat_med_views")
         if feat_med is not None and not np.isnan(float(feat_med)):
-            wf = f"{feat_med:,.0f} views ({float(r['feat_views_lift']):.2f}× Featured avg)"
+            wf = f"{feat_med:.0%} ({float(r['feat_views_lift']):.2f}× Featured avg)"
         else:
             wf = "—"
         p_adj = r.get("p_chi_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else _fmt_p(r["p_chi"])
         tag = _row_tag(r["featured_lift"])
-        html += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
-                 f'<td>{r["featured_rate"]:.0%}</td>'
-                 f'<td>{r["featured_lift"]:.2f}×</td>'
-                 f'<td>{p_str}</td>'
-                 f'<td>{wf}</td></tr>\n')
-    return html
+        html_out += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+                     f'<td>{r["featured_rate"]:.0%}</td>'
+                     f'<td>{r["featured_lift"]:.2f}×</td>'
+                     f'<td>{p_str}</td>'
+                     f'<td>{wf}</td></tr>\n')
+    return html_out
 
 def _q4_table():
     rows_sorted = df_q4[df_q4["category"] != "Top"].sort_values("lift", ascending=False)
-    html = ""
+    html_out = ""
     for _, r in rows_sorted.iterrows():
         is_red = (r["lift"] < 2.0 and r["category"] in ("Entertainment", "Lifestyle"))
         tag = _row_tag(r["lift"], is_red=is_red)
         p_adj = r.get("p_mw_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else "—"
-        html += (f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
-                 f'<td>{r["pct_share"]:.1%}</td>'
-                 f'<td>{r["median_views"]:,.0f}</td>'
-                 f'<td>{r["lift"]:.1f}×</td>'
-                 f'<td>{p_str}</td></tr>\n')
+        html_out += (f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
+                     f'<td>{r["pct_share"]:.1%}</td>'
+                     f'<td>{r["median_pct"]:.0%}</td>'
+                     f'<td>{int(r["median_views"]):,}</td>'
+                     f'<td>{r["lift"]:.2f}×</td>'
+                     f'<td>{p_str}</td></tr>\n')
     if _r4_top is not None:
-        html += (f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
-                 f'<td>{_r4_top["pct_share"]:.1%}</td>'
-                 f'<td>{_r4_top["median_views"]:,.0f}</td><td>1.00×</td><td>—</td></tr>\n')
-    return html
+        html_out += (f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
+                     f'<td>{_r4_top["pct_share"]:.1%}</td>'
+                     f'<td>{top_median_sn_pct:.0%}</td>'
+                     f'<td>{int(_r4_top["median_views"]):,}</td><td>1.00×</td><td>—</td></tr>\n')
+    return html_out
 
 def _q5_table():
     sig = df_q5[df_q5.apply(
         lambda r: (r.get("p_adj", r["p"]) if not (isinstance(r.get("p_adj", np.nan), float) and np.isnan(r.get("p_adj", np.nan))) else r["p"]) < 0.05,
         axis=1
     )].sort_values("lift", ascending=False)
-    html = ""
+    html_out = ""
     for _, r in sig.iterrows():
         p_adj = r.get("p_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (isinstance(p_adj, float) and np.isnan(p_adj)) else _fmt_p(r["p"])
         r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
         ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
         tag = _row_tag(r["lift"])
-        html += (f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
-                 f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
-                 f'<td>{r["lift"]:.2f}× {ci_str}</td>'
-                 f'<td>{r_str}</td>'
-                 f'<td>{p_str}</td></tr>\n')
-    return html
+        html_out += (f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
+                     f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
+                     f'<td>{r["lift"]:.2f}× {ci_str}</td>'
+                     f'<td>{r_str}</td>'
+                     f'<td>{p_str}</td></tr>\n')
+    return html_out
+
+def _sports_subtopic_table():
+    html_out = ""
+    for _, r in df_sports_subtopic.iterrows():
+        an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
+        sn_str = f"{r['sn_med']:.0%}" if pd.notna(r['sn_med']) else "—"
+        html_out += (f"<tr><td>{r['subtopic']}</td>"
+                     f"<td>{int(r['an_n'])}</td><td>{an_str}</td>"
+                     f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
+    return html_out
+
+def _yoy_table():
+    html_out = ""
+    for _, r in df_yoy.iterrows():
+        pct25 = f"{r['pct_2025']:.0%}" if pd.notna(r['pct_2025']) else "—"
+        pct26 = f"{r['pct_2026']:.0%}" if pd.notna(r['pct_2026']) else "—"
+        fr25  = f"{r['feat_2025']:.0%}" if pd.notna(r['feat_2025']) else "—"
+        fr26  = f"{r['feat_2026']:.0%}" if pd.notna(r['feat_2026']) else "—"
+        html_out += (f"<tr><td>{r['label']}</td>"
+                     f"<td>{int(r['n_2025'])}</td><td>{fr25}</td><td>{pct25}</td>"
+                     f"<td>{int(r['n_2026'])}</td><td>{fr26}</td><td>{pct26}</td></tr>\n")
+    return html_out
+
+def _author_table():
+    if author_stats.empty: return "<tr><td colspan='5'>No matched articles.</td></tr>"
+    html_out = ""
+    for _, r in author_stats.iterrows():
+        html_out += (f"<tr><td>{html_module.escape(str(r['Author']))}</td>"
+                     f"<td>{int(r['n'])}</td>"
+                     f"<td>{int(r['med_views']):,}</td>"
+                     f"<td>{r['med_pct']:.0%}</td>"
+                     f"<td>{r['feat_rate']:.0%}</td></tr>\n")
+    return html_out
+
+def _team_top_table():
+    if team_top.empty: return "<tr><td colspan='6'>No matched articles.</td></tr>"
+    html_out = ""
+    for _, r in team_top.iterrows():
+        title = html_module.escape(str(r['Article'])[:80])
+        feat_str = "Yes" if r['is_featured'] else "No"
+        html_out += (f"<tr><td>{title}</td>"
+                     f"<td>{html_module.escape(str(r['Brand']))}</td>"
+                     f"<td>{html_module.escape(str(r['Author']))}</td>"
+                     f"<td>{r[VIEWS_METRIC]:.0%}</td>"
+                     f"<td>{int(r['Total Views']):,}</td>"
+                     f"<td>{feat_str}</td></tr>\n")
+    return html_out
 
 _t1 = _q1_table()
 _t2 = _q2_table()
 _t3 = _q4_table()
 _t4 = _q5_table()
+_t5 = _sports_subtopic_table()
+_t_yoy = _yoy_table()
+_t_auth = _author_table()
+_t_team = _team_top_table()
 
-# Exclusive sensitivity analysis prose
 _excl_sensitivity_html = ""
 if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
     _excl_sensitivity_html = f"""
@@ -915,9 +919,316 @@ if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
       <p>The {_r5_excl['n_true']} "exclusive"-tagged notifications include {_n_excl_guthrie} that also mention Guthrie. Removing the Guthrie overlap: the "exclusive" lift falls from {_r5_excl['lift']:.2f}× to {EXCL_NOGUTH_LIFT:.2f}× ({_fmt_p(EXCL_NOGUTH_P)}). {"The effect remains statistically significant — the exclusive signal is not solely a Guthrie artifact." if EXCL_NOGUTH_P is not None and EXCL_NOGUTH_P < 0.05 else "The effect loses statistical significance once the Guthrie cluster is removed — interpret the headline figure with caution."}</p>
 """
 
-# Q1 power analysis prose for underpowered formulas
 _q1_power_rows = df_q1[(df_q1["formula"] != "untagged") & df_q1["req_n"].notna()]
 
+
+# ── Charts ────────────────────────────────────────────────────────────────────
+CHART_H = 400
+PLOTLY_LAYOUT = dict(
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
+              size=12, color=NAVY),
+    margin=dict(l=20, r=120, t=50, b=40),
+    height=CHART_H,
+)
+
+def bar_color(lift):
+    if lift >= 1.5:   return GREEN
+    if lift >= 1.0:   return BLUE
+    if lift >= 0.8:   return AMBER
+    return RED
+
+# Chart 1 — Formula lift (percentile)
+colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
+hover_q1 = [f"Median percentile: {r['median']:.0%} | n={r['n']}" for _, r in df_q1.iterrows()]
+
+fig1 = go.Figure(go.Bar(
+    y=df_q1["label"].tolist(),
+    x=df_q1["lift"].tolist(),
+    orientation="h",
+    marker_color=colors_q1,
+    text=[f"{v:.2f}×  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())],
+    textposition="outside",
+    hovertext=hover_q1,
+    hoverinfo="y+text",
+))
+fig1.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+               annotation_text="Baseline", annotation_position="top")
+fig1.update_layout(
+    **PLOTLY_LAYOUT,
+    title=dict(text="Percentile-within-cohort lift vs. baseline by formula — non-Featured articles only",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="Median percentile rank relative to untagged baseline (1.0 = same as baseline)",
+               gridcolor=BORDER, zeroline=False, range=[0, 4.5]),
+    yaxis=dict(title=""),
+    showlegend=False,
+)
+
+# Chart 2 — Featured rate
+colors_q2 = [bar_color(r["featured_lift"]) for _, r in df_q2.iterrows()]
+fig2 = go.Figure(go.Bar(
+    y=df_q2["label"].tolist(),
+    x=(df_q2["featured_rate"] * 100).tolist(),
+    orientation="h",
+    marker_color=colors_q2,
+    text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}×)" for _, r in df_q2.iterrows()],
+    textposition="outside",
+    hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
+    hoverinfo="y+x+text",
+))
+fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=GRAY,
+               annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
+fig2.update_layout(
+    **PLOTLY_LAYOUT,
+    title=dict(text="% of articles Featured by Apple, by headline formula",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="% of articles in formula group that were Featured by Apple",
+               gridcolor=BORDER, zeroline=False, range=[0, 85]),
+    yaxis=dict(title=""),
+    showlegend=False,
+)
+
+# Chart 3 — SmartNews categories (percentile)
+df_q4_chart = df_q4.sort_values("median_pct", ascending=True)
+q4_colors = []
+for _, r in df_q4_chart.iterrows():
+    if r["lift"] > 1.5:      q4_colors.append(GREEN)
+    elif r["lift"] > 1.0:    q4_colors.append(BLUE)
+    elif r["pct_share"] > 0.20: q4_colors.append(RED)
+    else:                    q4_colors.append(GRAY)
+
+fig3 = go.Figure(go.Bar(
+    y=df_q4_chart["category"].tolist(),
+    x=df_q4_chart["median_pct"].tolist(),
+    orientation="h",
+    marker_color=q4_colors,
+    text=[f"{p:.0%} percentile  ({n:,} articles)"
+          for p, n in zip(df_q4_chart["median_pct"].tolist(), df_q4_chart["n"].tolist())],
+    textposition="outside",
+    hovertext=[f"Median raw views: {int(v):,}" for v in df_q4_chart["median_views"].tolist()],
+    hoverinfo="y+text",
+))
+fig3.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
+    title=dict(text="Median percentile rank by SmartNews channel — with article volume",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=BORDER,
+               zeroline=False, tickformat=".0%"),
+    yaxis=dict(title=""),
+    showlegend=False,
+    margin=dict(l=20, r=280, t=50, b=40),
+)
+
+# Chart 4 — Notification CTR lift
+colors_q5 = [bar_color(r["lift"]) for _, r in df_q5.iterrows()]
+sig_labels = []
+for _, r in df_q5.iterrows():
+    p = r.get("p_adj", r["p"])
+    s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
+    sig_labels.append(f"{r['lift']:.2f}×  {s}  (n={r['n_true']})")
+
+fig4 = go.Figure(go.Bar(
+    y=df_q5["feature"].tolist(),
+    x=df_q5["lift"].tolist(),
+    orientation="h",
+    marker_color=colors_q5,
+    text=sig_labels,
+    textposition="outside",
+    hovertext=[f"CTR present: {r['med_yes']*100:.2f}%  |  CTR absent: {r['med_no']*100:.2f}%"
+               for _, r in df_q5.iterrows()],
+    hoverinfo="y+text",
+))
+fig4.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+               annotation_text="No effect", annotation_position="top")
+fig4.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
+    title=dict(text="Notification CTR lift by headline feature (median CTR, feature present vs. absent)",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=BORDER, zeroline=False, range=[0, 3.8]),
+    yaxis=dict(title=""),
+    showlegend=False,
+    margin=dict(l=20, r=220, t=50, b=40),
+)
+
+# Chart 5 — Topic index by platform
+fig5 = go.Figure()
+fig5.add_trace(go.Bar(
+    y=topic_df["label"].tolist(), x=topic_df["an_idx"].tolist(),
+    name="Apple News", orientation="h",
+    marker_color=BLUE, opacity=0.85,
+    hovertemplate="<b>%{y}</b><br>Apple News: %{x:.2f}× platform median<extra></extra>",
+))
+fig5.add_trace(go.Bar(
+    y=topic_df["label"].tolist(), x=topic_df["sn_idx"].tolist(),
+    name="SmartNews", orientation="h",
+    marker_color=GREEN, opacity=0.85,
+    hovertemplate="<b>%{y}</b><br>SmartNews: %{x:.2f}× platform median<extra></extra>",
+))
+fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+               annotation_text="Platform median", annotation_position="top")
+fig5.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text="Topic performance index by platform (percentile rank, 1.0 = platform median)",
+               font=dict(size=13, color=NAVY), x=0),
+    barmode="group",
+    xaxis=dict(title="Percentile index vs. platform median", gridcolor=BORDER, zeroline=False),
+    yaxis=dict(title=""),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=450,
+    margin=dict(l=20, r=40, t=70, b=40),
+)
+
+# Chart 6 — Variance (IQR/median of percentile)
+fig6 = go.Figure()
+fig6.add_trace(go.Bar(
+    y=df_var["label"].tolist(), x=df_var["an_cv"].tolist(),
+    name="Apple News", orientation="h",
+    marker_color=BLUE, opacity=0.85,
+    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["an_cv"].tolist(), df_var["an_n"].tolist())],
+    textposition="outside",
+    hovertemplate="<b>%{y}</b><br>Apple News IQR/median: %{x:.2f}<extra></extra>",
+))
+fig6.add_trace(go.Bar(
+    y=df_var["label"].tolist(), x=df_var["sn_cv"].tolist(),
+    name="SmartNews", orientation="h",
+    marker_color=GREEN, opacity=0.85,
+    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["sn_cv"].tolist(), df_var["sn_n"].tolist())],
+    textposition="outside",
+    hovertemplate="<b>%{y}</b><br>SmartNews IQR/median: %{x:.2f}<extra></extra>",
+))
+fig6.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text="Percentile spread by topic (IQR ÷ median) — where headline choice moves the needle most",
+               font=dict(size=13, color=NAVY), x=0),
+    barmode="group",
+    xaxis=dict(title="IQR / median percentile (higher = wider spread, more headline lift potential)",
+               gridcolor=BORDER, zeroline=False),
+    yaxis=dict(title=""),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=450,
+    margin=dict(l=20, r=140, t=70, b=40),
+)
+
+# Chart 7 — Views vs active time scatter
+q6_sample = an_eng
+feat_mask  = q6_sample["is_featured"]
+nfeat_mask = ~q6_sample["is_featured"]
+
+fig7 = go.Figure()
+fig7.add_trace(go.Scatter(
+    x=q6_sample[nfeat_mask]["Total Views"].tolist(),
+    y=q6_sample[nfeat_mask][AT_COL].tolist(),
+    mode="markers", name="Not Featured",
+    marker=dict(color=BLUE, size=4, opacity=0.35),
+    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Not Featured</extra>",
+))
+fig7.add_trace(go.Scatter(
+    x=q6_sample[feat_mask]["Total Views"].tolist(),
+    y=q6_sample[feat_mask][AT_COL].tolist(),
+    mode="markers", name="Featured by Apple",
+    marker=dict(color=GREEN, size=5, opacity=0.6),
+    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Featured</extra>",
+))
+fig7.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="Total views (log scale)", type="log", gridcolor=BORDER),
+    yaxis=dict(title="Avg. active time (seconds)", gridcolor=BORDER,
+               range=[0, max(an_eng[AT_COL].quantile(0.99), 180)]),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=420,
+    margin=dict(l=20, r=40, t=60, b=40),
+)
+
+# Chart 8 — Longitudinal: monthly median percentile by formula
+FORMULA_COLORS = {
+    "heres_formula":           BLUE,
+    "what_to_know":            GREEN,
+    "number_lead":             RED,
+    "question":                AMBER,
+    "possessive_named_entity": NAVY,
+}
+FORMULA_DISPLAY = {
+    "heres_formula":           "Here's / Here are",
+    "what_to_know":            "What to know",
+    "number_lead":             "Number lead",
+    "question":                "Question",
+    "possessive_named_entity": "Possessive named entity",
+}
+
+fig8 = go.Figure()
+if not df_long.empty:
+    for f in _LONG_FORMULAS:
+        sub = df_long[df_long["formula"] == f].sort_values("month")
+        if len(sub) < 2: continue
+        fig8.add_trace(go.Scatter(
+            x=sub["month"].tolist(),
+            y=sub["med_pct"].tolist(),
+            mode="lines+markers",
+            name=FORMULA_DISPLAY.get(f, f),
+            line=dict(color=FORMULA_COLORS.get(f, GRAY), width=2),
+            marker=dict(size=6),
+            hovertemplate="<b>" + FORMULA_DISPLAY.get(f, f) + "</b><br>%{x}<br>Median percentile: %{y:.0%}<extra></extra>",
+        ))
+
+fig8.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text="Monthly median percentile rank by formula type — Jan 2025 through 2026",
+               font=dict(size=13, color=NAVY), x=0),
+    xaxis=dict(title="Month", gridcolor=BORDER, tickangle=-30),
+    yaxis=dict(title="Median percentile within monthly cohort", gridcolor=BORDER,
+               tickformat=".0%", range=[0, 1]),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=420,
+    margin=dict(l=20, r=40, t=70, b=60),
+)
+
+
+# ── Render charts ─────────────────────────────────────────────────────────────
+def chart_html(fig):
+    return fig.to_html(full_html=False, include_plotlyjs=False, config={"responsive": True})
+
+c1 = chart_html(fig1)
+c2 = chart_html(fig2)
+c3 = chart_html(fig3)
+c4 = chart_html(fig4)
+c5 = chart_html(fig5)
+c6 = chart_html(fig6)
+c7 = chart_html(fig7)
+c8 = chart_html(fig8)
+
+# ── Conditional sections ──────────────────────────────────────────────────────
+_finding9_html = ""
+if HAS_TRACKER and N_TRACKED_AN > 0:
+    _finding9_html = f"""
+  <!-- TEAM PERFORMANCE -->
+  <details id="team" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 9 · Team Performance (Tracker)</p>
+        <h2>Author-level breakdown for {N_TRACKED_AN} tracked articles matched to Apple News data.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Note:</strong> {N_TRACKED_AN} Apple News articles ({N_TRACKED_AN/len(an):.1%} of {len(an)} total) matched to tracker via Publisher Article ID. Results are directional; match rate limits coverage.
+      </div>
+      <h3>Author performance (top 15 by median percentile)</h3>
+      <table class="findings">
+        <thead><tr><th>Author</th><th>n articles</th><th>Median views</th><th>Median percentile</th><th>Featured rate</th></tr></thead>
+        <tbody>{_t_auth}</tbody>
+      </table>
+      <h3>Top 15 articles by percentile rank</h3>
+      <table class="findings">
+        <thead><tr><th>Article</th><th>Brand</th><th>Author</th><th>Percentile</th><th>Total Views</th><th>Featured</th></tr></thead>
+        <tbody>{_t_team}</tbody>
+      </table>
+    </div>
+  </details>
+"""
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
@@ -948,7 +1259,7 @@ html = f"""<!DOCTYPE html>
     -webkit-font-smoothing: antialiased;
   }}
 
-  /* ── NAV ─────────────────────────────────────────────────────────────────── */
+  /* NAV */
   nav {{
     position: sticky; top: 0; z-index: 100;
     background: rgba(15,23,42,0.96);
@@ -977,7 +1288,7 @@ html = f"""<!DOCTYPE html>
     white-space: nowrap; flex-shrink: 0; letter-spacing: 0.02em;
   }}
 
-  /* ── HERO ────────────────────────────────────────────────────────────────── */
+  /* HERO */
   .hero {{
     background: linear-gradient(150deg, #0f172a 0%, #1a2744 100%);
     color: #fff; padding: 5.5rem 2rem 5rem; text-align: center;
@@ -1015,10 +1326,10 @@ html = f"""<!DOCTYPE html>
     text-transform: uppercase; letter-spacing: 0.1em; display: block; line-height: 1.5;
   }}
 
-  /* ── LAYOUT ──────────────────────────────────────────────────────────────── */
+  /* LAYOUT */
   .container {{ max-width: 840px; margin: 0 auto; padding: 0 2rem; }}
 
-  /* ── TYPOGRAPHY ──────────────────────────────────────────────────────────── */
+  /* TYPOGRAPHY */
   .section-label {{
     text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem;
     color: var(--blue); font-weight: 700; margin-bottom: 0.5rem; display: block;
@@ -1034,14 +1345,14 @@ html = f"""<!DOCTYPE html>
   p {{ color: var(--sub); margin-bottom: 0.9rem; font-size: 0.9375rem; }}
   p:last-child {{ margin-bottom: 0; }}
 
-  /* ── CHART ───────────────────────────────────────────────────────────────── */
+  /* CHART */
   .chart-wrap {{
     margin: 1.5rem 0; border-radius: 10px; overflow: hidden;
     background: #fff; padding: 0.5rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
   }}
 
-  /* ── CALLOUT ─────────────────────────────────────────────────────────────── */
+  /* CALLOUT */
   .callout {{
     background: #eff6ff; border: 1px solid #bfdbfe;
     padding: 1rem 1.25rem; border-radius: 8px;
@@ -1050,7 +1361,7 @@ html = f"""<!DOCTYPE html>
   .callout strong {{ color: #1e40af; }}
   .callout em {{ color: var(--sub); }}
 
-  /* ── TAGS ────────────────────────────────────────────────────────────────── */
+  /* TAGS */
   .tag {{
     display: inline-block; font-size: 0.6rem; font-weight: 700;
     padding: 1px 5px; border-radius: 3px; margin-right: 5px; vertical-align: middle;
@@ -1060,7 +1371,7 @@ html = f"""<!DOCTYPE html>
   .tag-red   {{ background: #fff1f2; color: #be123c; }}
   .tag-amber {{ background: #fffbeb; color: #b45309; }}
 
-  /* ── FINDINGS TABLE ──────────────────────────────────────────────────────── */
+  /* FINDINGS TABLE */
   .findings {{
     width: 100%; border-collapse: collapse; font-size: 0.84rem; margin: 1.25rem 0;
     background: #fff; border-radius: 8px; overflow: hidden;
@@ -1080,10 +1391,10 @@ html = f"""<!DOCTYPE html>
   .findings tr:hover td {{ background: #fafbfd; }}
   .findings td:nth-child(n+2) {{ font-variant-numeric: tabular-nums; }}
 
-  /* ── CAVEAT ──────────────────────────────────────────────────────────────── */
+  /* CAVEAT */
   .caveat {{ font-size: 0.74rem; color: #94a3b8; margin-top: 0.75rem; line-height: 1.6; }}
 
-  /* ── FINDING CARDS ───────────────────────────────────────────────────────── */
+  /* FINDING CARDS */
   .finding-card {{ border-bottom: 1px solid var(--border); }}
   .finding-card:first-of-type {{ border-top: 1px solid var(--border); margin-top: 2.5rem; }}
   .finding-card:last-of-type {{ border-bottom: 1px solid var(--border); margin-bottom: 3rem; }}
@@ -1108,7 +1419,7 @@ html = f"""<!DOCTYPE html>
   .finding-body {{ padding: 0 0 2.5rem 1.95rem; }}
   .finding-body > .callout:first-child {{ margin-top: 0; }}
 
-  /* ── NAV TOGGLE ──────────────────────────────────────────────────────────── */
+  /* NAV TOGGLE */
   .nav-toggle {{
     background: transparent; border: 1px solid rgba(255,255,255,0.16);
     color: rgba(255,255,255,0.42); border-radius: 4px;
@@ -1118,7 +1429,18 @@ html = f"""<!DOCTYPE html>
   }}
   .nav-toggle:hover {{ border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.8); }}
 
-  /* ── FOOTER ──────────────────────────────────────────────────────────────── */
+  /* EXAMPLE LISTS */
+  .example-cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }}
+  .example-list {{ background: #fff; border-radius: 8px; padding: 0.75rem 1rem;
+    box-shadow: 0 0 0 1px var(--border); }}
+  .example-list h4 {{ font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--gray); margin-bottom: 0.5rem; }}
+  .example-list ul {{ padding-left: 1.2rem; font-size: 0.82rem; color: var(--sub); }}
+  .example-list li {{ margin-bottom: 0.35rem; }}
+  .example-top h4 {{ color: #15803d; }}
+  .example-bot h4 {{ color: #be123c; }}
+
+  /* FOOTER */
   footer {{
     padding: 3.5rem 0; text-align: center; color: #94a3b8;
     font-size: 0.75rem; border-top: 1px solid var(--border);
@@ -1141,6 +1463,8 @@ html = f"""<!DOCTYPE html>
     <a href="#topics">Topics</a>
     <a href="#allocation">Allocation</a>
     <a href="#engagement">Engagement</a>
+    <a href="#trends">Trends</a>
+    {"<a href='#team'>Team</a>" if HAS_TRACKER and N_TRACKED_AN > 0 else ""}
   </div>
   <span class="spacer"></span>
   <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
@@ -1149,11 +1473,11 @@ html = f"""<!DOCTYPE html>
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · Phase 2</p>
-  <h1>One headline phrase doubles your chance of being Featured on Apple News. The wrong SmartNews channel cuts your reach by 100×.</h1>
+  <h1>One headline phrase doubles your chance of being Featured on Apple News. Sports is top-3 on Apple News and dead last on SmartNews.</h1>
   <p class="sub">{N_AN:,} Apple News articles · {N_SN:,} SmartNews articles · {N_NOTIF} push notifications · {PLATFORMS} platforms · 2025–2026</p>
   <div class="meta">
     <div class="meta-item"><span class="num">{WTN_FEAT}</span><span class="label">Featured rate for "What to know" headlines</span></div>
-    <div class="meta-item"><span class="num">{LOCAL_LIFT}</span><span class="label">Views lift for SmartNews Local vs. Top feed</span></div>
+    <div class="meta-item"><span class="num">{LOCAL_LIFT}</span><span class="label">SmartNews Local percentile lift vs. Top feed</span></div>
     <div class="meta-item"><span class="num">{EXCL_LIFT}</span><span class="label">CTR lift for "exclusive" in push notifications</span></div>
   </div>
 </div>
@@ -1174,16 +1498,17 @@ html = f"""<!DOCTYPE html>
         <strong>Action:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
       </div>
       <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×), question format ({_r1_q['lift']:.2f}×), and quoted ledes ({_r1_ql['lift']:.2f}×) — all with FDR-adjusted p&lt;0.001. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
+      <p>These lifts are now expressed as percentile ratios: a lift of {_r1_h['lift']:.2f}× means the "Here's" group's median article falls in a {_r1_h['lift']:.2f}× higher monthly cohort percentile than untagged articles. Number leads fall to the {_r1_num['median']:.0%}ile of their monthly cohort, versus {baseline.median():.0%}ile for untagged articles.</p>
       <div class="chart-wrap">{c1}</div>
       <table class="findings">
-        <thead><tr><th>Formula</th><th>n</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
+        <thead><tr><th>Formula</th><th>n</th><th>Median %ile</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
         <tbody>
           {_t1}
         </tbody>
       </table>
       <h3>Untagged baseline characterisation</h3>
-      <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes that begin with neither a number, a proper noun possessive, "Here's", nor a question mark. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>. This group is heterogeneous by design — it represents the modal production style rather than a controlled condition. Lift ratios should be read as "relative to the full production baseline," not "relative to an optimised control."</p>
-      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles excluded to isolate headline signal from editorial selection confound. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r (signed: positive = formula &gt; baseline). 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). Multiple comparison correction: Benjamini–Hochberg FDR applied across all {len(_q1_raw_p)} formula tests jointly; p<sub>adj</sub> displayed. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05) at the observed effect size, using t-test approximation (Mann–Whitney ~95.5% efficient). Formula classifier: unvalidated regex; precision not formally benchmarked. Seasonal confound not controlled — 2025 treated as a single cross-section.</p>
+      <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>.</p>
+      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: percentile_within_cohort — percentile rank within same publication month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
     </div>
   </details>
 
@@ -1202,18 +1527,18 @@ html = f"""<!DOCTYPE html>
       </div>
       <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
       <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
-      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured medians — {_r2_ql['feat_med_views']:,.0f} views, {_r2_ql['feat_views_lift']:.2f}× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
-      <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring. This finding should be treated as a signal for A/B testing, not a production rule.</p>
+      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured percentiles. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
+      <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring.</p>
       <div class="chart-wrap">{c2}</div>
       <table class="findings">
-        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH–FDR)</th><th>Within-Featured median</th></tr></thead>
+        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH–FDR)</th><th>Within-Featured median %ile</th></tr></thead>
         <tbody>
           {_t2}
         </tbody>
       </table>
       <h3>Featured placement drives reach — not reading depth</h3>
-      <p>Featured articles average {feat_at.median():.0f} seconds of active reading time versus {nfeat_at.median():.0f} seconds for non-Featured articles. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out. For the variant allocation model, Featured status is a reach signal — not a content depth signal.</p>
-      <p class="caveat">All {N_AN:,} Apple News articles (2025). Chi-square test: each formula vs. all other articles combined. Multiple comparison correction: BH–FDR across all {len(_q2_raw_p)} formula tests. Active time: n={len(an_eng):,} articles with valid active time data. Causal direction of "What to know" → Featured is unconfirmed; see note above.</p>
+      <p>Featured articles average {_feat_at_an.median():.0f} seconds of active reading time versus {_nfeat_at_an.median():.0f} seconds for non-Featured. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out.</p>
+      <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
     </div>
   </details>
 
@@ -1223,23 +1548,23 @@ html = f"""<!DOCTYPE html>
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 3 · SmartNews Allocation</p>
-        <h2>SmartNews Local delivers {LOCAL_LIFT} the views of average Top-feed articles. Entertainment gets {_ent_local_ratio}× more articles and performs like average.</h2>
+        <h2>SmartNews Local delivers {LOCAL_LIFT} the percentile rank of average Top-feed articles. Entertainment gets {_ent_local_ratio}× more articles and performs like average.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming {_r4_ent['pct_share']:.1%} of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver {_r4_loc['lift']:.0f}× and {_r4_us['lift']:.0f}× the views at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
+        <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming {_r4_ent['pct_share']:.1%} of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver dramatically higher percentile ranks at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
         <br><br><em>Caveat:</em> Articles in Local and U.S. channels are likely higher-quality breaking/civic stories that would perform well regardless of channel. Channel assignment partly reflects content type.
       </div>
-      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of {_r4_loc['median_views']:,.0f} total views. Articles in the U.S. National channel: {_r4_us['median_views']:,.0f} views. The Top feed baseline: {_r4_top['median_views']:,.0f} views. World ({_r4_wld['lift']:.1f}×) and Health ({_r4_hlth['lift']:.1f}×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — delivers only {_r4_ent['median_views']:,.0f} views median, barely above baseline. All non-baseline channel differences are statistically significant (Mann-Whitney, BH–FDR corrected; see table).</p>
+      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
       <div class="chart-wrap">{c3}</div>
       <table class="findings">
-        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
+        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
         <tbody>
           {_t3}
         </tbody>
       </table>
-      <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category — category comparisons are therefore not fully independent, and tests should be read as within-dataset signal rather than orthogonal contrasts. 2026 export lacks category breakdown. Content-type confound: high-performing channels (Local, U.S.) are likely populated by higher-stakes stories; channel ROI may reflect story quality as much as placement value.</p>
+      <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category. 2026 export lacks category breakdown — 2025 data only.</p>
     </div>
   </details>
 
@@ -1254,9 +1579,9 @@ html = f"""<!DOCTYPE html>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Action:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
+        <strong>Action:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…" Use full names. Reserve "exclusive" for actual exclusives. Avoid question format.
       </div>
-      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
       <div class="chart-wrap">{c4}</div>
       <table class="findings">
         <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
@@ -1266,10 +1591,9 @@ html = f"""<!DOCTYPE html>
       </table>
       {_excl_sensitivity_html}
       <h3>The serial/escalating story as a content type</h3>
-      <p>The top 10 notifications in the dataset by CTR (ranging 6.5–9.6%) are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This isn't just a confound — it defines a content type worth naming: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula is: possessive named entity + new development + escalating stakes, published in installments. Each installment compounds prior audience investment.</p>
-      <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
-      <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
-      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR correction applied across all {len(_q5_raw_p)} feature tests. Sensitivity analysis: "exclusive" lift computed both with and without Guthrie-cluster notifications (see above). N=2 months only — findings are directional pending full-year 2025 notification data from Tarrow. Feature classifier unvalidated against hand-labelled sample.</p>
+      <p>The top 10 notifications by CTR are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
+      <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction.</p>
+      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. N=2 months only — findings are directional. Feature classifier unvalidated.</p>
     </div>
   </details>
 
@@ -1278,48 +1602,58 @@ html = f"""<!DOCTYPE html>
     <summary class="finding-header">
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
-        <p class="section-label">Finding 5 · Platform Separation</p>
-        <h2>{an_top_label} leads Apple News. {sn_top_label} leads SmartNews. Sports ranks #{sports_an_rank} on Apple News and last on SmartNews — the starkest evidence that these platforms serve different audiences entirely.</h2>
+        <p class="section-label">Finding 5 · Platform Topic Inversion</p>
+        <h2>Sports is top-3 on Apple News and dead last on SmartNews. You cannot use the same sports content strategy across platforms — the magnitude of the inversion is the surprise.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Action:</strong> Write platform-specific variant briefs — not generic copy deployed everywhere. Apple News: sports, weather, serial/escalating framing. SmartNews: local/civic, nature/wildlife, business. These platforms are not seeing the same articles ({excl_sn:.0%} of SmartNews content appears nowhere else), and their audiences are not the same readers.
+        <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
       </div>
-      <p>Topic performance diverges sharply — and in many cases inverts — by platform. {an_top_label} leads Apple News ({an_top_med:,} median views), followed by {an_2nd_label} ({an_2nd_med:,}). On SmartNews, {sn_top_label.lower()} leads ({sn_top_med} median views), while sports ranks last at {sports_sn_med} views — the same sports content that ranks #{sports_an_rank} on Apple News ({sports_an_med:,} median views) performs worst on SmartNews ({sports_sn_idx:.2f}x platform median). Nature/wildlife shows the same inversion in reverse: bottom of Apple News ({nw_an_idx:.2f}x) but near the top of SmartNews ({nw_sn_idx:.2f}x). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
+      <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: the same sports content sits in the top quartile of one platform and the bottom quartile of another. The inversion is directionally consistent across the full year of 2025 data.</p>
+      <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
       <div class="chart-wrap">{c5}</div>
-      <h3>Platforms are drawing from separate content pools</h3>
-      <p>Exact title matching across all four platforms confirms: {overlap_all4} articles appear on all four simultaneously. Only {overlap_3plus} appear on three or more. Each platform operates on largely independent content.</p>
+
+      <h3>Sports subtopic performance by platform</h3>
+      <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
       <table class="findings">
-        <thead><tr><th>Platform</th><th>Unique titles</th><th>Exclusive to this platform</th><th>Note</th></tr></thead>
-        <tbody>
-          <tr><td>SmartNews</td><td>{N_SN_UNIQ:,}</td><td>{excl_sn:.0%}</td><td>Highest exclusivity — nearly closed ecosystem</td></tr>
-          <tr><td>MSN</td><td>{N_MSN_UNIQ:,}</td><td>{excl_msn:.0%}</td><td>December only; seasonal news cycle increases overlap</td></tr>
-          <tr><td>Apple News</td><td>{N_AN_UNIQ:,}</td><td>{excl_an:.0%}</td><td>Small amount of title sharing with Yahoo/SmartNews</td></tr>
-          <tr><td>Yahoo</td><td>{N_YAHOO_UNIQ:,}</td><td>{excl_yahoo:.0%}</td><td>Some overlap with Apple News and SmartNews</td></tr>
-        </tbody>
+        <thead><tr><th>Sport</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+        <tbody>{_t5}</tbody>
       </table>
-      <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text; precision not formally benchmarked against a labelled sample. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match (punctuation/case stripped) — may overstate exclusivity for articles with minor headline rewrites. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal. No significance testing applied to topic-level comparisons — treat as descriptive.</p>
+
+      <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
     </div>
   </details>
 
-  <!-- ALLOCATION -->
+  <!-- ALLOCATION / VARIANCE -->
   <details id="allocation" class="finding-card">
     <summary class="finding-header">
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 6 · Headline Variance by Topic</p>
-        <h2>Crime shows the widest outcome spread on both platforms. On Apple News, business is second. On SmartNews, local/civic variance reflects the channel placement effect.</h2>
+        <h2>Crime shows the widest outcome spread on both platforms. On Apple News, business is second. Headline choice moves the needle most in these two categories.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Action:</strong> Concentrate variant production on high-median × high-variance topic combinations — where headline optimization has the most room to move performance. For Apple News: crime and business. For SmartNews: crime and local/civic (where framing that signals geographic/civic relevance may influence channel placement). Low-variance topics — nature/wildlife on Apple News, weather on SmartNews — have less to gain from headline optimization; the story drives performance more than the headline does.
+        <strong>Action:</strong> Concentrate variant production on high-variance topic combinations — where headline optimization has the most room to move performance. For Apple News: crime and business. For SmartNews: local/civic (where channel placement bimodality is the driver). Low-variance topics — nature/wildlife on Apple News — have less to gain from headline optimization.
       </div>
-      <p>The chart below shows the IQR ÷ median ratio (a robust spread measure) for each topic × platform combination. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance. Where it is low, outcomes are similar regardless of how the headline is written.</p>
+      <p>The chart below shows IQR ÷ median of percentile_within_cohort for each topic × platform. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median percentile — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance.</p>
       <div class="chart-wrap">{c6}</div>
-      <p>On Apple News, crime (cv=3.9) and business (cv=3.8) show the highest spread — a wide gap between underperforming and outperforming headlines within those topics. Nature/wildlife (cv=2.2) is the most consistent: these stories perform similarly regardless of headline, suggesting story quality drives more of the variance than framing does. On SmartNews, local/civic (cv=31) and business (cv=14) show extreme variance — driven by the channel allocation effect identified in Finding 3. Most local/civic articles on SmartNews get very few views, but the small fraction that land in the Local channel reach 16,000+ median views. The variance reflects the value of channel placement, not just headline quality.</p>
-      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded. High IQR/median on SmartNews local/civic is substantially explained by the channel-placement bimodality identified in Finding 3 — it should not be interpreted as pure headline sensitivity.</p>
+
+      <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
+      <div class="example-cols">
+        <div class="example-list example-top"><h4>Top quartile crime headlines</h4><ul>{crime_top_h}</ul></div>
+        <div class="example-list example-bot"><h4>Bottom quartile crime headlines</h4><ul>{crime_bot_h}</ul></div>
+      </div>
+
+      <h3>Business: top vs. bottom quartile headlines on Apple News</h3>
+      <div class="example-cols">
+        <div class="example-list example-top"><h4>Top quartile business headlines</h4><ul>{biz_top_h}</ul></div>
+        <div class="example-list example-bot"><h4>Bottom quartile business headlines</h4><ul>{biz_bot_h}</ul></div>
+      </div>
+
+      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure. Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is substantially explained by channel-placement bimodality (Finding 3).</p>
     </div>
   </details>
 
@@ -1336,7 +1670,7 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
       </div>
-      <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. Spearman is the more appropriate measure here given the highly skewed views distribution; Pearson is reported for completeness. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
+      <p>The Apple News dataset includes both Total Views and average active time per article. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
       <div class="chart-wrap">{c7}</div>
       <table class="findings">
         <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
@@ -1347,11 +1681,42 @@ html = f"""<!DOCTYPE html>
           <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
         </tbody>
       </table>
-      <p>Saves, likes, and shares all scale strongly with views — they measure the same dimension (reach and engagement breadth). Active time measures an orthogonal dimension: whether the reader who clicked actually read. High-view articles are not better-read articles. The two signals are statistically uncoupled.</p>
-      <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). And subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — subscribers are likely efficient, high-frequency readers who scan and move on, not a quality problem but a behavioral difference that matters when comparing paywalled vs. free article metrics.</p>
-      <p class="caveat">Apple News 2025 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s (likely tracker bounces); {at_high_n} have &gt;300s (likely left-open tabs) — these are not filtered and represent ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Saves/likes/shares n excludes rows missing that metric. Spearman ρ is the preferred test for independence given skewed views distribution; Pearson r included for comparability.</p>
+      <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — a behavioral difference, not a quality problem.</p>
+      <p class="caveat">Apple News 2025–2026 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s; {at_high_n} have &gt;300s — not filtered, ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Spearman ρ is the preferred test for independence given skewed views distribution.</p>
     </div>
   </details>
+
+  <!-- TRENDS -->
+  <details id="trends" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 8 · Longitudinal Trends &amp; Year-over-Year</p>
+        <h2>The formula lift patterns from 2025 are holding in 2026 — with one exception: {YOY_CHANGING_FORMULA} shows the largest shift ({YOY_CHANGING_DELTA:+.0%}ile).</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Action:</strong> The core formula rankings are stable across seasons. The longitudinal chart below shows whether the underperformance of number leads and questions has been consistent, or whether it is driven by a specific period. Monitor the changing formula ({YOY_CHANGING_FORMULA}) as 2026 data accumulates.
+        <br><br><em>Caveat:</em> 2026 data covers only Jan–Feb. Seasonal effects (e.g., peak news cycles, sports seasons) are not controlled. YoY comparison is directional only.
+      </div>
+      <div class="chart-wrap">{c8}</div>
+
+      <h3>Year-over-Year: Jan–Feb 2025 vs. Jan–Feb 2026</h3>
+      <p>Comparing the same two-month window across years controls for seasonal effects. The table shows formula distribution, Featured rate, and median percentile rank for each formula.</p>
+      <table class="findings">
+        <thead><tr>
+          <th>Formula</th>
+          <th>2025 n</th><th>2025 Featured</th><th>2025 Median %ile</th>
+          <th>2026 n</th><th>2026 Featured</th><th>2026 Median %ile</th>
+        </tr></thead>
+        <tbody>{_t_yoy}</tbody>
+      </table>
+      <p class="caveat">Longitudinal chart: only formula-months with n≥3 articles plotted. YoY comparison: 2025 Jan–Feb vs. all of 2026 (Jan–Feb only). Percentile ranks are computed within each year separately — cross-year percentile comparisons are directional. 2026 data through {REPORT_DATE}.</p>
+    </div>
+  </details>
+
+  {_finding9_html}
 
 </div>
 
@@ -1363,7 +1728,6 @@ function toggleAll() {{
   document.getElementById('expand-btn').textContent = anyOpen ? 'Expand all' : 'Collapse all';
 }}
 
-// Auto-open finding when navigating via nav link or hash
 function openByHash() {{
   const hash = window.location.hash;
   if (!hash) return;
@@ -1390,5 +1754,6 @@ document.addEventListener('DOMContentLoaded', openByHash);
 </html>"""
 
 out = Path("docs/index.html")
+out.parent.mkdir(exist_ok=True)
 out.write_text(html, encoding="utf-8")
-print(f"✓ Site written to {out}  ({len(html):,} chars)")
+print(f"Site written to {out}  ({len(html):,} chars)")
