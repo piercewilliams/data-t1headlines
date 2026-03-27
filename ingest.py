@@ -1,24 +1,28 @@
+#!/usr/bin/env python3
 """
 Monthly data ingest for T1 Headline Analysis.
 
 What it does:
-  1. Snapshots docs/index.html → docs/archive/YYYY-MM/index.html (with archive banner)
-  2. Updates docs/archive/index.html (the timeline index)
-  3. Runs generate_site.py with the specified data files
-  4. Commits the snapshot + regenerated site
+  1. Profiles new data files and diffs against last run (flags what changed,
+     what's newly analyzable, which skills to reach for)
+  2. Snapshots docs/index.html → docs/archive/YYYY-MM/index.html
+  3. Updates docs/archive/index.html (the timeline index)
+  4. Runs generate_site.py with the new data files
+  5. Commits everything
 
 Usage:
-  python ingest.py                                          # same files, new snapshot
-  python ingest.py --data-2026 "New 2026 file.xlsx"        # drop in new 2026 data
-  python ingest.py --data-2025 "a.xlsx" --data-2026 "b.xlsx"
-  python ingest.py --note "Added MSN full year"            # add a note to the archive entry
-  python ingest.py --no-commit                             # dry run, no git commit
+  python3 ingest.py                                           # same files, new snapshot
+  python3 ingest.py --data-2026 "New 2026 file.xlsx"         # drop in new 2026 data
+  python3 ingest.py --data-2025 "a.xlsx" --data-2026 "b.xlsx"
+  python3 ingest.py --note "Added MSN full year"
+  python3 ingest.py --no-commit                              # dry run, no git commit
+
+See PLAYBOOK.md for full analysis guidance by scenario type.
 """
 
 import argparse
 import json
 import re
-import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -29,87 +33,249 @@ DEFAULT_2025 = "Top syndication content 2025.xlsx"
 DEFAULT_2026 = "Top Stories 2026 Syndication.xlsx"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Ingest new T1 data and archive current site")
-    parser.add_argument("--data-2025", default=DEFAULT_2025,
-                        help="Path to 2025 data workbook (default: current file)")
-    parser.add_argument("--data-2026", default=DEFAULT_2026,
-                        help="Path to 2026 data workbook (default: current file)")
-    parser.add_argument("--note", default="",
-                        help="Human-readable note for this run, shown in archive index")
-    parser.add_argument("--no-commit", action="store_true",
-                        help="Skip git commit (for testing)")
-    args = parser.parse_args()
+# ── Analysis opportunity map ──────────────────────────────────────────────────
+# Each entry: condition (sheet key, metric, threshold) → analysis suggestion
+# Checked during diff; matching entries are printed as suggested next steps.
 
-    now = datetime.now()
-    period = now.strftime("%Y-%m")           # e.g. "2026-03"
-    period_label = now.strftime("%B %Y")     # e.g. "March 2026"
-    generated_date = now.strftime("%Y-%m-%d")
+OPPORTUNITY_MAP = [
+    {
+        "id": "notifications_rows",
+        "description": "Apple News Notifications dataset grew",
+        "check": lambda old, new: (
+            new.get("2026/Apple News Notifications", {}).get("rows", 0) >
+            old.get("2026/Apple News Notifications", {}).get("rows", 0) * 1.2
+        ),
+        "suggestion": (
+            "Larger notification dataset → re-validate Q5 CTR findings with more data.\n"
+            "  Skills: polars → data-analysis → interactive-report-generator\n"
+            '  Prompt: "Re-run Q5 notification CTR analysis on updated dataset. '
+            "Validate whether possessive named entity lift and 'exclusive' tag lift hold.\""
+        ),
+    },
+    {
+        "id": "notifications_engagement",
+        "description": "Notification engagement columns newly populated",
+        "check": lambda old, new: _cols_newly_populated(
+            old.get("2026/Apple News Notifications", {}),
+            new.get("2026/Apple News Notifications", {}),
+        ),
+        "suggestion": (
+            "Notification engagement depth now available.\n"
+            "  Skills: excel-analysis → polars → data-analysis\n"
+            '  Prompt: "Profile the newly populated notification engagement columns. '
+            "What do active time / saves / shares tell us about high-CTR notifications beyond the click?\""
+        ),
+    },
+    {
+        "id": "apple_news_engagement",
+        "description": "Apple News engagement columns newly populated (2026)",
+        "check": lambda old, new: _cols_newly_populated(
+            old.get("2026/Apple News", {}),
+            new.get("2026/Apple News", {}),
+        ),
+        "suggestion": (
+            "Apple News 2026 engagement depth now available (was empty at last run).\n"
+            "  Skills: excel-analysis → polars → data-analysis\n"
+            '  Prompt: "Profile Apple News 2026 engagement columns. '
+            "Extend Finding 7 (views vs. active time) to 2026 data and check if the independence finding holds.\""
+        ),
+    },
+    {
+        "id": "smartnews_categories",
+        "description": "SmartNews category columns restored (7 → 32+)",
+        "check": lambda old, new: (
+            new.get("2026/SmartNews", {}).get("cols", 0) >
+            old.get("2026/SmartNews", {}).get("cols", 0) + 10
+        ),
+        "suggestion": (
+            "SmartNews 2026 category breakdown restored.\n"
+            "  Skills: polars → data-analysis → interactive-report-generator\n"
+            '  Prompt: "Re-run Q4 SmartNews channel ROI analysis on 2026 data. '
+            "Does the Local 108× lift replicate? Has Entertainment over-indexing improved?\""
+        ),
+    },
+    {
+        "id": "msn_volume",
+        "description": "MSN dataset grew significantly (possible full-year data)",
+        "check": lambda old, new: (
+            new.get("2025/MSN", {}).get("rows", 0) >
+            old.get("2025/MSN", {}).get("rows", 0) * 2
+        ),
+        "suggestion": (
+            "MSN dataset is significantly larger — may now have full-year data.\n"
+            "  Skills: excel-analysis → polars → data-analysis\n"
+            '  Prompt: "Profile new MSN dataset. If full-year, add MSN to the Q3 topic × platform '
+            "analysis. Compare MSN topic performance index to Apple News and SmartNews.\""
+        ),
+    },
+    {
+        "id": "apple_news_rows",
+        "description": "Apple News dataset grew",
+        "check": lambda old, new: (
+            new.get("2025/Apple News", {}).get("rows", 0) >
+            old.get("2025/Apple News", {}).get("rows", 0) + 100
+        ),
+        "suggestion": (
+            "Apple News dataset has more rows.\n"
+            "  Standard re-run covers this automatically.\n"
+            "  If sample sizes for Here's/possessive now exceed n=100, run significance test:\n"
+            '  Prompt: "Re-run Q1 formula lift analysis. '
+            "Flag if Here's/possessive formula types now have n≥100 — re-test significance.\""
+        ),
+    },
+    {
+        "id": "new_sheets",
+        "description": "New sheets detected in data files",
+        "check": lambda old, new: bool(_new_sheets(old, new)),
+        "suggestion": (
+            "New data sheets detected — run excel-analysis to profile them.\n"
+            "  Skills: excel-analysis → code-data-analysis-scaffolds\n"
+            '  Prompt: "Profile the new sheets in the updated data file. '
+            "What platform/metric do they cover? What analysis questions do they unlock?\""
+        ),
+    },
+]
 
-    # 1. Snapshot current site
-    current_site = Path("docs/index.html")
-    archive_dir = Path("docs/archive") / period
-    archive_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_path = archive_dir / "index.html"
 
-    hero_headline = ""
-    if current_site.exists():
-        content = current_site.read_text(encoding="utf-8")
+def _cols_newly_populated(old_sheet, new_sheet, threshold=0.5):
+    """True if any column went from >50% null to <10% null."""
+    old_nulls = old_sheet.get("null_rates", {})
+    new_nulls = new_sheet.get("null_rates", {})
+    for col, old_rate in old_nulls.items():
+        if old_rate > threshold and new_nulls.get(col, old_rate) < 0.1:
+            return True
+    return False
 
-        # Extract hero h1 to use as the link text in the archive index
-        hero_match = re.search(r'class="hero".*?<h1>(.*?)</h1>', content, re.DOTALL)
-        if hero_match:
-            hero_headline = re.sub(r"<[^>]+>", "", hero_match.group(1)).strip()
 
-        banner = (
-            f'<div style="background:#b45309;color:#fff;padding:0.75rem 1.5rem;'
-            f'text-align:center;font-size:0.85rem;font-family:system-ui,sans-serif;">'
-            f'Archived snapshot — {period_label}. '
-            f'<a href="../../index.html" style="color:#fde68a;text-decoration:underline;">'
-            f'View current analysis →</a></div>'
-        )
-        content = content.replace("<body>", f"<body>\n{banner}", 1)
-        snapshot_path.write_text(content, encoding="utf-8")
-        print(f"✓ Archived → {snapshot_path}")
+def _new_sheets(old, new):
+    return set(new.keys()) - set(old.keys())
+
+
+# ── Profiling ─────────────────────────────────────────────────────────────────
+
+def _profile_data(path_2025, path_2026):
+    """Snapshot key stats from both data files. Returns flat dict keyed by 'YEAR/Sheet'."""
+    try:
+        import pandas as pd
+    except ImportError:
+        return {}
+
+    profile = {}
+    for year_label, path in [("2025", path_2025), ("2026", path_2026)]:
+        try:
+            xf = pd.ExcelFile(path)
+            for sheet in xf.sheet_names:
+                df = pd.read_excel(xf, sheet_name=sheet)
+                key = f"{year_label}/{sheet}"
+                null_rates = {
+                    col: round(float(df[col].isna().mean()), 3)
+                    for col in df.columns
+                    if df[col].isna().mean() > 0.05
+                }
+                profile[key] = {
+                    "rows": len(df),
+                    "cols": len(df.columns),
+                    "null_rates": null_rates,
+                }
+        except Exception as e:
+            profile[f"{year_label}/_error"] = {"error": str(e)}
+    return profile
+
+
+def _load_prev_profile():
+    """Find the most recent archived data_profile.json and load it."""
+    archive_dirs = sorted(
+        [d for d in Path("docs/archive").glob("*/data_profile.json") if d.is_file()],
+        reverse=True,
+    )
+    if not archive_dirs:
+        return None, None
+    path = archive_dirs[0]
+    try:
+        data = json.loads(path.read_text())
+        period = path.parent.name
+        return data, period
+    except Exception:
+        return None, None
+
+
+def _print_diff(old_profile, old_period, new_profile):
+    """Print a data change summary and analysis suggestions."""
+    SEP = "─" * 60
+
+    print(f"\n{SEP}")
+    print("DATA CHANGE SUMMARY" + (f"  (vs. {old_period})" if old_period else "  (first run)"))
+    print(SEP)
+
+    if not old_profile:
+        print("  No previous profile found — this is the baseline run.")
     else:
-        print("⚠  No existing docs/index.html to archive — skipping snapshot step")
+        # Row count changes
+        all_keys = sorted(set(list(old_profile.keys()) + list(new_profile.keys())))
+        for key in all_keys:
+            if key.endswith("/_error"):
+                continue
+            old_rows = old_profile.get(key, {}).get("rows")
+            new_rows = new_profile.get(key, {}).get("rows")
+            if old_rows is None and new_rows is not None:
+                print(f"  {key:<40}  NEW  ({new_rows:,} rows)")
+            elif old_rows is not None and new_rows is None:
+                print(f"  {key:<40}  REMOVED")
+            elif old_rows != new_rows:
+                delta = new_rows - old_rows
+                pct = delta / old_rows * 100
+                flag = " ←" if abs(pct) > 5 else ""
+                print(f"  {key:<40}  {old_rows:,} → {new_rows:,}  ({delta:+,}, {pct:+.0f}%){flag}")
+            else:
+                print(f"  {key:<40}  {new_rows:,} rows  (no change)")
 
-    # 2. Update archive index
-    _update_archive_index(period, period_label, generated_date, hero_headline, args)
+        # Null rate changes (columns that flipped from mostly-null to mostly-populated)
+        newly_unlocked = []
+        for key in all_keys:
+            old_nulls = old_profile.get(key, {}).get("null_rates", {})
+            new_nulls = new_profile.get(key, {}).get("null_rates", {})
+            for col, old_rate in old_nulls.items():
+                new_rate = new_nulls.get(col, 0.0)
+                if old_rate > 0.5 and new_rate < 0.1:
+                    newly_unlocked.append(f"    {key} · {col}  ({old_rate:.0%} null → {new_rate:.0%} null)")
+        if newly_unlocked:
+            print(f"\n  Columns newly populated:")
+            for line in newly_unlocked:
+                print(line)
 
-    # 3. Regenerate site with new data files
-    cmd = [
-        "python3", "generate_site.py",
-        "--data-2025", args.data_2025,
-        "--data-2026", args.data_2026,
-    ]
-    print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        print("✗ generate_site.py failed — archive preserved, current site not updated")
-        return 1
+    # Analysis suggestions — only meaningful when there's a real previous profile
+    triggered = []
+    if old_profile:
+        for opp in OPPORTUNITY_MAP:
+            try:
+                if opp["check"](old_profile, new_profile):
+                    triggered.append(opp)
+            except Exception:
+                pass
 
-    # 4. Commit
-    if not args.no_commit:
-        note_suffix = f" — {args.note}" if args.note else ""
-        msg = (
-            f"Monthly ingest {period_label}{note_suffix}\n\n"
-            f"Archive: docs/archive/{period}/\n"
-            f"Data 2025: {args.data_2025}\n"
-            f"Data 2026: {args.data_2026}\n"
-            f"Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-        )
-        subprocess.run(["git", "add", "docs/"])
-        subprocess.run(["git", "commit", "-m", msg])
-        print(f"✓ Committed")
+    print(f"\n{SEP}")
+    if triggered:
+        print("SUGGESTED ANALYSIS  (see PLAYBOOK.md for full guidance)")
+        print(SEP)
+        for opp in triggered:
+            print(f"\n  [{opp['description']}]")
+            for line in opp["suggestion"].splitlines():
+                print(f"  {line}")
+    else:
+        print("SUGGESTED ANALYSIS")
+        print(SEP)
+        print("  No structural changes detected.")
+        print("  All findings update automatically from generate_site.py.")
+        print("  See PLAYBOOK.md → 'Standard monthly update' for what to verify.")
 
-    return 0
+    print(f"\n{SEP}\n")
 
+
+# ── Archive index ─────────────────────────────────────────────────────────────
 
 def _update_archive_index(period, period_label, generated_date, hero_headline, args):
     archive_index = Path("docs/archive/index.html")
 
-    # Read existing entries from embedded JSON comment
     entries = []
     if archive_index.exists():
         content = archive_index.read_text(encoding="utf-8")
@@ -120,7 +286,6 @@ def _update_archive_index(period, period_label, generated_date, hero_headline, a
             except json.JSONDecodeError:
                 entries = []
 
-    # Upsert entry for this period
     entry = {
         "period": period,
         "label": period_label,
@@ -133,7 +298,6 @@ def _update_archive_index(period, period_label, generated_date, hero_headline, a
     entries = [e for e in entries if e["period"] != period]
     entries.insert(0, entry)
 
-    # Build edition list HTML — link text = hero headline, metadata below
     items = ""
     for e in entries:
         headline = e.get("headline") or e["label"]
@@ -184,6 +348,84 @@ def _update_archive_index(period, period_label, generated_date, hero_headline, a
 
     archive_index.write_text(html, encoding="utf-8")
     print(f"✓ Updated archive index → {archive_index}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="Ingest new T1 data and archive current site")
+    parser.add_argument("--data-2025", default=DEFAULT_2025)
+    parser.add_argument("--data-2026", default=DEFAULT_2026)
+    parser.add_argument("--note", default="")
+    parser.add_argument("--no-commit", action="store_true")
+    args = parser.parse_args()
+
+    now = datetime.now()
+    period = now.strftime("%Y-%m")
+    period_label = now.strftime("%B %Y")
+    generated_date = now.strftime("%Y-%m-%d")
+
+    # 1. Profile new data + diff against previous run
+    print("Profiling data files…")
+    new_profile = _profile_data(args.data_2025, args.data_2026)
+    prev_profile, prev_period = _load_prev_profile()
+    _print_diff(prev_profile, prev_period, new_profile)
+
+    # 2. Snapshot current site
+    current_site = Path("docs/index.html")
+    archive_dir = Path("docs/archive") / period
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    hero_headline = ""
+    if current_site.exists():
+        content = current_site.read_text(encoding="utf-8")
+        hero_match = re.search(r'class="hero".*?<h1>(.*?)</h1>', content, re.DOTALL)
+        if hero_match:
+            hero_headline = re.sub(r"<[^>]+>", "", hero_match.group(1)).strip()
+        banner = (
+            f'<div style="background:#b45309;color:#fff;padding:0.75rem 1.5rem;'
+            f'text-align:center;font-size:0.85rem;font-family:system-ui,sans-serif;">'
+            f'Archived snapshot — {period_label}. '
+            f'<a href="../../index.html" style="color:#fde68a;text-decoration:underline;">'
+            f'View current analysis →</a></div>'
+        )
+        content = content.replace("<body>", f"<body>\n{banner}", 1)
+        (archive_dir / "index.html").write_text(content, encoding="utf-8")
+        print(f"✓ Archived → docs/archive/{period}/index.html")
+    else:
+        print("⚠  No existing docs/index.html to archive")
+
+    # Save profile alongside snapshot for future diffs
+    (archive_dir / "data_profile.json").write_text(
+        json.dumps(new_profile, indent=2), encoding="utf-8"
+    )
+
+    # 3. Update archive index
+    _update_archive_index(period, period_label, generated_date, hero_headline, args)
+
+    # 4. Regenerate site
+    cmd = ["python3", "generate_site.py", "--data-2025", args.data_2025, "--data-2026", args.data_2026]
+    print(f"Running: {' '.join(cmd)}")
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        print("✗ generate_site.py failed — archive preserved, current site not updated")
+        return 1
+
+    # 5. Commit
+    if not args.no_commit:
+        note_suffix = f" — {args.note}" if args.note else ""
+        msg = (
+            f"Monthly ingest {period_label}{note_suffix}\n\n"
+            f"Archive: docs/archive/{period}/\n"
+            f"Data 2025: {args.data_2025}\n"
+            f"Data 2026: {args.data_2026}\n"
+            f"Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+        )
+        subprocess.run(["git", "add", "docs/"])
+        subprocess.run(["git", "commit", "-m", msg])
+        print("✓ Committed")
+
+    return 0
 
 
 if __name__ == "__main__":
