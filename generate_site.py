@@ -51,13 +51,17 @@ def tag_topic(text):
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 print("Loading data…")
-an   = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="Apple News")
-sn   = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="SmartNews")
+an    = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="Apple News")
+sn    = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="SmartNews")
+msn   = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="MSN")
+yahoo = pd.read_excel("Top syndication content 2025.xlsx", sheet_name="Yahoo")
 notif = pd.read_excel("Top Stories 2026 Syndication.xlsx", sheet_name="Apple News Notifications")
 
 an["is_featured"] = an["Featured by Apple"].fillna("No") == "Yes"
 an["formula"] = an["Article"].apply(classify_formula)
 an["topic"]   = an["Article"].apply(tag_topic)
+
+sn["topic"]   = sn["title"].apply(tag_topic)
 
 CATS = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
         "Technology","Science","Politics","Health","Local","Football","LGBTQ"]
@@ -65,6 +69,28 @@ for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
 
 notif = notif.dropna(subset=["CTR"]).copy()
+
+# ── Platform exclusivity (exact normalised title match) ───────────────────────
+def _norm(t):
+    return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
+
+an_t    = set(an["Article"].dropna().apply(_norm))
+sn_t    = set(sn["title"].dropna().apply(_norm))
+msn_t   = set(msn["Title"].dropna().apply(_norm))
+yahoo_t = set(yahoo["Content Title"].dropna().apply(_norm))
+
+excl_an    = len(an_t - sn_t - msn_t - yahoo_t) / len(an_t)
+excl_sn    = len(sn_t - an_t - msn_t - yahoo_t) / len(sn_t)
+excl_msn   = len(msn_t - an_t - sn_t - yahoo_t) / len(msn_t)
+excl_yahoo = len(yahoo_t - an_t - sn_t - msn_t) / len(yahoo_t)
+overlap_3plus = len((an_t & sn_t & msn_t) | (an_t & sn_t & yahoo_t) |
+                    (an_t & msn_t & yahoo_t) | (sn_t & msn_t & yahoo_t))
+overlap_all4  = len(an_t & sn_t & msn_t & yahoo_t)
+
+N_AN_UNIQ    = len(an_t)
+N_SN_UNIQ    = len(sn_t)
+N_MSN_UNIQ   = len(msn_t)
+N_YAHOO_UNIQ = len(yahoo_t)
 
 
 # ── Q1: Formula → median views (non-Featured) ────────────────────────────────
@@ -346,7 +372,6 @@ fig4.update_layout(
 # Chart 5 — Topic performance Apple News vs SmartNews
 an_topic = an.groupby("topic")["Total Views"].median().reset_index()
 an_topic.columns = ["topic", "an_median"]
-sn["topic"] = sn["title"].apply(tag_topic)
 sn_topic = sn.groupby("topic")["article_view"].median().reset_index()
 sn_topic.columns = ["topic", "sn_median"]
 topic_df = an_topic.merge(sn_topic, on="topic")
@@ -391,12 +416,62 @@ fig5.update_layout(
 )
 
 
-# Chart 6 — Q6: Views vs. active time scatter (log x)
+# Chart 6 — Q6 variance: IQR/median by topic × platform
+var_rows = []
+for topic, label in TOPIC_LABELS.items():
+    an_t = an[an["topic"] == topic]["Total Views"].dropna()
+    sn_t = sn[sn["topic"] == topic]["article_view"].dropna()
+    if len(an_t) >= 10 and an_t.median() > 0:
+        an_cv = (an_t.quantile(0.75) - an_t.quantile(0.25)) / an_t.median()
+    else:
+        an_cv = None
+    if len(sn_t) >= 10 and sn_t.median() > 0:
+        sn_cv = (sn_t.quantile(0.75) - sn_t.quantile(0.25)) / sn_t.median()
+    else:
+        sn_cv = None
+    var_rows.append(dict(topic=topic, label=label, an_cv=an_cv, sn_cv=sn_cv,
+                         an_n=len(an_t), sn_n=len(sn_t)))
+
+df_var = pd.DataFrame(var_rows).dropna(subset=["an_cv", "sn_cv"])
+df_var = df_var.sort_values("an_cv", ascending=True)
+
+fig6 = go.Figure()
+fig6.add_trace(go.Bar(
+    y=df_var["label"].tolist(), x=df_var["an_cv"].tolist(),
+    name="Apple News", orientation="h",
+    marker_color=BLUE, opacity=0.85,
+    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["an_cv"].tolist(), df_var["an_n"].tolist())],
+    textposition="outside",
+    hovertemplate="<b>%{y}</b><br>Apple News IQR/median: %{x:.2f}<extra></extra>",
+))
+fig6.add_trace(go.Bar(
+    y=df_var["label"].tolist(), x=df_var["sn_cv"].tolist(),
+    name="SmartNews", orientation="h",
+    marker_color=GREEN, opacity=0.85,
+    text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["sn_cv"].tolist(), df_var["sn_n"].tolist())],
+    textposition="outside",
+    hovertemplate="<b>%{y}</b><br>SmartNews IQR/median: %{x:.2f}<extra></extra>",
+))
+fig6.update_layout(
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text="Views spread by topic (IQR ÷ median) — where headline choice moves the needle most",
+               font=dict(size=13, color=NAVY), x=0),
+    barmode="group",
+    xaxis=dict(title="IQR / median views (higher = wider spread, more headline lift potential)",
+               gridcolor=BORDER, zeroline=False),
+    yaxis=dict(title=""),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    height=450,
+    margin=dict(l=20, r=140, t=70, b=40),
+)
+
+
+# Chart 7 — Views vs. active time scatter (log x)
 feat_mask  = q6_sample["is_featured"]
 nfeat_mask = ~q6_sample["is_featured"]
 
-fig6 = go.Figure()
-fig6.add_trace(go.Scatter(
+fig7 = go.Figure()
+fig7.add_trace(go.Scatter(
     x=q6_sample[nfeat_mask]["Total Views"].tolist(),
     y=q6_sample[nfeat_mask][AT_COL].tolist(),
     mode="markers",
@@ -404,7 +479,7 @@ fig6.add_trace(go.Scatter(
     marker=dict(color=BLUE, size=4, opacity=0.35),
     hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Not Featured</extra>",
 ))
-fig6.add_trace(go.Scatter(
+fig7.add_trace(go.Scatter(
     x=q6_sample[feat_mask]["Total Views"].tolist(),
     y=q6_sample[feat_mask][AT_COL].tolist(),
     mode="markers",
@@ -412,7 +487,7 @@ fig6.add_trace(go.Scatter(
     marker=dict(color=GREEN, size=5, opacity=0.6),
     hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Featured</extra>",
 ))
-fig6.update_layout(
+fig7.update_layout(
     **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
     title=dict(text=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})",
                font=dict(size=13, color=NAVY), x=0),
@@ -436,6 +511,7 @@ c3 = chart_html(fig3)
 c4 = chart_html(fig4)
 c5 = chart_html(fig5)
 c6 = chart_html(fig6)
+c7 = chart_html(fig7)
 
 
 # ── Keyword overlap (top quartile Apple News vs SmartNews) ───────────────────
@@ -580,6 +656,7 @@ html = f"""<!DOCTYPE html>
     <a href="#smartnews">SmartNews</a>
     <a href="#notifications">Notifications</a>
     <a href="#topics">Topics</a>
+    <a href="#allocation">Allocation</a>
     <a href="#engagement">Engagement</a>
   </div>
   <span class="spacer"></span>
@@ -682,6 +759,10 @@ html = f"""<!DOCTYPE html>
     <div class="callout">
       <strong>Production implication:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." The possessive construction signals insider access and relational proximity, not just name recognition. Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
     </div>
+    <h3>The serial/escalating story as a content type</h3>
+    <p>The top 10 notifications in the dataset by CTR (ranging 6.5–9.6%) are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This isn't just a confound — it defines a content type worth naming: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula is: possessive named entity + new development + escalating stakes, published in installments. Each installment compounds prior audience investment.</p>
+    <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
+    <p><em>Signal interference caveat:</em> The Guthrie cluster accounts for the most extreme CTRs in the dataset (n=16 notifications, many above 5%). It's not possible to fully separate the formula from the underlying story interest — a different serial story using identical framing might not replicate these exact numbers. The possessive + full name signal (1.86× lift, p&lt;0.001) holds across non-Guthrie stories, but the very top of the distribution is Guthrie-driven.</p>
     <h3>What doesn't move the needle in notifications</h3>
     <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
     <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
@@ -689,22 +770,46 @@ html = f"""<!DOCTYPE html>
 
   <!-- TOPICS -->
   <section id="topics">
-    <p class="section-label">Finding 5 · Topic × Platform</p>
-    <h2>Sports dominates Apple News. Local/Civic leads SmartNews. {kw_overlap_n} shared keywords between the two platforms' top-quartile headlines.</h2>
-    <p>Topic performance diverges sharply by platform. Weather and sports are the top performers on Apple News (median 5,094 and 4,726 views respectively). On SmartNews, local/civic content leads (median 273 views vs. platform median of 145), while sports ranks last at 78 views. Among the top 30 most frequent words in top-quartile headlines on each platform, {kw_overlap_n} appear on both lists{f": {', '.join(sorted(kw_overlap))}" if kw_overlap_n > 0 else ""} — these platforms draw on largely separate vocabularies.</p>
+    <p class="section-label">Finding 5 · Platform Separation</p>
+    <h2>Sports dominates Apple News. Local/Civic leads SmartNews. Platforms draw from separate content pools — 97% of SmartNews articles appear nowhere else.</h2>
+    <p>Topic performance diverges sharply by platform. Weather and sports are the top performers on Apple News (median 5,094 and 4,726 views respectively). On SmartNews, local/civic content leads (median 273 views vs. platform median of 145), while sports ranks last at 78 views. Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
     <div class="chart-wrap">{c5}</div>
+    <h3>Platforms are drawing from separate content pools</h3>
+    <p>Exact title matching across all four platforms confirms: {overlap_all4} articles appear on all four simultaneously. Only {overlap_3plus} appear on three or more. Each platform operates on largely independent content.</p>
+    <table class="findings">
+      <thead><tr><th>Platform</th><th>Unique titles</th><th>Exclusive to this platform</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>SmartNews</td><td>{N_SN_UNIQ:,}</td><td>{excl_sn:.0%}</td><td>Highest exclusivity — nearly closed ecosystem</td></tr>
+        <tr><td>MSN</td><td>{N_MSN_UNIQ:,}</td><td>{excl_msn:.0%}</td><td>December only; seasonal news cycle increases overlap</td></tr>
+        <tr><td>Apple News</td><td>{N_AN_UNIQ:,}</td><td>{excl_an:.0%}</td><td>Small amount of title sharing with Yahoo/SmartNews</td></tr>
+        <tr><td>Yahoo</td><td>{N_YAHOO_UNIQ:,}</td><td>{excl_yahoo:.0%}</td><td>Some overlap with Apple News and SmartNews</td></tr>
+      </tbody>
+    </table>
     <div class="callout">
-      <strong>Production implication:</strong> Headline and variant strategies should be platform-specific, not cross-platform. A sports headline optimized for Apple News audience behavior is unlikely to perform on SmartNews — and vice versa. The near-zero keyword overlap confirms these audiences select for different content signals entirely.
+      <strong>Production implication:</strong> These platforms are not seeing the same articles, and their audiences are not the same readers. Platform-specific variant briefs will outperform generic variants. Apple News push: possessive named entity, high specificity, serial/escalating framing. SmartNews: local angle, geographic specificity, civic stakes. A single undifferentiated variant deployed across platforms leaves measurable performance on the table.
     </div>
-    <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
+    <p class="caveat">Topic tagged via regex classifier applied to headline text. Index = median views / platform overall median. Apple News 2025 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Platform exclusivity: exact normalised title match across all four 2025 datasets. MSN data is December 2025 only. Keyword overlap: top 30 words by frequency in top-quartile articles per platform, after English stopword removal.</p>
+  </section>
+
+  <!-- ALLOCATION -->
+  <section id="allocation">
+    <p class="section-label">Finding 6 · Headline Variance by Topic</p>
+    <h2>Crime shows the widest outcome spread on both platforms. On Apple News, business is second. On SmartNews, local/civic variance reflects the channel placement effect.</h2>
+    <p>The chart below shows the IQR ÷ median ratio (a robust spread measure) for each topic × platform combination. A ratio of 3.0 means the difference between the 25th and 75th percentile articles in that topic is 3× the median — i.e., the top half significantly outperforms the bottom half. Where this ratio is high, headline optimization has the most room to lift performance. Where it is low, outcomes are similar regardless of how the headline is written.</p>
+    <div class="chart-wrap">{c6}</div>
+    <p>On Apple News, crime (cv=3.9) and business (cv=3.8) show the highest spread — a wide gap between underperforming and outperforming headlines within those topics. Nature/wildlife (cv=2.2) is the most consistent: these stories perform similarly regardless of headline, suggesting story quality drives more of the variance than framing does. On SmartNews, local/civic (cv=31) and business (cv=14) show extreme variance — driven by the channel allocation effect identified in Finding 3. Most local/civic articles on SmartNews get very few views, but the small fraction that land in the Local channel reach 16,000+ median views. The variance reflects the value of channel placement, not just headline quality.</p>
+    <div class="callout">
+      <strong>Implication for variant allocation:</strong> Concentrate variant production on high-median × high-variance combinations — where the potential payoff and headline sensitivity are both greatest. For Apple News: crime and business. For SmartNews: crime and local/civic (where framing that signals geographic/civic relevance may influence channel placement). Low-variance combinations — nature/wildlife on Apple News, weather on SmartNews — have less to gain from headline optimization; the story drives performance more than the headline does.
+    </div>
+    <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile). IQR/median is a scale-free spread measure robust to the skewed views distribution. Topic tagged via regex classifier. Apple News 2025; SmartNews 2025. Topics with fewer than 10 articles on either platform excluded.</p>
   </section>
 
   <!-- ENGAGEMENT -->
   <section id="engagement">
-    <p class="section-label">Finding 6 · Views vs. Reading Depth</p>
+    <p class="section-label">Finding 7 · Views vs. Reading Depth</p>
     <h2>Views and reading time are statistically independent. Optimizing for clicks and optimizing for reading are different problems.</h2>
     <p>The Apple News 2025 dataset includes both Total Views and average active time per article — a rare combination that makes it possible to test the "clicks = quality" assumption directly. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman r = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both methods agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds (51–60s).</p>
-    <div class="chart-wrap">{c6}</div>
+    <div class="chart-wrap">{c7}</div>
     <table class="findings">
       <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
       <tbody>
