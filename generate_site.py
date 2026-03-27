@@ -159,13 +159,13 @@ df_q5 = pd.DataFrame(q5_rows).sort_values("lift")
 
 
 # ── Chart builder ─────────────────────────────────────────────────────────────
-CHART_H = 420
+CHART_H = 400
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="white",
     plot_bgcolor="white",
     font=dict(family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
               size=12, color=NAVY),
-    margin=dict(l=20, r=20, t=40, b=20),
+    margin=dict(l=20, r=120, t=50, b=40),
     height=CHART_H,
 )
 
@@ -176,76 +176,88 @@ def bar_color(lift):
     return RED
 
 
-# Chart 1 — Q1: Formula → median views (non-Featured)
+# Chart 1 — Q1: Formula lift vs baseline (diverging from 1.0)
+# Show lift ratio directly — cleaner than raw view counts
 colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
+hover_q1 = [f"Median: {int(r['median']):,} views | n={r['n']}" for _, r in df_q1.iterrows()]
+
 fig1 = go.Figure(go.Bar(
-    y=df_q1["label"],
-    x=df_q1["median"],
+    y=df_q1["label"].tolist(),
+    x=df_q1["lift"].tolist(),
     orientation="h",
     marker_color=colors_q1,
-    text=[f"{int(v):,}  ({lift:.2f}×)" for v, lift in zip(df_q1["median"], df_q1["lift"])],
+    text=[f"{v:.2f}x  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())],
     textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Median views: %{x:,}<br>n=%{customdata}<extra></extra>",
-    customdata=df_q1["n"],
+    hovertext=hover_q1,
+    hoverinfo="y+text",
 ))
-fig1.add_vline(x=overall_median_nf, line_dash="dash", line_color=GRAY,
-               annotation_text=f"Baseline {int(overall_median_nf):,}", annotation_position="top right")
+fig1.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+               annotation_text="Baseline", annotation_position="top")
 fig1.update_layout(
     **PLOTLY_LAYOUT,
-    title=dict(text="Number leads and questions underperform the baseline — 'Here's' and possessives lead",
+    title=dict(text="Views lift vs. baseline by formula type — non-Featured articles only",
                font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Median views (non-Featured articles)", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="Median views relative to untagged baseline (1.0 = same as baseline)",
+               gridcolor=BORDER, zeroline=False, range=[0, 4.5]),
     yaxis=dict(title=""),
     showlegend=False,
 )
 
-# Chart 2 — Q2: Featured rate
+# Chart 2 — Q2: Featured rate per formula
 colors_q2 = [bar_color(r["featured_lift"]) for _, r in df_q2.iterrows()]
 fig2 = go.Figure(go.Bar(
-    y=df_q2["label"],
-    x=df_q2["featured_rate"] * 100,
+    y=df_q2["label"].tolist(),
+    x=(df_q2["featured_rate"] * 100).tolist(),
     orientation="h",
     marker_color=colors_q2,
-    text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}×)" for _, r in df_q2.iterrows()],
+    text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}x)" for _, r in df_q2.iterrows()],
     textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Featured rate: %{x:.1f}%<br>n=%{customdata}<extra></extra>",
-    customdata=df_q2["n"],
+    hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
+    hoverinfo="y+x+text",
 ))
 fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=GRAY,
-               annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top right")
+               annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
 fig2.update_layout(
     **PLOTLY_LAYOUT,
-    title=dict(text="'What to know' is the Featured gateway — 62% Featured rate vs. 27% baseline",
+    title=dict(text="% of articles Featured by Apple, by headline formula",
                font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="% of articles Featured by Apple", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="% of articles in formula group that were Featured by Apple",
+               gridcolor=BORDER, zeroline=False, range=[0, 85]),
     yaxis=dict(title=""),
     showlegend=False,
 )
 
-# Chart 3 — Q4: SmartNews allocation scatter
-q4_colors = [GREEN if r["pct_share"] < 0.05 and r["median_views"] > 1000 else
-             (RED if r["pct_share"] > 0.20 and r["median_views"] < 500 else BLUE)
-             for _, r in df_q4.iterrows()]
+# Chart 3 — Q4: SmartNews — bar chart sorted by median views, annotated with volume
+# Sort by median views descending for the chart
+df_q4_chart = df_q4.sort_values("median_views", ascending=True)
+q4_colors = []
+for _, r in df_q4_chart.iterrows():
+    if r["median_views"] > 5000:    q4_colors.append(GREEN)
+    elif r["median_views"] > 500:   q4_colors.append(BLUE)
+    elif r["pct_share"] > 0.20:     q4_colors.append(RED)
+    else:                           q4_colors.append(GRAY)
 
-fig3 = go.Figure(go.Scatter(
-    x=df_q4["pct_share"] * 100,
-    y=df_q4["median_views"],
-    mode="markers+text",
-    marker=dict(size=df_q4["n"].apply(lambda n: max(10, min(50, n / 300))),
-                color=q4_colors, opacity=0.85),
-    text=df_q4["category"],
-    textposition="top center",
-    hovertemplate="<b>%{text}</b><br>Share of articles: %{x:.1f}%<br>Median views: %{y:,}<br><extra></extra>",
+fig3 = go.Figure(go.Bar(
+    y=df_q4_chart["category"].tolist(),
+    x=df_q4_chart["median_views"].tolist(),
+    orientation="h",
+    marker_color=q4_colors,
+    text=[f"{int(v):,} views  ({p:.0%} of articles)"
+          for v, p in zip(df_q4_chart["median_views"].tolist(),
+                          df_q4_chart["pct_share"].tolist())],
+    textposition="outside",
+    hovertext=[f"n={n:,} articles" for n in df_q4_chart["n"].tolist()],
+    hoverinfo="y+x+text",
 ))
 fig3.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="SmartNews: Local delivers 108× the views of Top-channel articles — and gets 12× fewer",
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
+    title=dict(text="Median article views by SmartNews channel — with share of total article volume",
                font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="% of articles published in channel", gridcolor=BORDER, zeroline=False,
-               type="log"),
-    yaxis=dict(title="Median total article views", gridcolor=BORDER, zeroline=False,
-               type="log"),
+    xaxis=dict(title="Median total article views", gridcolor=BORDER, zeroline=False,
+               range=[0, 21000]),
+    yaxis=dict(title=""),
     showlegend=False,
+    margin=dict(l=20, r=280, t=50, b=40),
 )
 
 # Chart 4 — Q5: Notification CTR lift
@@ -253,28 +265,31 @@ colors_q5 = [bar_color(r["lift"]) for _, r in df_q5.iterrows()]
 sig_labels = []
 for _, r in df_q5.iterrows():
     p = r["p"]
-    s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else ""))
-    sig_labels.append(f"{r['lift']:.2f}× {s}")
+    s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
+    sig_labels.append(f"{r['lift']:.2f}x  {s}  (n={r['n_true']})")
 
 fig4 = go.Figure(go.Bar(
-    y=df_q5["feature"],
-    x=df_q5["lift"],
+    y=df_q5["feature"].tolist(),
+    x=df_q5["lift"].tolist(),
     orientation="h",
     marker_color=colors_q5,
     text=sig_labels,
     textposition="outside",
-    hovertemplate="<b>%{y}</b><br>CTR lift: %{x:.2f}×<br>n=%{customdata}<extra></extra>",
-    customdata=df_q5["n_true"],
+    hovertext=[f"CTR present: {r['med_yes']*100:.2f}%  |  CTR absent: {r['med_no']*100:.2f}%"
+               for _, r in df_q5.iterrows()],
+    hoverinfo="y+text",
 ))
 fig4.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
-               annotation_text="No effect (1.0×)", annotation_position="top right")
+               annotation_text="No effect", annotation_position="top")
 fig4.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="'Exclusive' tag delivers 2.5× CTR lift — questions in notifications hurt performance",
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
+    title=dict(text="Notification CTR lift by headline feature (median CTR, feature present vs. absent)",
                font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="CTR lift vs. feature absent (median)", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=BORDER, zeroline=False,
+               range=[0, 3.8]),
     yaxis=dict(title=""),
     showlegend=False,
+    margin=dict(l=20, r=220, t=50, b=40),
 )
 
 # Chart 5 — Topic performance Apple News vs SmartNews
@@ -292,35 +307,36 @@ TOPIC_LABELS = {
 topic_df["label"] = topic_df["topic"].map(TOPIC_LABELS)
 topic_df = topic_df.sort_values("an_median", ascending=True)
 
-# Normalize to index (1.0 = overall median per platform)
 an_overall = an["Total Views"].median()
 sn_overall = sn["article_view"].median()
-topic_df["an_idx"] = topic_df["an_median"] / an_overall
-topic_df["sn_idx"] = topic_df["sn_median"] / sn_overall
+topic_df["an_idx"] = (topic_df["an_median"] / an_overall).tolist()
+topic_df["sn_idx"] = (topic_df["sn_median"] / sn_overall).tolist()
 
 fig5 = go.Figure()
 fig5.add_trace(go.Bar(
-    y=topic_df["label"], x=topic_df["an_idx"],
+    y=topic_df["label"].tolist(), x=topic_df["an_idx"],
     name="Apple News", orientation="h",
     marker_color=BLUE, opacity=0.85,
-    hovertemplate="<b>%{y}</b><br>Apple News index: %{x:.2f}×<extra></extra>",
+    hovertemplate="<b>%{y}</b><br>Apple News: %{x:.2f}x platform median<extra></extra>",
 ))
 fig5.add_trace(go.Bar(
-    y=topic_df["label"], x=topic_df["sn_idx"],
+    y=topic_df["label"].tolist(), x=topic_df["sn_idx"],
     name="SmartNews", orientation="h",
     marker_color=GREEN, opacity=0.85,
-    hovertemplate="<b>%{y}</b><br>SmartNews index: %{x:.2f}×<extra></extra>",
+    hovertemplate="<b>%{y}</b><br>SmartNews: %{x:.2f}x platform median<extra></extra>",
 ))
-fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY)
+fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+               annotation_text="Platform median", annotation_position="top")
 fig5.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "height"},
-    title=dict(text="Sports dominates Apple News; Local/Civic leads SmartNews — platforms need different content strategies",
+    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
+    title=dict(text="Topic performance index by platform (1.0 = platform median views)",
                font=dict(size=13, color=NAVY), x=0),
     barmode="group",
-    xaxis=dict(title="Views index vs. platform median (1.0 = median)", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="Views index vs. platform median", gridcolor=BORDER, zeroline=False),
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     height=450,
+    margin=dict(l=20, r=40, t=70, b=40),
 )
 
 
