@@ -14,6 +14,7 @@ import numpy as np
 import plotly.graph_objects as go
 import re
 import warnings
+from datetime import datetime
 from pathlib import Path
 from scipy import stats
 
@@ -139,16 +140,36 @@ df_q1 = pd.DataFrame(q1_rows).sort_values("median")
 
 # ── Q2: Featured rate per formula ─────────────────────────────────────────────
 overall_feat_rate = an["is_featured"].mean()
+_tot_feat = int(an["is_featured"].sum())
 q2_rows = []
 for f, label in FORMULA_LABELS.items():
     grp = an[an["formula"] == f]
     if len(grp) == 0: continue
     feat_rate = grp["is_featured"].mean()
-    q2_rows.append(dict(formula=f, label=label, n=len(grp),
-                        featured_rate=feat_rate,
-                        featured_lift=feat_rate / overall_feat_rate))
+    feat_n    = int(grp["is_featured"].sum())
+    lift = feat_rate / overall_feat_rate
+    other_feat  = _tot_feat - feat_n
+    other_total = len(an) - len(grp)
+    _ctg = np.array([[feat_n, len(grp) - feat_n],
+                     [other_feat, max(other_total - other_feat, 0)]])
+    try:
+        _chi2_f, _p_chi_f, _, _ = stats.chi2_contingency(_ctg)
+    except Exception:
+        _chi2_f, _p_chi_f = np.nan, 1.0
+    q2_rows.append(dict(formula=f, label=label, n=len(grp), feat_n=feat_n,
+                        featured_rate=feat_rate, featured_lift=lift,
+                        chi2=_chi2_f, p_chi=_p_chi_f))
 
 df_q2 = pd.DataFrame(q2_rows).sort_values("featured_rate")
+
+# Within-featured median views per formula
+feat_an = an[an["is_featured"]].copy()
+feat_avg_views = feat_an["Total Views"].median()
+for _f in FORMULA_LABELS:
+    _grp_feat = feat_an[feat_an["formula"] == _f]["Total Views"]
+    _val = _grp_feat.median() if len(_grp_feat) >= 3 else np.nan
+    df_q2.loc[df_q2["formula"] == _f, "feat_med_views"] = _val
+df_q2["feat_views_lift"] = df_q2["feat_med_views"] / feat_avg_views
 
 # ── Q4: SmartNews category ROI ────────────────────────────────────────────────
 print("Computing Q4…")
@@ -163,6 +184,7 @@ for cat in SHOW_CATS:
     q4_rows.append(dict(category=cat, n=n, median_views=med,
                         pct_share=n/len(sn)))
 df_q4 = pd.DataFrame(q4_rows)
+df_q4["lift"] = df_q4["median_views"] / top_median_sn
 
 # ── Q5: Notification CTR features ────────────────────────────────────────────
 print("Computing Q5…")
@@ -559,8 +581,8 @@ STOPWORDS = {
     "before","into","out","up","over","no","not","more","one","new","says",
     "what","how","why","who","when","where","here","there","your","their","our",
     "his","her","they","them","we","us","he","she","i","you","my","your","him",
-    "all","than","then","so","if","just","only","also","now","than","even","back",
-    "than","still","first","last","other","like","get","than","which","than",
+    "all","than","then","so","if","just","only","also","now","even","back",
+    "still","first","last","other","like","get","which","two","three","four",
 }
 
 def top_words(texts, n=30):
@@ -583,10 +605,138 @@ kw_overlap_n = len(kw_overlap)
 N_AN        = len(an)
 N_SN        = len(sn)
 N_NOTIF     = len(notif)
-PLATFORMS   = 4
-WTN_FEAT    = "62%"
-LOCAL_LIFT  = "108×"
-EXCL_LIFT   = "2.49×"
+PLATFORMS   = sum(1 for _df in [an, sn, msn, yahoo] if _df is not None and len(_df) > 0)
+REPORT_DATE = datetime.now().strftime("%B %Y")
+
+# Hero numbers — computed from data, not hardcoded
+_wtn_row  = df_q2[df_q2["formula"] == "what_to_know"]
+WTN_FEAT_RATE = float(_wtn_row["featured_rate"].iloc[0]) if len(_wtn_row) else overall_feat_rate
+WTN_FEAT  = f"{WTN_FEAT_RATE:.0%}"
+
+_local_row = df_q4[df_q4["category"] == "Local"]
+_local_med = float(_local_row["median_views"].iloc[0]) if len(_local_row) else 0
+LOCAL_LIFT = f"{_local_med / top_median_sn:.0f}×" if top_median_sn > 0 else "—"
+
+_excl_row  = df_q5[df_q5["feature"] == "'Exclusive' tag"]
+_excl_lift_val = float(_excl_row["lift"].iloc[0]) if len(_excl_row) else None
+EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
+
+
+# ── Prose helpers ─────────────────────────────────────────────────────────────
+def _fmt_p(p):
+    """Format p-value with stars for HTML."""
+    if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
+    p = float(p)
+    sig = " ***" if p < 0.001 else " **" if p < 0.01 else " *" if p < 0.05 else ""
+    if p < 0.001: return "&lt;0.001" + sig
+    if p < 0.01:  return f"{p:.3f}" + sig
+    return f"{p:.2f}" + sig
+
+def _q1r(f):
+    row = df_q1[df_q1["formula"] == f]
+    return row.iloc[0] if len(row) else None
+
+def _q2r(f):
+    row = df_q2[df_q2["formula"] == f]
+    return row.iloc[0] if len(row) else None
+
+def _q4r(cat):
+    row = df_q4[df_q4["category"] == cat]
+    return row.iloc[0] if len(row) else None
+
+def _q5r(feat):
+    row = df_q5[df_q5["feature"] == feat]
+    return row.iloc[0] if len(row) else None
+
+# Finding 1 helpers
+_r1_num = _q1r("number_lead")
+_r1_q   = _q1r("question")
+_r1_ql  = _q1r("quoted_lede")
+_r1_h   = _q1r("heres_formula")
+_r1_pne = _q1r("possessive_named_entity")
+
+# Finding 2 helpers
+_r2_wtn = _q2r("what_to_know")
+_r2_q   = _q2r("question")
+_r2_ql  = _q2r("quoted_lede")
+_wtn_feat_n   = int(_r2_wtn["feat_n"])      if _r2_wtn is not None else 0
+_wtn_total    = int(_r2_wtn["n"])            if _r2_wtn is not None else 0
+WTN_FEAT_LIFT = float(_r2_wtn["featured_lift"]) if _r2_wtn is not None else 0
+
+# Finding 3 helpers
+_r4_loc  = _q4r("Local")
+_r4_us   = _q4r("U.S.")
+_r4_ent  = _q4r("Entertainment")
+_r4_wld  = _q4r("World")
+_r4_hlth = _q4r("Health")
+_r4_top  = _q4r("Top")
+_ent_local_ratio = (int(round(_r4_ent["n"] / _r4_loc["n"]))
+                    if _r4_ent is not None and _r4_loc is not None and _r4_loc["n"] > 0 else 0)
+
+# Finding 4 helpers
+_r5_excl = _q5r("'Exclusive' tag")
+_r5_poss = _q5r("Named person + possessive")
+_r5_full = _q5r("Full name present")
+_r5_q    = _q5r("Question format")
+_r5_sh   = _q5r("Short (≤80 chars)")
+_r5_num  = _q5r("Contains number")
+_r5_attr = _q5r("Attribution (says/told)")
+CTR_MED  = f"{notif['CTR'].median():.2%}"
+
+
+# ── Table generators ──────────────────────────────────────────────────────────
+def _row_tag(lift, is_red=False):
+    if is_red:          return '<span class="tag tag-red">↓</span>'
+    if lift >= 1.5:     return '<span class="tag tag-green">★</span>'
+    if lift < 0.8:      return '<span class="tag tag-red">↓</span>'
+    return ""
+
+def _q2_table():
+    rows = df_q2[df_q2["formula"] != "untagged"].sort_values("featured_rate", ascending=False)
+    html = ""
+    for _, r in rows.iterrows():
+        feat_med = r.get("feat_med_views")
+        if feat_med is not None and not np.isnan(float(feat_med)):
+            wf = f"{feat_med:,.0f} views ({float(r['feat_views_lift']):.2f}× Featured avg)"
+        else:
+            wf = "—"
+        sig = " ***" if r["p_chi"] < 0.001 else " **" if r["p_chi"] < 0.01 else " *" if r["p_chi"] < 0.05 else ""
+        tag = _row_tag(r["featured_lift"])
+        html += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+                 f'<td>{r["featured_rate"]:.0%}</td>'
+                 f'<td>{r["featured_lift"]:.2f}×{sig}</td>'
+                 f'<td>{wf}</td></tr>\n')
+    return html
+
+def _q4_table():
+    rows_sorted = df_q4[df_q4["category"] != "Top"].sort_values("lift", ascending=False)
+    html = ""
+    for _, r in rows_sorted.iterrows():
+        is_red = (r["lift"] < 2.0 and r["category"] in ("Entertainment", "Lifestyle"))
+        tag = _row_tag(r["lift"], is_red=is_red)
+        html += (f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
+                 f'<td>{r["pct_share"]:.1%}</td>'
+                 f'<td>{r["median_views"]:,.0f}</td>'
+                 f'<td>{r["lift"]:.1f}×</td></tr>\n')
+    if _r4_top is not None:
+        html += (f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
+                 f'<td>{_r4_top["pct_share"]:.1%}</td>'
+                 f'<td>{_r4_top["median_views"]:,.0f}</td><td>1.00×</td></tr>\n')
+    return html
+
+def _q5_table():
+    sig = df_q5[df_q5["p"] < 0.05].sort_values("lift", ascending=False)
+    html = ""
+    for _, r in sig.iterrows():
+        tag = _row_tag(r["lift"])
+        html += (f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
+                 f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
+                 f'<td>{r["lift"]:.2f}×</td><td>{_fmt_p(r["p"])}</td></tr>\n')
+    return html
+
+_t2 = _q2_table()
+_t3 = _q4_table()
+_t4 = _q5_table()
 
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
@@ -759,7 +909,7 @@ html = f"""<!DOCTYPE html>
   </div>
   <span class="spacer"></span>
   <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
-  <span class="date">Phase 2 · March 2026</span>
+  <span class="date">Phase 2 · {REPORT_DATE}</span>
 </nav>
 
 <div class="hero">
@@ -788,7 +938,7 @@ html = f"""<!DOCTYPE html>
       <div class="callout">
         <strong>Action:</strong> Avoid number leads and question formats for standard Apple News headlines. "Here's how…" and "[City]'s [development]" constructions are worth testing more deliberately to build sample size.
       </div>
-      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads (0.65×, p&lt;0.001), question format (0.51×, p&lt;0.001), and quoted ledes (0.61×, p&lt;0.001). The better-performing formulas — "Here's / Here are" (2.97×) and possessive named entity (1.94×) — show strong directional signal but lack statistical significance at current sample sizes (n=16 and n=75 respectively).</p>
+      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×, p{_fmt_p(_r1_num['p']).replace('&lt;','<')}), question format ({_r1_q['lift']:.2f}×, p{_fmt_p(_r1_q['p']).replace('&lt;','<')}), and quoted ledes ({_r1_ql['lift']:.2f}×, p{_fmt_p(_r1_ql['p']).replace('&lt;','<')}). The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
       <div class="chart-wrap">{c1}</div>
       <p class="caveat">Non-Featured articles only (n={len(nf):,}). Featured articles removed to isolate headline signal from editorial selection effect. Mann-Whitney U vs. untagged baseline. * p&lt;0.05  ** p&lt;0.01  *** p&lt;0.001</p>
     </div>
@@ -800,25 +950,21 @@ html = f"""<!DOCTYPE html>
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 2 · Featured by Apple</p>
-        <h2>"What to know" headlines get Featured at 62% — more than double the 27% baseline rate.</h2>
+        <h2>"What to know" headlines get Featured at {WTN_FEAT} — {WTN_FEAT_LIFT:.1f}× the {overall_feat_rate:.0%} baseline rate.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
         <strong>Action:</strong> Use "What to know" on high-stakes local stories — health alerts, weather emergencies, civic events. It is the fastest path to Featured placement. Apple's editors strongly favor this format for surfacing to subscribers.
       </div>
-      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: 13 of 21 (62%) were Featured. The overall Featured rate is 26.7%. This is the strongest statistically significant formula signal in the dataset (χ²=11.7, p=0.0006).</p>
-      <p>Question-format headlines are also Featured more often than expected (37%, 1.39× lift, p=0.005) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
-      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate (33%), but once Featured they deliver the highest within-Featured median of any formula — 17,608 views, 1.61× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
+      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured. The overall Featured rate is {overall_feat_rate:.1%}. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, p={_r2_wtn['p_chi']:.4f}).</p>
+      <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, p={_r2_q['p_chi']:.3f}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
+      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured medians — {_r2_ql['feat_med_views']:,.0f} views, {_r2_ql['feat_views_lift']:.2f}× the Featured average. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
       <div class="chart-wrap">{c2}</div>
       <table class="findings">
         <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>Within-Featured median</th></tr></thead>
         <tbody>
-          <tr><td><span class="tag tag-green">★</span>What to know</td><td>21</td><td>62%</td><td>2.32×</td><td>16,933 views (1.55× Featured avg)</td></tr>
-          <tr><td><span class="tag tag-green">★</span>Quoted lede</td><td>187</td><td>33%</td><td>1.22×</td><td>17,608 views (1.61× Featured avg)</td></tr>
-          <tr><td>Here's / Here are</td><td>24</td><td>33%</td><td>1.25×</td><td>7,892 views (0.72× Featured avg)</td></tr>
-          <tr><td>Question</td><td>146</td><td>37%</td><td>1.39×</td><td>6,574 views (0.60× Featured avg)</td></tr>
-          <tr><td>Number lead</td><td>175</td><td>18%</td><td>0.69×</td><td>11,410 views (1.05× Featured avg)</td></tr>
+          {_t2}
         </tbody>
       </table>
       <h3>Featured placement drives reach — not reading depth</h3>
@@ -833,28 +979,20 @@ html = f"""<!DOCTYPE html>
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 3 · SmartNews Allocation</p>
-        <h2>SmartNews Local delivers 108× the views of average Top-feed articles. Entertainment gets 12× more articles and performs like average.</h2>
+        <h2>SmartNews Local delivers {LOCAL_LIFT} the views of average Top-feed articles. Entertainment gets {_ent_local_ratio}× more articles and performs like average.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming 35.9% of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver 108× and 73× the views at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
+        <strong>Action:</strong> Flag this finding to the distribution team. Entertainment is consuming {_r4_ent['pct_share']:.1%} of SmartNews article volume at barely-above-baseline ROI. Local and U.S. National channels deliver {_r4_loc['lift']:.0f}× and {_r4_us['lift']:.0f}× the views at a fraction of the volume — this is a reallocation opportunity, not a content quality problem.
         <br><br><em>Caveat:</em> Articles in Local and U.S. channels are likely higher-quality breaking/civic stories that would perform well regardless of channel. Channel assignment partly reflects content type.
       </div>
-      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of 16,593 total views. Articles in the U.S. National channel: 11,153 views. The Top feed baseline: 153 views. World (3.8×) and Health (3.7×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for 35.9% of all SmartNews articles — delivers only 224 views median, barely above baseline.</p>
+      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel have a median of {_r4_loc['median_views']:,.0f} total views. Articles in the U.S. National channel: {_r4_us['median_views']:,.0f} views. The Top feed baseline: {_r4_top['median_views']:,.0f} views. World ({_r4_wld['lift']:.1f}×) and Health ({_r4_hlth['lift']:.1f}×) channels also punch well above baseline at modest volume. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — delivers only {_r4_ent['median_views']:,.0f} views median, barely above baseline.</p>
       <div class="chart-wrap">{c3}</div>
       <table class="findings">
         <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median views</th><th>Lift vs. Top feed</th></tr></thead>
         <tbody>
-          <tr><td><span class="tag tag-green">↑</span>Local</td><td>1,097</td><td>2.9%</td><td>16,593</td><td>108×</td></tr>
-          <tr><td><span class="tag tag-green">↑</span>U.S. National</td><td>909</td><td>2.4%</td><td>11,153</td><td>73×</td></tr>
-          <tr><td>Football</td><td>276</td><td>0.7%</td><td>1,934</td><td>12.6×</td></tr>
-          <tr><td>Business</td><td>125</td><td>0.3%</td><td>1,933</td><td>12.6×</td></tr>
-          <tr><td>World</td><td>120</td><td>0.3%</td><td>580</td><td>3.8×</td></tr>
-          <tr><td>Health</td><td>235</td><td>0.6%</td><td>565</td><td>3.7×</td></tr>
-          <tr><td>Politics</td><td>607</td><td>1.6%</td><td>331</td><td>2.2×</td></tr>
-          <tr><td><span class="tag tag-red">↓</span>Entertainment</td><td>13,713</td><td>35.9%</td><td>224</td><td>1.46×</td></tr>
-          <tr><td>Top feed (baseline)</td><td>34,006</td><td>88.9%</td><td>153</td><td>1.00×</td></tr>
+          {_t3}
         </tbody>
       </table>
       <p class="caveat">SmartNews 2025 (n=38,251 article-channel rows). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. 2026 export lacks category breakdown.</p>
@@ -867,23 +1005,19 @@ html = f"""<!DOCTYPE html>
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 4 · Push Notification CTR</p>
-        <h2>"Exclusive" delivers 2.49× CTR lift. Possessive framing on a full name adds 1.86×. Questions hurt.</h2>
+        <h2>"Exclusive" delivers {EXCL_LIFT} CTR lift. Possessive framing on a full name adds {_r5_poss['lift']:.2f}×. Questions hurt.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
         <strong>Action:</strong> The highest-leverage notification formula is: <em>[Person's] [relationship/role] [reaction/new development]</em> — e.g., "Savannah Guthrie's husband breaks silence…", "Mike Tomlin's wife was frantic in 911 call." Use full names. Write longer notifications (more context = more clicks). Reserve "exclusive" for actual exclusives. Avoid question format.
       </div>
-      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR 1.68%), four features show statistically significant positive effects. The "exclusive" tag is the strongest at 2.49× lift — and it is not primarily a Savannah Guthrie effect: only 4 of 16 exclusive-tagged notifications mention Guthrie. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction ("Savannah Guthrie's husband breaks silence", "Bill Cosby's longtime rep 'blindsided'", "Mike Tomlin's wife was frantic") drive 1.86× CTR vs. 1.21× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at 0.64×, consistent with the Apple News article finding.</p>
+      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects. The "exclusive" tag is the strongest at {EXCL_LIFT} lift — and it is not primarily a Savannah Guthrie effect: only 4 of {_r5_excl['n_true']} exclusive-tagged notifications mention Guthrie. The possessive framing signal is the most actionable new finding: notifications that contain a full named person AND a possessive construction ("Savannah Guthrie's husband breaks silence", "Bill Cosby's longtime rep 'blindsided'", "Mike Tomlin's wife was frantic") drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. The possessive signals insider access and relational proximity — not just name recognition. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
       <div class="chart-wrap">{c4}</div>
       <table class="findings">
         <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift</th><th>p</th></tr></thead>
         <tbody>
-          <tr><td><span class="tag tag-green">↑</span>'Exclusive' tag</td><td>16</td><td>4.01%</td><td>1.61%</td><td>2.49×</td><td>&lt;0.001 ***</td></tr>
-          <tr><td><span class="tag tag-green">↑</span>Named person + possessive</td><td>74</td><td>2.90%</td><td>1.56%</td><td>1.86×</td><td>&lt;0.001 ***</td></tr>
-          <tr><td><span class="tag tag-green">↑</span>Full name present</td><td>196</td><td>1.88%</td><td>1.55%</td><td>1.21×</td><td>0.001 ***</td></tr>
-          <tr><td><span class="tag tag-red">↓</span>Question format</td><td>23</td><td>1.12%</td><td>1.75%</td><td>0.64×</td><td>&lt;0.001 ***</td></tr>
-          <tr><td><span class="tag tag-red">↓</span>Short (≤80 chars)</td><td>217</td><td>1.50%</td><td>2.44%</td><td>0.61×</td><td>&lt;0.001 ***</td></tr>
+          {_t4}
         </tbody>
       </table>
       <h3>The serial/escalating story as a content type</h3>
@@ -891,7 +1025,7 @@ html = f"""<!DOCTYPE html>
       <p>The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em> Each piece should signal what's new ("breaks silence", "reveals", "first interview") rather than restating what's known. Readers who clicked one installment return for the next at elevated rates — this is the closest thing in the notification data to a repeatable high-CTR format.</p>
       <p><em>Signal interference caveat:</em> The Guthrie cluster accounts for the most extreme CTRs in the dataset (n=16 notifications, many above 5%). It's not possible to fully separate the formula from the underlying story interest — a different serial story using identical framing might not replicate these exact numbers. The possessive + full name signal (1.86× lift, p&lt;0.001) holds across non-Guthrie stories, but the very top of the distribution is Guthrie-driven.</p>
       <h3>What doesn't move the needle in notifications</h3>
-      <p>Neither "contains a number" (n=87, 1.13×, p=0.65) nor "attribution" — says/told/reports (n=30, 1.08×, p=0.21) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
+      <p>Neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×, p={_r5_num['p']:.2f}) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×, p={_r5_attr['p']:.2f}) — significantly affect notification CTR. Notably, numbers in notifications are neutral, while number leads in Apple News articles significantly underperform. The same signal doesn't carry across contexts.</p>
       <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U. The Savannah Guthrie story cluster (n=16) drove outsized CTR; noted as a serial-installment content type distinct from formula effects. Only 4 of 16 exclusive-tagged notifications overlap with the Guthrie cluster.</p>
     </div>
   </details>
@@ -1001,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', openByHash);
 </script>
 
 <footer>
-  <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · March 2026</p>
+  <p>McClatchy CSA · T1 Headline Performance Analysis · Phase 2 · {REPORT_DATE}</p>
   <p style="margin-top: 0.5rem;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
