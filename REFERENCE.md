@@ -150,16 +150,34 @@ Things to get or build to make the variant allocation model more powerful. Prior
 
 ---
 
-## Data Analysis Skills — Install Order
+## Phase 2 Analysis Pipeline
 
-Install from `~/Downloads/`. Use in this order against Tarrow's sheet:
+All skills installed in `~/.claude/skills/`. Pipeline runs in this order:
 
-| # | Skill | Install path | Purpose |
-|---|-------|-------------|---------|
-| 1 | `excel-analysis` | `aiskillstore-excel-analysis/SKILL.md` | Load and profile the sheet — columns, data types, gaps, cleaning |
-| 2 | `data-sleuth` | `petekp-data-sleuth/SKILL.md` | **Most important.** Investigative signal detection — temporal fingerprinting, ratio analysis, absence detection, cross-dataset correlation. Interview-first: it asks what patterns you want before diving in. |
-| 3 | `data-analysis` | `majiayu000-data-analysis-skill/SKILL.md` | Package findings into McKinsey-quality Plotly charts for Chris/leadership. Action-titled charts, not descriptive ones. |
-| 4 | `data-analysis-sql` | `majiayu000-data-analysis-sql/SKILL.md` | 50+ SQL analytics patterns (EDA, outlier detection, cohort analysis). Use only if data lands in DuckDB or a proper DB. |
+| # | Skill | Role | When to invoke |
+|---|-------|------|----------------|
+| 0 | `code-data-analysis-scaffolds` | **Planning** — define analytical approach, assumptions, test choices, and success criteria before touching data | Once at session start; skip if method is already fully defined |
+| 1 | `excel-analysis` | **Load + profile** — columns, data types, nulls, cleaning issues | Every new data file |
+| 2 | `data-sleuth` | **Signal detection** — non-obvious patterns, ratio anomalies, absence signals, cross-dataset correlation. Interview-first. | After profiling; before drawing conclusions |
+| 3 | `polars` | **Transformation** — regex classifiers, cross-tabs, group medians, quartile splits, multi-dataset joins | Core layer for all 6 questions |
+| 4 | `data-analysis` | **Chart quality** — McKinsey-quality Plotly charts, action-titled, one insight per chart | After findings are confirmed |
+| 5 | `interactive-report-generator` | **Site output** — generates `docs/index.html` programmatically from DataFrames; commits alongside `generate_site.py` | Final step; produces the Phase 2 site |
+| — | `data-analysis-sql` | **SQL fallback** — 50+ analytics patterns; use only if data moves to DuckDB | Defer unless needed |
+
+### Phase 2 Questions (6 total)
+
+| Q | Question | Primary skills |
+|---|----------|---------------|
+| 1 | Which headline formula types drive above-median Apple News views? | polars (regex classifier + median) |
+| 2 | Do Featured picks favor certain formula types? | polars (cross-tab × Featured flag) |
+| 3 | Which keywords appear in top vs. bottom quartile headlines? | polars (quartile split + TF-IDF via scikit-learn) |
+| 4 | Which SmartNews categories have best ROI vs. volume? | polars (category aggregation + scatter) |
+| 5 | Which notification headline features predict higher CTR? | polars (feature extraction + CTR median split) |
+| 6 | Where does headline choice matter most? (allocation model setup) | polars (views variance by category × platform) |
+
+### Reproducibility Note
+
+`generate_site.py` will be committed to the repo alongside Phase 2 analysis. The site regenerates by running the script — no manual HTML editing required. Numbers are always grounded in the source DataFrames.
 
 ## Synthesis Skills (Available in This Claude Code Environment)
 
