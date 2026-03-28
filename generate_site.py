@@ -4143,7 +4143,6 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           var printDiv = document.createElement('div');
           printDiv.id = '_exp_print';
           var img = document.createElement('img');
-          img.src = dataUrl;
           img.style.cssText = 'width:100%;display:block;';
           printDiv.appendChild(img);
           document.body.appendChild(printDiv);
@@ -4157,8 +4156,13 @@ function _exportPanel(panelEl, format, dropdownEl) {{
             window.removeEventListener('afterprint', _afterPrint);
           }}
           window.addEventListener('afterprint', _afterPrint);
-          _showResult('PDF dialog opened \u2014 print or save from browser', false);
-          window.print();
+          // Wait for the image to fully load before opening print dialog,
+          // otherwise the browser prints a blank page (data URLs still need a frame to decode).
+          img.onload = function() {{
+            _showResult('PDF dialog opened \u2014 print or save from browser', false);
+            window.print();
+          }};
+          img.src = dataUrl;
         }} else {{
           // Blob URL required — Safari silently blocks a.download with data: URLs.
           try {{
@@ -4401,7 +4405,7 @@ playbook_html = f"""<!DOCTYPE html>
               color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }}
   h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
         letter-spacing:-0.02em; margin-bottom:0.4rem; color:#f1f5f9; }}
-  .sub {{ color:#94a3b8; font-size:0.875rem; margin-bottom:0; }}
+  .sub {{ color:#94a3b8; font-size:0.875rem; margin-bottom:1.5rem; }}
   .run-header {{ display:flex; align-items:baseline; gap:12px; margin:2rem 0 1.25rem;
                  padding-bottom:0.75rem; border-bottom:1px solid #1e293b; }}
   .run-label {{ font-size:1.05rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; }}
@@ -4770,7 +4774,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           var printDiv = document.createElement('div');
           printDiv.id = '_exp_print';
           var img = document.createElement('img');
-          img.src = dataUrl; img.style.cssText = 'width:100%;display:block;';
+          img.style.cssText = 'width:100%;display:block;';
           printDiv.appendChild(img);
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
@@ -4783,8 +4787,11 @@ function _exportPanel(panelEl, format, dropdownEl) {{
             window.removeEventListener('afterprint', _afterPrint2);
           }}
           window.addEventListener('afterprint', _afterPrint2);
-          _showResult2('PDF dialog opened \u2014 print or save from browser', false);
-          window.print();
+          img.onload = function() {{
+            _showResult2('PDF dialog opened \u2014 print or save from browser', false);
+            window.print();
+          }};
+          img.src = dataUrl;
         }} else {{
           try {{
             var arr = dataUrl.split(',');
@@ -5170,7 +5177,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           var printDiv = document.createElement('div');
           printDiv.id = '_exp_print';
           var img = document.createElement('img');
-          img.src = dataUrl; img.style.cssText = 'width:100%;display:block;';
+          img.style.cssText = 'width:100%;display:block;';
           printDiv.appendChild(img);
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
@@ -5183,8 +5190,11 @@ function _exportPanel(panelEl, format, dropdownEl) {{
             window.removeEventListener('afterprint', _afterPrint3);
           }}
           window.addEventListener('afterprint', _afterPrint3);
-          _showResult3('PDF dialog opened \u2014 print or save from browser', false);
-          window.print();
+          img.onload = function() {{
+            _showResult3('PDF dialog opened \u2014 print or save from browser', false);
+            window.print();
+          }};
+          img.src = dataUrl;
         }} else {{
           try {{
             var arr = dataUrl.split(',');

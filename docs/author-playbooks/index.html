@@ -510,7 +510,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
           var printDiv = document.createElement('div');
           printDiv.id = '_exp_print';
           var img = document.createElement('img');
-          img.src = dataUrl; img.style.cssText = 'width:100%;display:block;';
+          img.style.cssText = 'width:100%;display:block;';
           printDiv.appendChild(img);
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
@@ -523,8 +523,11 @@ function _exportPanel(panelEl, format, dropdownEl) {
             window.removeEventListener('afterprint', _afterPrint3);
           }
           window.addEventListener('afterprint', _afterPrint3);
-          _showResult3('PDF dialog opened—print or save from browser', false);
-          window.print();
+          img.onload = function() {
+            _showResult3('PDF dialog opened—print or save from browser', false);
+            window.print();
+          };
+          img.src = dataUrl;
         } else {
           try {
             var arr = dataUrl.split(',');
