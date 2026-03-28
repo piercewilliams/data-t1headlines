@@ -15,6 +15,7 @@ import math
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import re
 import warnings
 from datetime import datetime
@@ -234,6 +235,11 @@ an["_pub_month"]  = pd.to_datetime(an["Date Published"], errors="coerce").dt.to_
 
 sn["topic"] = sn["title"].apply(tag_topic)
 sn["_sn_month"] = sn["date"].astype(str)
+
+# Topic classifier coverage (fraction of AN articles tagged into a named topic, not "other")
+_an_topic_tagged = (an["topic"] != "other").sum()
+TOPIC_COVERAGE_PCT = _an_topic_tagged / len(an) if len(an) > 0 else 0.0
+TOPIC_OTHER_PCT    = 1.0 - TOPIC_COVERAGE_PCT
 
 yahoo["_pub_month"] = pd.to_datetime(yahoo["Publish Date"], errors="coerce").dt.to_period("M").astype(str)
 
@@ -707,49 +713,95 @@ kw_overlap   = top_an_words & top_sn_words
 kw_overlap_n = len(kw_overlap)
 
 
-# ── Longitudinal: monthly median percentile by formula ────────────────────────
+# ── Longitudinal: rolling 3-month relative lift vs. untagged baseline ──────────
+# percentile_within_cohort median is always ~50% by construction, so we can't use
+# absolute percentile for trend lines. Instead, compute lift = formula median / baseline median
+# within each rolling 3-month window to show genuine performance change over time.
 print("Computing longitudinal…")
 an["_pub_dt"] = pd.to_datetime(an["Date Published"], errors="coerce")
 an["_month_str"] = an["_pub_dt"].dt.to_period("M").astype(str)
 
-_LONG_FORMULAS = ["heres_formula", "what_to_know", "number_lead", "question", "possessive_named_entity"]
+# Filter to 2025+ to remove stray pre-2025 articles (2020/2022/2024 with n=1-2)
+an_long_base = an[an["_month_str"] >= "2025-01"].copy()
+all_long_months = sorted(an_long_base["_month_str"].dropna().unique())
+
+_ROLLING_FORMULAS = ["number_lead", "question", "possessive_named_entity"]
+_ROLLING_MIN_N = 8  # minimum articles per formula per rolling window
+
 long_rows = []
-for month in sorted(an["_month_str"].dropna().unique()):
-    for f in _LONG_FORMULAS:
-        sub = an[(an["_month_str"] == month) & (an["formula"] == f)][VIEWS_METRIC].dropna()
-        if len(sub) >= 3:
-            long_rows.append(dict(month=month, formula=f, med_pct=sub.median(), n=len(sub)))
+for i, month in enumerate(all_long_months):
+    # Rolling 3-month window: current month + prior 2 months
+    window_months = all_long_months[max(0, i - 2):i + 1]
+    window_data = an_long_base[an_long_base["_month_str"].isin(window_months)]
+    baseline = window_data[window_data["formula"] == "untagged"][VIEWS_METRIC].dropna()
+    baseline_med = baseline.median()
+    if len(baseline) < _ROLLING_MIN_N or baseline_med == 0:
+        continue
+    for f in _ROLLING_FORMULAS:
+        sub = window_data[window_data["formula"] == f][VIEWS_METRIC].dropna()
+        if len(sub) >= _ROLLING_MIN_N:
+            long_rows.append(dict(
+                month=month,
+                formula=f,
+                lift=float(sub.median() / baseline_med),
+                n=len(sub),
+                baseline_n=len(baseline),
+            ))
 
 df_long = pd.DataFrame(long_rows)
 
 
-# ── YoY: Jan-Feb 2025 vs Jan-Feb 2026 ────────────────────────────────────────
+# ── YoY: Full-year 2025 vs Jan-Feb 2026 ──────────────────────────────────────
+# Using full-year 2025 (not Jan-Feb only) for stable baseline; n<10 rows suppressed.
 print("Computing YoY…")
-an_2025_jf = an_2025_norm[pd.to_datetime(an_2025_norm["Date Published"], errors="coerce").dt.month.isin([1, 2])].copy()
-an_2026_jf = an_2026_norm.copy()
+an_2025_full = an_2025_norm.copy()
+an_2026_jf   = an_2026_norm.copy()
+
+# Baseline medians for relative lift
+_bl25 = an_2025_full[an_2025_full["formula"] == "untagged"][VIEWS_METRIC].median()
+_bl26 = an_2026_jf[an_2026_jf["formula"] == "untagged"][VIEWS_METRIC].median()
+_YOY_MIN_N = 10  # suppress formulas with fewer than 10 articles in 2025
 
 yoy_rows = []
 for f, label in FORMULA_LABELS.items():
-    g25 = an_2025_jf[an_2025_jf["formula"] == f]
+    g25 = an_2025_full[an_2025_full["formula"] == f]
     g26 = an_2026_jf[an_2026_jf["formula"] == f]
+    n25, n26 = len(g25), len(g26)
+    suppressed = (n25 < _YOY_MIN_N)
+    pct25 = g25[VIEWS_METRIC].median() if n25 >= _YOY_MIN_N else np.nan
+    pct26 = g26[VIEWS_METRIC].median() if n26 >= 3 else np.nan
+    lift25 = (pct25 / _bl25) if (pd.notna(pct25) and _bl25 > 0) else np.nan
+    lift26 = (pct26 / _bl26) if (pd.notna(pct26) and _bl26 > 0) else np.nan
     yoy_rows.append(dict(
         formula=f, label=label,
-        n_2025=len(g25), n_2026=len(g26),
-        feat_2025=g25["is_featured"].mean() if len(g25) > 0 else np.nan,
-        feat_2026=g26["is_featured"].mean() if len(g26) > 0 else np.nan,
-        pct_2025=g25[VIEWS_METRIC].median() if len(g25) >= 3 else np.nan,
-        pct_2026=g26[VIEWS_METRIC].median() if len(g26) >= 3 else np.nan,
+        n_2025=n25, n_2026=n26,
+        pct_2025=pct25, pct_2026=pct26,
+        lift_2025=lift25, lift_2026=lift26,
+        suppressed=suppressed,
     ))
 df_yoy = pd.DataFrame(yoy_rows)
 
-# Formula with biggest change YoY
-df_yoy_valid = df_yoy.dropna(subset=["pct_2025", "pct_2026"])
+# Compute NL lift for 2025 early (Q1) vs late (Q4) for tile text
+if not df_long.empty:
+    _nl_long = df_long[df_long["formula"] == "number_lead"].sort_values("month")
+    _nl_long_2025 = _nl_long[_nl_long["month"] < "2026"]
+    _nl_long_2026 = _nl_long[_nl_long["month"] >= "2026"]
+    _q_long = df_long[df_long["formula"] == "question"].sort_values("month")
+    NL_LIFT_EARLY = float(_nl_long_2025.head(3)["lift"].mean()) if len(_nl_long_2025) >= 3 else np.nan
+    NL_LIFT_LATE  = float(_nl_long[_nl_long["month"] >= "2025-10"]["lift"].mean()) if len(_nl_long[_nl_long["month"] >= "2025-10"]) > 0 else np.nan
+    Q_LIFT_EARLY  = float(_q_long[_q_long["month"] < "2026"].head(3)["lift"].mean()) if len(_q_long) >= 3 else np.nan
+    Q_LIFT_LATE   = float(_q_long["lift"].tail(3).mean()) if len(_q_long) >= 3 else np.nan
+else:
+    NL_LIFT_EARLY = NL_LIFT_LATE = Q_LIFT_EARLY = Q_LIFT_LATE = np.nan
+
+# Formula with biggest relative lift change YoY
+df_yoy_valid = df_yoy[(df_yoy["suppressed"] == False)].dropna(subset=["lift_2025", "lift_2026"])
 if len(df_yoy_valid) > 0:
     df_yoy_valid = df_yoy_valid.copy()
-    df_yoy_valid["_delta"] = (df_yoy_valid["pct_2026"] - df_yoy_valid["pct_2025"]).abs()
+    df_yoy_valid["_delta"] = (df_yoy_valid["lift_2026"] - df_yoy_valid["lift_2025"]).abs()
     _biggest_change_row = df_yoy_valid.sort_values("_delta", ascending=False).iloc[0]
     YOY_CHANGING_FORMULA = _biggest_change_row["label"]
-    YOY_CHANGING_DELTA   = _biggest_change_row["pct_2026"] - _biggest_change_row["pct_2025"]
+    YOY_CHANGING_DELTA   = _biggest_change_row["lift_2026"] - _biggest_change_row["lift_2025"]
 else:
     YOY_CHANGING_FORMULA = "—"
     YOY_CHANGING_DELTA   = 0.0
@@ -1222,13 +1274,21 @@ def _sports_subtopic_table():
 def _yoy_table():
     html_out = ""
     for _, r in df_yoy.iterrows():
-        pct25 = f"{r['pct_2025']:.0%}" if pd.notna(r['pct_2025']) else "—"
-        pct26 = f"{r['pct_2026']:.0%}" if pd.notna(r['pct_2026']) else "—"
-        fr25  = f"{r['feat_2025']:.0%}" if pd.notna(r['feat_2025']) else "—"
-        fr26  = f"{r['feat_2026']:.0%}" if pd.notna(r['feat_2026']) else "—"
+        if r["suppressed"]:
+            # Show suppressed rows with caveat (n<10 in 2025 = unreliable)
+            html_out += (f"<tr style='color:#94a3b8'>"
+                         f"<td>{r['label']} <em style='font-size:0.85em'>(n={int(r['n_2025'])} in 2025 — too few to compare)</em></td>"
+                         f"<td colspan='4' style='text-align:center'>—</td></tr>\n")
+            continue
+        l25 = f"{r['lift_2025']:.2f}×" if pd.notna(r["lift_2025"]) else "—"
+        l26 = f"{r['lift_2026']:.2f}×" if pd.notna(r["lift_2026"]) else "—"
+        delta = r["lift_2026"] - r["lift_2025"] if (pd.notna(r["lift_2025"]) and pd.notna(r["lift_2026"])) else np.nan
+        delta_str = (f'<span style="color:{"#16a34a" if delta > 0 else "#dc2626"}">'
+                     f'{"+" if delta > 0 else ""}{delta:.2f}×</span>') if pd.notna(delta) else "—"
         html_out += (f"<tr><td>{r['label']}</td>"
-                     f"<td>{int(r['n_2025'])}</td><td>{fr25}</td><td>{pct25}</td>"
-                     f"<td>{int(r['n_2026'])}</td><td>{fr26}</td><td>{pct26}</td></tr>\n")
+                     f"<td>{int(r['n_2025'])}</td><td>{l25}</td>"
+                     f"<td>{int(r['n_2026'])}</td><td>{l26}</td>"
+                     f"<td>{delta_str}</td></tr>\n")
     return html_out
 
 def _author_table():
@@ -1515,80 +1575,99 @@ FORMULA_DISPLAY = {
     "possessive_named_entity": "Possessive named entity",
 }
 
-# ── Fig 8: Longitudinal — monthly formula trend ────────────────────────────────
-fig8 = go.Figure()
-_long_colors = {
-    "heres_formula":           BLUE,
-    "what_to_know":            GREEN,
+# ── Fig 8: Longitudinal — two-panel: rolling lift trend + YoY grouped bar ──────
+# Panel A: Rolling 3-month relative lift vs. untagged baseline.
+#   Raw percentile_within_cohort median is always ~50% by construction (it's a rank).
+#   Relative lift = formula median / baseline median shows genuine signal.
+# Panel B: Full-year 2025 vs Jan-Feb 2026 grouped bar (formulas with n≥10 in 2025 only).
+_long_colors_8 = {
     "number_lead":             AMBER,
     "question":                RED,
     "possessive_named_entity": NAVY,
 }
 
+fig8 = make_subplots(
+    rows=1, cols=2,
+    subplot_titles=[
+        "Rolling 3-month lift vs. unclassified baseline",
+        "Year-over-year: 2025 full year vs. Jan–Feb 2026",
+    ],
+    column_widths=[0.58, 0.42],
+)
+
+# ── Panel A: Rolling relative lift ───────────────────────────────────────────
 if not df_long.empty:
-    df_long_sorted = df_long.sort_values("month")
-    # Split at year boundary
-    df_long_2025 = df_long_sorted[df_long_sorted["month"] < "2026"].copy()
-    df_long_2026 = df_long_sorted[df_long_sorted["month"] >= "2026"].copy()
-
-    for f, color in _long_colors.items():
-        label = FORMULA_LABELS.get(f, f)
-        d25 = df_long_2025[df_long_2025["formula"] == f].sort_values("month")
-        d26 = df_long_2026[df_long_2026["formula"] == f].sort_values("month")
-
-        if len(d25) == 0 and len(d26) == 0:
-            continue
-
-        # 2025 trace — solid line
-        if len(d25) > 0:
-            fig8.add_trace(go.Scatter(
-                x=d25["month"], y=d25["med_pct"],
-                mode="lines+markers",
-                name=label,
-                line=dict(color=color, width=2.5),
-                marker=dict(size=7, color=color),
-                legendgroup=f,
-                hovertemplate="%{x}: %{y:.0%} (%{customdata} articles)<extra>" + label + "</extra>",
-                customdata=d25["n"],
-            ))
-
-        # 2026 trace — dotted thicker line; connect from last 2025 point
-        if len(d26) > 0:
-            # Include last 2025 point as bridge if it exists
-            bridge_rows = d25.tail(1) if len(d25) > 0 else pd.DataFrame()
-            d26_ext = pd.concat([bridge_rows, d26]).sort_values("month")
-            fig8.add_trace(go.Scatter(
-                x=d26_ext["month"], y=d26_ext["med_pct"],
-                mode="lines+markers",
-                name=label + " (2026)",
-                line=dict(color=color, width=3.5, dash="dot"),
-                marker=dict(size=9, color=color, symbol="circle-open"),
-                legendgroup=f,
-                showlegend=False,
-                hovertemplate="%{x}: %{y:.0%} (%{customdata} articles)<extra>" + label + " 2026</extra>",
-                customdata=d26_ext["n"],
-            ))
-
-    # Shade 2026 region
-    _first_2026 = df_long_sorted[df_long_sorted["month"] >= "2026"]["month"].min() if not df_long_2026.empty else None
-    if _first_2026:
+    # Add 2026 shading once (before traces)
+    _all_2026_months = sorted(df_long[df_long["month"] >= "2026"]["month"].unique())
+    if len(_all_2026_months) >= 2:
         fig8.add_vrect(
-            x0=_first_2026, x1=df_long_sorted["month"].max(),
-            fillcolor="rgba(37,99,235,0.06)", line_width=0,
-            annotation_text="2026 (dotted)", annotation_position="top left",
-            annotation_font_size=10, annotation_font_color=BLUE,
+            x0=_all_2026_months[0], x1=_all_2026_months[-1],
+            fillcolor="rgba(37,99,235,0.05)", line_width=0,
+            row=1, col=1,
         )
+    for f, color in _long_colors_8.items():
+        label = FORMULA_LABELS.get(f, f)
+        sub = df_long[df_long["formula"] == f].sort_values("month")
+        if len(sub) == 0:
+            continue
+        fig8.add_trace(go.Scatter(
+            x=sub["month"], y=sub["lift"],
+            mode="lines+markers",
+            name=label,
+            line=dict(color=color, width=2.5),
+            marker=dict(size=7, color=color),
+            hovertemplate="%{x}: %{y:.2f}× baseline (%{customdata} articles)<extra>" + label + "</extra>",
+            customdata=sub["n"],
+        ), row=1, col=1)
+
+# Baseline reference line at 1.0
+fig8.add_hline(
+    y=1.0, line_dash="dash", line_color=GRAY, line_width=1.5,
+    annotation_text="Baseline (1.0×)", annotation_position="bottom right",
+    annotation_font_size=10, annotation_font_color=GRAY,
+    row=1, col=1,
+)
+
+# ── Panel B: YoY grouped bar ─────────────────────────────────────────────────
+_yoy_bar = df_yoy[df_yoy["suppressed"] == False].copy()
+if not _yoy_bar.empty:
+    _yoy_bar_valid25 = _yoy_bar.dropna(subset=["lift_2025"])
+    if not _yoy_bar_valid25.empty:
+        fig8.add_trace(go.Bar(
+            x=_yoy_bar_valid25["label"],
+            y=_yoy_bar_valid25["lift_2025"],
+            name="2025 (full year)",
+            marker_color=BLUE,
+            hovertemplate="%{x}: %{y:.2f}× baseline<extra>2025 full year</extra>",
+        ), row=1, col=2)
+    _yoy_bar_valid26 = _yoy_bar.dropna(subset=["lift_2026"])
+    if not _yoy_bar_valid26.empty:
+        fig8.add_trace(go.Bar(
+            x=_yoy_bar_valid26["label"],
+            y=_yoy_bar_valid26["lift_2026"],
+            name="2026 (Jan–Feb)",
+            marker_color=AMBER,
+            hovertemplate="%{x}: %{y:.2f}× baseline<extra>2026 Jan–Feb</extra>",
+        ), row=1, col=2)
+    fig8.add_hline(
+        y=1.0, line_dash="dash", line_color=GRAY, line_width=1.5,
+        annotation_text="Baseline (1.0×)", annotation_position="bottom right",
+        annotation_font_size=10, annotation_font_color=GRAY,
+        row=1, col=2,
+    )
 
 fig8.update_layout(
-    title=dict(text="Formula performance trend — monthly percentile rank", font=dict(size=15, color=NAVY), x=0.01, xanchor="left"),
-    xaxis=dict(title="", gridcolor=BORDER, tickangle=-30),
-    yaxis=dict(title="Percentile vs. same-month articles", tickformat=".0%", range=[0,1]),
-    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5, font=dict(size=11)),
-    height=500,
-    margin=dict(l=20, r=40, t=50, b=110),
+    barmode="group",
+    height=490,
+    margin=dict(l=20, r=20, t=60, b=110),
     plot_bgcolor=LIGHT, paper_bgcolor="white",
     font=dict(color=NAVY),
+    legend=dict(orientation="h", yanchor="top", y=-0.24, xanchor="center", x=0.5, font=dict(size=11)),
 )
+fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=1)
+fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=2)
+fig8.update_xaxes(gridcolor=BORDER, tickangle=-30, row=1, col=1)
+fig8.update_xaxes(gridcolor=BORDER, tickangle=-20, row=1, col=2)
 
 
 # ── Render charts ─────────────────────────────────────────────────────────────
@@ -1816,7 +1895,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('featured', this)">
       <span class="tile-num">2 · Featured on Apple News</span>
-      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic readers don't follow through.</p>
+      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower (directional, p≈0.10).</p>
       <p class="tile-action">→ Use "What to know" when targeting Featured specifically. Don't apply it broadly.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -1858,8 +1937,8 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('longitudinal', this)">
       <span class="tile-num">8 · Trends Over Time</span>
-      <p class="tile-claim">Formula performance shifts month to month. 2026 data (dotted lines) shows where momentum is changing now.</p>
-      <p class="tile-action">→ Review this chart monthly. Newer data should override older conclusions.</p>
+      <p class="tile-claim">Number leads improved from {NL_LIFT_EARLY:.2f}× to {NL_LIFT_LATE:.2f}× of baseline across 2025, continuing into 2026. Question format trended the opposite direction ({Q_LIFT_EARLY:.2f}× → {Q_LIFT_LATE:.2f}×).</p>
+      <p class="tile-action">→ Lean into number leads; deprioritize question-format headlines. Re-check quarterly as 2026 data accumulates.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
@@ -1935,7 +2014,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-featured">
         <h2>Finding 2 · Featured on Apple News</h2>
         <div class="callout">
-          <strong>Key tension:</strong> "What to know" gets featured by Apple at 1.81× the baseline rate — but non-featured WTN articles sit at only the 23rd percentile. Apple's recommendation algorithm favors the format; organic readers don't follow through. Use WTN specifically when chasing Featured placement, not as a general-purpose formula.
+          <strong>Key tension:</strong> "What to know" gets featured by Apple at 1.81× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional (p≈0.10, n=16 non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until organic performance data strengthens.
         </div>
         <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
         <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
@@ -2003,7 +2082,7 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Sport</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
           <tbody>{_t5}</tbody>
         </table>
-        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
+        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
       </div><!-- /#detail-topics -->
 
       <!-- DETAIL: ALLOCATION -->
@@ -2055,21 +2134,22 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-longitudinal">
         <h2>Finding 8 · Trends Over Time</h2>
         <div class="callout">
-          <strong>Action:</strong> The core formula rankings are stable across seasons. The longitudinal chart below shows whether the underperformance of number leads and questions has been consistent, or whether it is driven by a specific period. Monitor the changing formula ({YOY_CHANGING_FORMULA}) as 2026 data accumulates.
-          <br><br><em>Caveat:</em> 2026 data covers only Jan–Feb. Seasonal effects (e.g., peak news cycles, sports seasons) are not controlled. YoY comparison is directional only.
+          <strong>Key shift:</strong> Number leads improved from {NL_LIFT_EARLY:.2f}× to {NL_LIFT_LATE:.2f}× of the unclassified baseline across 2025, continuing into 2026 (nearly reaching parity). Question-format headlines moved the opposite direction ({Q_LIFT_EARLY:.2f}× early 2025 → {Q_LIFT_LATE:.2f}× most recent), widening their gap. The left chart shows rolling 3-month lift vs. the unclassified baseline. The right chart compares 2025 full-year vs. Jan–Feb 2026 for formulas with enough volume to compare.
+          <br><br><em>How to read "lift":</em> 1.0× = performs the same as unclassified headlines. 1.5× = median 50% above baseline. Baseline (1.0×) is shown as dashed line. Formulas with fewer than 10 articles in 2025 are suppressed in the YoY comparison.
         </div>
         <div class="chart-wrap">{c8}</div>
-        <h3>Year-over-Year: Jan–Feb 2025 vs. Jan–Feb 2026</h3>
-        <p>Comparing the same two-month window across years controls for seasonal effects. The table shows formula distribution, Featured rate, and median percentile rank for each formula.</p>
+        <h3>Year-over-Year: 2025 full year vs. Jan–Feb 2026</h3>
+        <p>Full-year 2025 baseline provides a much more stable denominator than Jan-Feb-only comparison. Formulas with n&lt;10 in 2025 are shown as suppressed — their apparent swings reflect noise, not signal.</p>
         <table class="findings">
           <thead><tr>
             <th>Formula</th>
-            <th>2025 n</th><th>2025 Featured</th><th>2025 Median %ile</th>
-            <th>2026 n</th><th>2026 Featured</th><th>2026 Median %ile</th>
+            <th>2025 n</th><th>2025 lift</th>
+            <th>2026 n</th><th>2026 lift</th>
+            <th>Change</th>
           </tr></thead>
           <tbody>{_t_yoy}</tbody>
         </table>
-        <p class="caveat">Longitudinal chart: only formula-months with n≥3 articles plotted. YoY comparison: 2025 Jan–Feb vs. all of 2026 (Jan–Feb only). Percentile ranks are computed within each year separately — cross-year percentile comparisons are directional. 2026 data through {REPORT_DATE}.</p>
+        <p class="caveat">Left chart: rolling 3-month windows, minimum 8 articles per formula per window, 2025-01 onward. Right chart / table: 2025 full year vs. 2026 Jan–Feb. Lift = formula median percentile_within_cohort ÷ untagged baseline median. Formulas with n&lt;10 in 2025 suppressed. 2026 data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
