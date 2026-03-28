@@ -1748,6 +1748,11 @@ _FORMULA_LABELS: dict[str, str] = {
     "quoted_lede":            "quoted lede",
     "untagged":               "no tracked formula",
 }
+# Capitalize first character of a formula label for use at the start of a sentence.
+# Uses slicing rather than .capitalize() to preserve casing in the rest of the string
+# (e.g. '"What to know"' must stay as-is, not become '"what to know"').
+def _cap_lbl(s: str) -> str:
+    return s[:1].upper() + s[1:] if s else s
 
 if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
     _team_med_pct = float(team_combined["percentile"].median())
@@ -1880,7 +1885,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                          and not _formula_sig else "")
             if _formula_sig:
                 _claim = (
-                    f"{_bfl} is associated with significantly higher cohort percentile than "
+                    f"{_cap_lbl(_bfl)} is associated with significantly higher cohort percentile than "
                     f"{_dom_label} in this author's own articles — {float(_best_f_row['med_pct']):.0%}ile "
                     f"vs. {_dom_med:.0%}ile, a {_gap_pts:.0f}-pt gap — yet {_dom_label} makes up "
                     f"{_dom_pct:.0%} of output."
@@ -1892,7 +1897,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                 )
             else:
                 _claim = (
-                    f"{_bfl} shows a {_gap_pts:.0f}-pt advantage over {_dom_label} in this author's "
+                    f"{_cap_lbl(_bfl)} shows a {_gap_pts:.0f}-pt advantage over {_dom_label} in this author's "
                     f"data ({float(_best_f_row['med_pct']):.0%}ile vs. {_dom_med:.0%}ile){_p_note}, "
                     f"but {_dom_label} is {_dom_pct:.0%} of output. Directional — small sample."
                 )
@@ -1910,7 +1915,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                                                str(_best_alt_row["formula"]).replace("_", " "))
                 if _formula_sig:
                     _claim = (
-                        f"{_dom_label} — {_dom_pct:.0%} of this author's output — is associated with "
+                        f"{_cap_lbl(_dom_label)} — {_dom_pct:.0%} of this author's output — is associated with "
                         f"significantly lower cohort percentile than {_alt_lbl}: "
                         f"{_dom_med:.0%}ile vs. {float(_best_alt_row['med_pct']):.0%}ile, "
                         f"a {_drag_pts:.0f}-pt drag."
@@ -1922,9 +1927,9 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                     )
                 else:
                     _claim = (
-                        f"{_dom_label} sits {_drag_pts:.0f} pts below this author's median "
+                        f"{_cap_lbl(_dom_label)} sits {_drag_pts:.0f} pts below this author's median "
                         f"({_dom_med:.0%}ile vs. {_med:.0%}ile){_p_note}. "
-                        f"{_alt_lbl} shows {float(_best_alt_row['med_pct']):.0%}ile. Directional — worth testing."
+                        f"{_cap_lbl(_alt_lbl)} shows {float(_best_alt_row['med_pct']):.0%}ile. Directional — worth testing."
                     )
                     _action = (
                         f"Trial {_alt_lbl} over {_dom_label} on the next several articles. "
@@ -1934,7 +1939,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             else:
                 _p_note2 = (f" (p={_formula_test_p:.2f})" if _formula_test_p is not None else "")
                 _claim = (
-                    f"{_dom_label} — {_dom_pct:.0%} of output — sits {_drag_pts:.0f} pts below "
+                    f"{_cap_lbl(_dom_label)} — {_dom_pct:.0%} of output — sits {_drag_pts:.0f} pts below "
                     f"this author's overall median{_p_note2}. No strong alternative formula yet in the data."
                 )
                 _action = (
@@ -1955,7 +1960,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                 _action = (
                     f"Concentrate output on {_best_plat} and reduce {_worst_plat} volume or "
                     f"reformat those headlines before syndication. "
-                    f"{_dom_label} is the current dominant format ({_dom_pct:.0%} of articles)."
+                    f"{_cap_lbl(_dom_label)} is the current dominant format ({_dom_pct:.0%} of articles)."
                 )
             else:
                 _claim = (
@@ -1965,7 +1970,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                 )
                 _action = (
                     f"Route the next 5+ articles through {_best_plat} first and track whether "
-                    f"the percentile gap persists. {_dom_label} is {_dom_pct:.0%} of current output."
+                    f"the percentile gap persists. {_cap_lbl(_dom_label)} is {_dom_pct:.0%} of current output."
                 )
         else:
             # Default: no formula or platform signal — lead with team-relative position + untagged note
@@ -1983,7 +1988,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             elif _delta_pts_signed >= 0:
                 _claim = (
                     f"{_delta_pts:.0f} pts above team median ({_med:.0%}ile). "
-                    f"{_dom_label} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile — "
+                    f"{_cap_lbl(_dom_label)} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile — "
                     f"no clear underperforming signal to act on."
                 )
                 _action = (
@@ -1994,7 +1999,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             else:
                 _claim = (
                     f"{_delta_pts:.0f} pts below team median ({_med:.0%}ile). "
-                    f"{_dom_label} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile — "
+                    f"{_cap_lbl(_dom_label)} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile — "
                     f"not enough formula variation yet to isolate the cause."
                 )
                 _action = (
@@ -4091,11 +4096,13 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
   container.id = containerId;
-  // visibility:hidden hides without affecting layout; children inherit it but the
-  // domtoimage style-override sets visibility:visible on the root before capture,
-  // which cascades to children (visibility IS inherited, unlike opacity).
+  // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
+  // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
+  // inlines opacity:1 on every child. The style:{opacity:'1'} override then makes the
+  // root visible too. visibility:hidden would be inherited by all children via
+  // getComputedStyle, causing blank output even after the root override.
   // No overflow:hidden — let content expand freely so scrollHeight is accurate.
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;visibility:hidden;' +
+  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
     'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
   var tileEl = _findTileForPanel(panelEl);
@@ -4125,7 +4132,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       domtoimage.toPng(container, {{
         width:  w,
         height: h,
-        style:  {{ visibility: 'visible' }},
+        style:  {{ opacity: '1' }},
         bgcolor: bg
       }}).then(function(dataUrl) {{
         _cleanupContainer(containerId);
@@ -4720,7 +4727,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
   container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;visibility:hidden;' +
+  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
     'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
   var tileEl = _findTileForPanel(panelEl);
@@ -4749,7 +4756,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       domtoimage.toPng(container, {{
         width:  w,
         height: h,
-        style:  {{ visibility: 'visible' }},
+        style:  {{ opacity: '1' }},
         bgcolor: bg
       }}).then(function(dataUrl) {{
         _cleanupContainer2(containerId);
@@ -5117,7 +5124,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
   container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;visibility:hidden;' +
+  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
     'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
   var tileEl = _findTileForPanel(panelEl);
@@ -5146,7 +5153,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       domtoimage.toPng(container, {{
         width:  w,
         height: h,
-        style:  {{ visibility: 'visible' }},
+        style:  {{ opacity: '1' }},
         bgcolor: bg
       }}).then(function(dataUrl) {{
         _cleanupContainer3(containerId);
