@@ -81,3 +81,12 @@ Tell the user:
 | `DATA_2025` | `Top syndication content 2025.xlsx` |
 | `DATA_2026` | `Top Stories 2026 Syndication.xlsx` |
 | `TRACKER` | `Tracker Template.xlsx` (optional) |
+
+## Python environment
+
+All dependencies are in `requirements.txt`. On a new machine:
+```bash
+pip3 install -r requirements.txt
+```
+
+The build report shows which optional packages are active (statsmodels ✓/✗, sklearn ✓/✗, polars ✓/✗, pingouin ✓/✗). If any show ✗, the pipeline still runs but with reduced analytical capability — install missing packages to restore full output.
