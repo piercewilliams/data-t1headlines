@@ -569,6 +569,256 @@ def classify_number_lead(text: str) -> "dict | None":
     return dict(raw=raw, value=val, ntype=ntype, roundness=roundness)
 
 
+# ── Nav generation ────────────────────────────────────────────────────────────
+# Single source of truth for the site-wide navigation bar.
+# Any page that needs a nav block calls _build_nav() — no hardcoded HTML.
+
+_NAV_PAGES = [
+    ("Current Analysis", ""),          # "" = root (docs/)
+    ("Editorial Playbooks", "playbook"),
+    ("Author Playbooks",    "author-playbooks"),
+    ("Experiments",         "experiments"),
+]
+
+def _build_nav(active: str, depth: int, theme_toggle: bool = False) -> str:
+    """Generate consistent nav HTML for any page.
+
+    Args:
+        active:       Page name matching a key in _NAV_PAGES (e.g. "Current Analysis").
+        depth:        Directory depth from docs/ root.  0 = root, 1 = subdirectory.
+        theme_toggle: True only for the main page; emits the dark-mode toggle button.
+
+    Returns:
+        A fully-formed <nav>...</nav> HTML string.
+    """
+    prefix = "../" * depth
+    links = []
+    for name, slug in _NAV_PAGES:
+        if slug:
+            href = prefix + slug + "/"
+        else:
+            href = prefix + "./" if depth > 0 else "./"
+        cls = ' class="nav-active"' if name == active else ""
+        links.append(f'    <a href="{href}"{cls}>{name}</a>')
+    links_html = "\n".join(links)
+    meta = ""
+    if theme_toggle:
+        meta = (
+            '\n  <div class="nav-meta">\n'
+            '    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
+            'aria-label="Toggle dark mode">\U0001f319</button>\n'
+            '  </div>'
+        )
+    return (
+        f'<nav>\n'
+        f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
+        f'  <div class="nav-links">\n'
+        f'{links_html}\n'
+        f'  </div>{meta}\n'
+        f'</nav>'
+    )
+
+
+def _make_export_js(
+    suffix: str = "",
+    tile_cleanup_selector: str = ".tile-more,.export-btn-wrap",
+    heading_query: str = "h2",
+    filename_prefix: str = "headline-analysis-",
+) -> str:
+    """Generate the _findTileForPanel + _exportPanel JS block for one page.
+
+    Each of the three site pages (main, playbook, author-playbooks) has its own
+    copy of this logic so local JS variables don't clash.  The differences are:
+
+        suffix               — appended to _tfl, _tlEl, _toast, _showResult,
+                               _cleanupContainer, _origTitle, _afterPrint ("", "2", "3").
+        tile_cleanup_selector — CSS selector for elements to strip from the tile
+                               clone before capture.  Each page's tile markup
+                               includes different non-print controls.
+        heading_query        — querySelector used as the panel-heading fallback
+                               when no .tile-label is present.
+        filename_prefix      — prefix for the downloaded PNG filename.
+
+    Returns plain JS (with single { } — safe to embed as {_make_export_js(...)}
+    inside an outer Python f-string).
+    """
+    s = suffix  # short alias
+
+    # _showResult for suffix="" uses a named `delay` var (historical); others use inline ternary.
+    if s == "":
+        show_result_body = (
+            f"  function _showResult{s}(msg, isErr) {{\n"
+            f"    _toast{s}.textContent = msg;\n"
+            f"    _toast{s}.style.color = isErr ? '#f87171' : '#4ade80';\n"
+            f"    var delay = isErr ? 7000 : 3000;\n"
+            f"    setTimeout(function() {{\n"
+            f"      _toast{s}.style.opacity = '0';\n"
+            f"      setTimeout(function() {{ if (_toast{s}.parentNode) _toast{s}.remove(); }}, 350);\n"
+            f"    }}, delay);\n"
+            f"  }}"
+        )
+    else:
+        show_result_body = (
+            f"  function _showResult{s}(msg, isErr) {{\n"
+            f"    _toast{s}.textContent = msg;\n"
+            f"    _toast{s}.style.color = isErr ? '#f87171' : '#4ade80';\n"
+            f"    setTimeout(function() {{\n"
+            f"      _toast{s}.style.opacity = '0';\n"
+            f"      setTimeout(function() {{ if (_toast{s}.parentNode) _toast{s}.remove(); }}, 350);\n"
+            f"    }}, isErr ? 7000 : 3000);\n"
+            f"  }}"
+        )
+
+    return f"""function _findTileForPanel(panelEl) {{
+  var pid = panelEl.id || '';
+  var shortId = pid.indexOf('detail-') === 0 ? pid.replace('detail-', '') : pid;
+  var tileEl = null;
+  document.querySelectorAll('.tile,.pb-tile').forEach(function(t) {{
+    if ((t.getAttribute('onclick') || '').indexOf(shortId) >= 0) tileEl = t;
+  }});
+  return tileEl;
+}}
+
+function _exportPanel(panelEl, format, dropdownEl) {{
+  if (dropdownEl) dropdownEl.style.display = 'none';
+  var _tfl{s} = _findTileForPanel(panelEl);
+  var _tlEl{s} = _tfl{s} ? _tfl{s}.querySelector('.tile-label') : null;
+  var title = _tlEl{s} ? _tlEl{s}.textContent.trim()
+            : (panelEl.querySelector('{heading_query}') ? panelEl.querySelector('{heading_query}').textContent.trim()
+            : (panelEl.id || 'export'));
+  var slug  = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date  = new Date().toISOString().slice(0, 10);
+
+  var _toast{s} = document.createElement('div');
+  _toast{s}.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
+    'border:1px solid #334155;color:#94a3b8;padding:12px 20px;border-radius:10px;font-size:13px;' +
+    'font-family:inherit;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:opacity 0.3s;';
+  _toast{s}.textContent = (format === 'pdf' ? 'Generating PDF' : 'Generating PNG') + '\u2026';
+  document.body.appendChild(_toast{s});
+{show_result_body}
+  function _cleanupContainer{s}(id) {{
+    var el = document.getElementById(id); if (el) el.remove();
+  }}
+
+  if (typeof domtoimage === 'undefined') {{
+    _showResult{s}('Export unavailable: rendering library not loaded', true);
+    return;
+  }}
+
+  // Re-apply the current theme to all Plotly charts before cloning.
+  // Charts inside closed panels are skipped when _rethemeCharts normally runs
+  // (Plotly.relayout throws on display:none elements). Now that this panel is
+  // open, force a re-theme so the clone captures correct dark/light colors.
+  if (typeof _rethemeCharts === 'function') {{
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
+  }}
+
+  var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+  var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
+
+  // Wait 2 frames for Plotly to finish its async redraws before cloning,
+  // so the clone captures the correctly-themed chart SVGs.
+  requestAnimationFrame(function() {{
+    requestAnimationFrame(function() {{
+      var container = document.createElement('div');
+      container.id = containerId;
+      // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
+      // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
+      // inlines opacity:1 on every child. The style:{{opacity:'1'}} override then makes the
+      // root visible too. visibility:hidden would be inherited by all children via
+      // getComputedStyle, causing blank output even after the root override.
+      // No overflow:hidden — let content expand freely so scrollHeight is accurate.
+      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
+        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
+
+      var tileEl = _findTileForPanel(panelEl);
+      if (tileEl) {{
+        var tc = tileEl.cloneNode(true);
+        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+          'width:100%;box-sizing:border-box;border-bottom:none;';
+        tc.querySelectorAll('{tile_cleanup_selector}').forEach(function(el) {{ el.remove(); }});
+        container.appendChild(tc);
+      }}
+      var pc = panelEl.cloneNode(true);
+      pc.style.display = 'block';
+      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(pc);
+      document.body.appendChild(container);
+
+  // Second double rAF ensures layout is committed before we measure dimensions.
+  requestAnimationFrame(function() {{
+    requestAnimationFrame(function() {{
+      var w = container.offsetWidth || 1100;
+      var h = container.offsetHeight || container.scrollHeight;
+      if (h < 10) {{
+        _cleanupContainer{s}(containerId);
+        _showResult{s}('Export failed: panel has no height (layout issue)', true);
+        return;
+      }}
+      domtoimage.toPng(container, {{
+        width:  w,
+        height: h,
+        style:  {{ opacity: '1' }},
+        bgcolor: bg
+      }}).then(function(dataUrl) {{
+        _cleanupContainer{s}(containerId);
+        if (format === 'pdf') {{
+          var printDiv = document.createElement('div');
+          printDiv.id = '_exp_print';
+          var img = document.createElement('img');
+          img.style.cssText = 'width:100%;display:block;';
+          printDiv.appendChild(img);
+          document.body.appendChild(printDiv);
+          var style = document.createElement('style');
+          style.id = '_exp_style';
+          style.textContent = '@page{{margin:0;size:' + w + 'px ' + h + 'px}}@media print{{html,body{{height:' + h + 'px!important;overflow:hidden!important}}body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0;margin:0}}#_exp_print img{{width:100%!important;height:auto!important;display:block!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
+          document.head.appendChild(style);
+          var _origTitle{s} = document.title;
+          document.title = title;
+          function _afterPrint{s}() {{
+            var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
+            if (pw) pw.remove(); if (ps) ps.remove();
+            document.title = _origTitle{s};
+            window.removeEventListener('afterprint', _afterPrint{s});
+          }}
+          window.addEventListener('afterprint', _afterPrint{s});
+          img.onload = function() {{
+            _showResult{s}('PDF dialog opened \u2014 print or save from browser', false);
+            window.print();
+          }};
+          img.src = dataUrl;
+        }} else {{
+          // Blob URL required — Safari silently blocks a.download with data: URLs.
+          try {{
+            var arr = dataUrl.split(',');
+            var mime = (arr[0].match(/:(.*?);/) || [,'image/png'])[1];
+            var bstr = atob(arr[1]); var n = bstr.length; var u8 = new Uint8Array(n);
+            while (n--) u8[n] = bstr.charCodeAt(n);
+            var blob = new Blob([u8], {{type: mime}});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = '{filename_prefix}' + slug + '-' + date + '.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function() {{ URL.revokeObjectURL(url); }}, 2000);
+            _showResult{s}('PNG downloaded', false);
+          }} catch(dlErr) {{
+            _showResult{s}('Export failed: ' + (dlErr.message || String(dlErr)), true);
+            console.error('[Export] download error:', dlErr);
+          }}
+        }}
+      }}).catch(function(err) {{
+        _cleanupContainer{s}(containerId);
+        var msg = err && err.message ? err.message : (err ? String(err) : 'unknown error');
+        _showResult{s}('Export failed: ' + msg, true);
+        console.error('[Export] domtoimage error:', err);
+      }});
+    }});
+  }});
+    }});
+  }});
+}}"""
+
+
 # ── Statistical helpers ───────────────────────────────────────────────────────
 def bh_correct(pvals: "list[float]") -> "list[float]":
     """Apply Benjamini-Hochberg FDR correction. Returns adjusted p-values in the same order."""
@@ -3574,18 +3824,7 @@ html = f"""<!DOCTYPE html>
 </head>
 <body class="theme-{THEME}">
 
-<nav>
-  <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <div class="nav-links">
-    <a href="./" class="nav-active">Current Analysis</a>
-    <a href="playbook/">Editorial Playbooks</a>
-    <a href="author-playbooks/">Author Playbooks</a>
-    <a href="experiments/">Experiments</a>
-  </div>
-  <div class="nav-meta">
-    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
-  </div>
-</nav>
+{_build_nav("Current Analysis", 0, theme_toggle=True)}
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
@@ -4146,167 +4385,7 @@ function closeDetail() {{
 // PDF: renders the same container to PNG first, then prints it as an image.
 //      Printing a raster <img> preserves exact pixel colors; background stripping
 //      does not apply, so dark-mode panels print correctly.
-function _exportPanel(panelEl, format, dropdownEl) {{
-  if (dropdownEl) dropdownEl.style.display = 'none';
-  // Prefer the tile label (concise, specific) over the panel heading.
-  var _tfl = _findTileForPanel(panelEl);
-  var _tlEl = _tfl ? _tfl.querySelector('.tile-label') : null;
-  var title = _tlEl ? _tlEl.textContent.trim()
-            : (panelEl.querySelector('h2') ? panelEl.querySelector('h2').textContent.trim()
-            : (panelEl.id || 'export'));
-  var slug  = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
-  var date  = new Date().toISOString().slice(0, 10);
-
-  // Show status toast immediately so the user sees something is happening.
-  var _toast = document.createElement('div');
-  _toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
-    'border:1px solid #334155;color:#94a3b8;padding:12px 20px;border-radius:10px;font-size:13px;' +
-    'font-family:inherit;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:opacity 0.3s;';
-  _toast.textContent = (format === 'pdf' ? 'Generating PDF' : 'Generating PNG') + '\u2026';
-  document.body.appendChild(_toast);
-  function _showResult(msg, isErr) {{
-    _toast.textContent = msg;
-    _toast.style.color = isErr ? '#f87171' : '#4ade80';
-    var delay = isErr ? 7000 : 3000;
-    setTimeout(function() {{
-      _toast.style.opacity = '0';
-      setTimeout(function() {{ if (_toast.parentNode) _toast.remove(); }}, 350);
-    }}, delay);
-  }}
-  function _cleanupContainer(id) {{
-    var el = document.getElementById(id); if (el) el.remove();
-  }}
-
-  if (typeof domtoimage === 'undefined') {{
-    _showResult('Export unavailable: rendering library not loaded', true);
-    return;
-  }}
-
-  // Re-apply the current theme to all Plotly charts before cloning.
-  // Charts inside closed panels are skipped when _rethemeCharts normally runs
-  // (Plotly.relayout throws on display:none elements). Now that this panel is
-  // open, force a re-theme so the clone captures correct dark/light colors.
-  if (typeof _rethemeCharts === 'function') {{
-    _rethemeCharts(document.body.classList.contains('theme-dark'));
-  }}
-
-  var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
-  var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
-
-  // Wait 2 frames for Plotly to finish its async redraws before cloning,
-  // so the clone captures the correctly-themed chart SVGs.
-  requestAnimationFrame(function() {{
-    requestAnimationFrame(function() {{
-      var container = document.createElement('div');
-      container.id = containerId;
-      // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
-      // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
-      // inlines opacity:1 on every child. The style:{{opacity:'1'}} override then makes the
-      // root visible too. visibility:hidden would be inherited by all children via
-      // getComputedStyle, causing blank output even after the root override.
-      // No overflow:hidden — let content expand freely so scrollHeight is accurate.
-      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
-        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
-
-      var tileEl = _findTileForPanel(panelEl);
-      if (tileEl) {{
-        var tc = tileEl.cloneNode(true);
-        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-          'width:100%;box-sizing:border-box;border-bottom:none;';
-        tc.querySelectorAll('.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-        container.appendChild(tc);
-      }}
-      var pc = panelEl.cloneNode(true);
-      pc.style.display = 'block';
-      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-      container.appendChild(pc);
-      document.body.appendChild(container);
-
-  // Second double rAF ensures layout is committed before we measure dimensions.
-  requestAnimationFrame(function() {{
-    requestAnimationFrame(function() {{
-      var w = container.offsetWidth || 1100;
-      var h = container.offsetHeight || container.scrollHeight;
-      if (h < 10) {{
-        _cleanupContainer(containerId);
-        _showResult('Export failed: panel has no height (layout issue)', true);
-        return;
-      }}
-      domtoimage.toPng(container, {{
-        width:  w,
-        height: h,
-        style:  {{ opacity: '1' }},
-        bgcolor: bg
-      }}).then(function(dataUrl) {{
-        _cleanupContainer(containerId);
-        if (format === 'pdf') {{
-          var printDiv = document.createElement('div');
-          printDiv.id = '_exp_print';
-          var img = document.createElement('img');
-          img.style.cssText = 'width:100%;display:block;';
-          printDiv.appendChild(img);
-          document.body.appendChild(printDiv);
-          var style = document.createElement('style');
-          style.id = '_exp_style';
-          style.textContent = '@page{{margin:0;size:' + w + 'px ' + h + 'px}}@media print{{html,body{{height:' + h + 'px!important;overflow:hidden!important}}body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0;margin:0}}#_exp_print img{{width:100%!important;height:auto!important;display:block!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
-          document.head.appendChild(style);
-          var _origTitle = document.title;
-          document.title = title;
-          function _afterPrint() {{
-            var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
-            if (pw) pw.remove(); if (ps) ps.remove();
-            document.title = _origTitle;
-            window.removeEventListener('afterprint', _afterPrint);
-          }}
-          window.addEventListener('afterprint', _afterPrint);
-          img.onload = function() {{
-            _showResult('PDF dialog opened \u2014 print or save from browser', false);
-            window.print();
-          }};
-          img.src = dataUrl;
-        }} else {{
-          // Blob URL required — Safari silently blocks a.download with data: URLs.
-          try {{
-            var arr = dataUrl.split(',');
-            var mime = (arr[0].match(/:(.*?);/) || [,'image/png'])[1];
-            var bstr = atob(arr[1]); var n = bstr.length; var u8 = new Uint8Array(n);
-            while (n--) u8[n] = bstr.charCodeAt(n);
-            var blob = new Blob([u8], {{type: mime}});
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url; a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(function() {{ URL.revokeObjectURL(url); }}, 2000);
-            _showResult('PNG downloaded', false);
-          }} catch(dlErr) {{
-            _showResult('Export failed: ' + (dlErr.message || String(dlErr)), true);
-            console.error('[Export] download error:', dlErr);
-          }}
-        }}
-      }}).catch(function(err) {{
-        _cleanupContainer(containerId);
-        var msg = err && err.message ? err.message : (err ? String(err) : 'unknown error');
-        _showResult('Export failed: ' + msg, true);
-        console.error('[Export] domtoimage error:', err);
-      }});
-    }});
-  }});
-    }});
-  }});
-}}
-
-// Find the tile element (summary card) associated with a given detail panel.
-// Main page: panel id="detail-formulas" → tile with onclick containing 'formulas'
-// Playbook:  panel id="pb-1"           → tile with onclick containing 'pb-1'
-function _findTileForPanel(panelEl) {{
-  var pid = panelEl.id || '';
-  var shortId = pid.indexOf('detail-') === 0 ? pid.replace('detail-', '') : pid;
-  var tileEl = null;
-  document.querySelectorAll('.tile,.pb-tile').forEach(function(t) {{
-    if ((t.getAttribute('onclick') || '').indexOf(shortId) >= 0) tileEl = t;
-  }});
-  return tileEl;
-}}
+{_make_export_js("", ".tile-more,.export-btn-wrap", "h2", "headline-analysis-")}
 
 (function() {{
   document.addEventListener('DOMContentLoaded', function() {{
@@ -4605,15 +4684,7 @@ playbook_html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
-<nav>
-  <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <div class="nav-links">
-    <a href="../">Current Analysis</a>
-    <a href="../playbook/" class="nav-active">Editorial Playbooks</a>
-    <a href="../author-playbooks/">Author Playbooks</a>
-    <a href="../experiments/">Experiments</a>
-  </div>
-</nav>
+{_build_nav("Editorial Playbooks", 1)}
 <div class="container">
 
 <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
@@ -5130,15 +5201,7 @@ author_pb_html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
-<nav>
-  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>
-  <div class="nav-links">
-    <a href="../">Current Analysis</a>
-    <a href="../playbook/">Editorial Playbooks</a>
-    <a href="../author-playbooks/" class="nav-active">Author Playbooks</a>
-    <a href="../experiments/">Experiments</a>
-  </div>
-</nav>
+{_build_nav("Author Playbooks", 1)}
 {_ap_body}
 <script>
 var _openTile = null, _openPanel = null;
