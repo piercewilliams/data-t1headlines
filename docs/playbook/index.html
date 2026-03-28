@@ -413,100 +413,111 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
   var date    = new Date().toISOString().slice(0, 10);
 
-  if (format === 'pdf') {
-    // Render to PNG first, then print the image. Raster pixels preserve exact
-    // colors regardless of browser print-color-adjust settings—dark backgrounds
-    // stay intact rather than being stripped to white.
-    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
-    var container = document.createElement('div');
-    container.id = '_exp_print_src';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
-      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
-    var _pdfTile = _findTileForPanel(panelEl);
-    if (_pdfTile) {
-      var _tc = _pdfTile.cloneNode(true);
-      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-        'width:100%;box-sizing:border-box;border-bottom:none;';
-      _tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
-      container.appendChild(_tc);
-    }
-    var _pc = panelEl.cloneNode(true);
-    _pc.style.display = 'block';
-    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
-    container.appendChild(_pc);
-    document.body.appendChild(container);
-    domtoimage.toPng(container, {
-      width:  container.offsetWidth,
-      height: container.scrollHeight,
-      style:  { position: 'relative', left: '0', top: '0' },
-      bgcolor: bg
-    }).then(function(dataUrl) {
-      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
-      var printDiv = document.createElement('div');
-      printDiv.id = '_exp_print';
-      var img = document.createElement('img');
-      img.src = dataUrl;
-      img.style.cssText = 'width:100%;display:block;';
-      printDiv.appendChild(img);
-      document.body.appendChild(printDiv);
-      var style = document.createElement('style');
-      style.id = '_exp_style';
-      style.textContent = [
-        '@page { margin: 0; }',
-        '@media print {',
-        '  body > *:not(#_exp_print) { display: none !important; }',
-        '  #_exp_print { display: block !important; padding: 0; }',
-        '  #_exp_print img { width: 100% !important; height: auto !important;',
-        '    -webkit-print-color-adjust: exact !important;',
-        '    print-color-adjust: exact !important; }'  ,
-        '}'
-      ].join('\n');
-      document.head.appendChild(style);
-      function _cleanup() {
-        var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
-        if (w) w.remove(); if (s) s.remove();
-        window.removeEventListener('afterprint', _cleanup);
-      }
-      window.addEventListener('afterprint', _cleanup);
-      window.print();
-    }).catch(function(err) {
-      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
-      console.error('PDF export failed:', err);
-    });
-  } else {
-    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
-    var container = document.createElement('div');
-    container.id = '_exp_png';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
-      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
-    var tileEl = _findTileForPanel(panelEl);
-    if (tileEl) {
-      var tc = tileEl.cloneNode(true);
-      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;width:100%;box-sizing:border-box;border-bottom:none;';
-      tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
-      container.appendChild(tc);
-    }
-    var pc = panelEl.cloneNode(true);
-    pc.style.display = 'block';
-    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
-    container.appendChild(pc);
-    document.body.appendChild(container);
-    domtoimage.toPng(container, {
-      width:  container.offsetWidth,
-      height: container.scrollHeight,
-      style:  { position: 'relative', left: '0', top: '0' },
-      bgcolor: bg
-    }).then(function(dataUrl) {
-      var c = document.getElementById('_exp_png'); if (c) c.remove();
-      var a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }).catch(function(err) {
-      var c = document.getElementById('_exp_png'); if (c) c.remove();
-      console.error('PNG export failed:', err);
-    });
+  var _toast2 = document.createElement('div');
+  _toast2.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
+    'border:1px solid #334155;color:#94a3b8;padding:12px 20px;border-radius:10px;font-size:13px;' +
+    'font-family:inherit;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:opacity 0.3s;';
+  _toast2.textContent = (format === 'pdf' ? 'Generating PDF' : 'Generating PNG') + '…';
+  document.body.appendChild(_toast2);
+  function _showResult2(msg, isErr) {
+    _toast2.textContent = msg;
+    _toast2.style.color = isErr ? '#f87171' : '#4ade80';
+    setTimeout(function() {
+      _toast2.style.opacity = '0';
+      setTimeout(function() { if (_toast2.parentNode) _toast2.remove(); }, 350);
+    }, isErr ? 7000 : 3000);
   }
+  function _cleanupContainer2(id) {
+    var el = document.getElementById(id); if (el) el.remove();
+  }
+
+  if (typeof domtoimage === 'undefined') {
+    _showResult2('Export unavailable: rendering library not loaded', true);
+    return;
+  }
+
+  var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+  var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
+  var container = document.createElement('div');
+  container.id = containerId;
+  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;visibility:hidden;' +
+    'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
+
+  var tileEl = _findTileForPanel(panelEl);
+  if (tileEl) {
+    var tc = tileEl.cloneNode(true);
+    tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+      'width:100%;box-sizing:border-box;border-bottom:none;';
+    tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
+    container.appendChild(tc);
+  }
+  var pc = panelEl.cloneNode(true);
+  pc.style.display = 'block';
+  pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+  container.appendChild(pc);
+  document.body.appendChild(container);
+
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      var w = container.offsetWidth || 1100;
+      var h = container.offsetHeight || container.scrollHeight;
+      if (h < 10) {
+        _cleanupContainer2(containerId);
+        _showResult2('Export failed: panel has no height (layout issue)', true);
+        return;
+      }
+      domtoimage.toPng(container, {
+        width:  w,
+        height: h,
+        style:  { visibility: 'visible' },
+        bgcolor: bg
+      }).then(function(dataUrl) {
+        _cleanupContainer2(containerId);
+        if (format === 'pdf') {
+          var printDiv = document.createElement('div');
+          printDiv.id = '_exp_print';
+          var img = document.createElement('img');
+          img.src = dataUrl; img.style.cssText = 'width:100%;display:block;';
+          printDiv.appendChild(img);
+          document.body.appendChild(printDiv);
+          var style = document.createElement('style');
+          style.id = '_exp_style';
+          style.textContent = '@page{margin:0}@media print{body>*:not(#_exp_print){display:none!important}#_exp_print{display:block!important;padding:0}#_exp_print img{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}';
+          document.head.appendChild(style);
+          function _afterPrint2() {
+            var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
+            if (pw) pw.remove(); if (ps) ps.remove();
+            window.removeEventListener('afterprint', _afterPrint2);
+          }
+          window.addEventListener('afterprint', _afterPrint2);
+          _showResult2('PDF dialog opened—print or save from browser', false);
+          window.print();
+        } else {
+          try {
+            var arr = dataUrl.split(',');
+            var mime = (arr[0].match(/:(.*?);/) || [,'image/png'])[1];
+            var bstr = atob(arr[1]); var n = bstr.length; var u8 = new Uint8Array(n);
+            while (n--) u8[n] = bstr.charCodeAt(n);
+            var blob = new Blob([u8], {type: mime});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'headline-analysis-' + slug + '-' + date + '.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+            _showResult2('PNG downloaded', false);
+          } catch(dlErr) {
+            _showResult2('Export failed: ' + (dlErr.message || String(dlErr)), true);
+            console.error('[Export] download error:', dlErr);
+          }
+        }
+      }).catch(function(err) {
+        _cleanupContainer2(containerId);
+        var msg = err && err.message ? err.message : (err ? String(err) : 'unknown error');
+        _showResult2('Export failed: ' + msg, true);
+        console.error('[Export] domtoimage error:', err);
+      });
+    });
+  });
 }
 
 (function() {
