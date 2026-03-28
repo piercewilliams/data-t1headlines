@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — all 9 findings live, playbook, author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-28 (DRY refactor — nav + export JS)
+**Last session:** 2026-03-28 (charts, tooltips, author tiles, finding framing, experiment automation)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -56,6 +56,20 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads
 
 ## Session Log
+
+**2026-03-28: Charts, tooltips, author tiles, finding framing, experiment automation**
+- Wired build report display for `_audit_warnings`, `_palette_warnings`, `_formula_warnings`
+- Fixed Plotly.restyle double-wrap bug: per-bar color arrays must be passed as `[mc]` not `mc` (all bars were rendering as the first color in light mode)
+- Fixed export background: read from `document.body` instead of panel element (panels have `rgba(0,0,0,0)` — dark mode exported as white)
+- Added color legends to fig1–fig4: `_lift_legend_traces()`, `_sn_legend_traces()`, `_LEGEND_BELOW` shared constant; dummy `go.Scatter` traces generate legend entries for single-trace per-bar-color charts
+- Added `_check_chart_legends()` build guardrail — fails if any chart uses per-bar colors without `showlegend=True`
+- Added `_COL_TOOLTIPS` dict (~70 entries) + `_make_col_tooltip_js()` — hovering any `<th>` shows a floating plain-English tooltip; injected into all 3 pages
+- Added `_check_col_tooltips()` build guardrail — fails if any rendered `<th>` has no matching tooltip
+- Reframed F4 tile: leads with short-notification counter-finding (≤80 chars = 39% fewer clicks) rather than obvious EXCLUSIVE lift
+- Reframed F7 tile: Apple News-specific two-strategy framing (reach vs. depth) rather than generic correlation statement
+- Fixed author tile callout: replaced hardcoded dark hex values with CSS variables; added "Recommended actions this round" header; structured DO/TRY list driven by confidence badge
+- Added step 4b to `ingest.py`: discovers and regenerates all `experiments/*.md` spec files so nav/theme/export JS stay in sync on every ingest
+- README fully updated: pipeline diagram, audit suite, tooltip/legend design decisions, experiment automation, triage table
 
 **2026-03-28: DRY refactor (nav + export JS)**
 - Added `_NAV_PAGES` + `_build_nav()` to `generate_site.py` — replaced 3 hardcoded nav blocks (~40 lines each → 1 call each)
