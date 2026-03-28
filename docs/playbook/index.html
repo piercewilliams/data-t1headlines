@@ -482,7 +482,12 @@ function _exportPanel(panelEl, format, dropdownEl) {
     _rethemeCharts(document.body.classList.contains('theme-dark'));
   }
 
-  var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+  // Panels have no explicit background—getComputedStyle returns rgba(0,0,0,0).
+  // Read from document.body instead, which always has --bg resolved.
+  var _rawBg = getComputedStyle(document.body).backgroundColor;
+  var bg = (_rawBg && _rawBg !== 'rgba(0, 0, 0, 0)' && _rawBg !== 'transparent')
+    ? _rawBg
+    : (document.body.classList.contains('theme-dark') ? '#0f172a' : '#ffffff');
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
   // Wait 100 ms for Plotly to finish all async redraws before cloning.
