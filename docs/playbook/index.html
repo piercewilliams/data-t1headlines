@@ -127,32 +127,32 @@
   <div class="pb-tile" onclick="togglePb(this,'pb-2')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News · Featured Targeting</span>
-    <p class="tile-claim">"What to know" drives 1.8× Featured placement. But for non-Featured articles, organic view performance trends lower (p<sub>adj</sub>=0.12).</p>
-    <p class="tile-action">→ Reserve "What to know" for intentional Featured campaigns. Don't apply it broadly for organic reach.</p>
+    <p class="tile-claim">“What to know” is associated with 1.8× Featured placement. But for non-Featured articles, organic view performance trends lower (p<sub>adj</sub>=0.12, not significant at α=0.05, n=16).</p>
+    <p class="tile-action">→ Reserve “What to know” for intentional Featured campaigns. Don’t apply it broadly for organic reach.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
   <div class="pb-tile" onclick="togglePb(this,'pb-3')">
-    <span class="conf-badge conf-high">High confidence · most actionable</span>
+    <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">SmartNews · Channel Allocation</span>
-    <p class="tile-claim">Entertainment receives 36% of SmartNews volume at the lowest ROI. Local and U.S. National deliver 1.85× and 1.81× on far less.</p>
-    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required — reframe what's already being published.</p>
+    <p class="tile-claim">Entertainment receives 36% of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver 1.85× and 1.81× on far less.</p>
+    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required — reframe what’s already being published.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News · Headline Length</span>
+    <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</p>
+    <p class="tile-action">→ Don’t truncate. The ≤80 char rule applies to push notifications only — not to article headlines.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
   <div class="pb-tile" onclick="togglePb(this,'pb-4')">
     <span class="conf-badge conf-mod">Moderate · Jan–Feb 2026 only</span>
     <span class="tile-label">Push Notifications</span>
-    <p class="tile-claim">5 features show significant CTR lift after multiple-comparison correction. "EXCLUSIVE:" and possessive framing are the top signals.</p>
-    <p class="tile-action">→ Lead genuine scoops with "EXCLUSIVE:"; use possessive framing; write ≥80 characters to give readers context before the tap.</p>
-    <span class="tile-toggle">Details ↓</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge conf-mod">Moderate</span>
-    <span class="tile-label">Apple News · Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</p>
-    <p class="tile-action">→ Don't truncate. The ≤80 char rule applies to push notifications only — not to article headlines.</p>
+    <p class="tile-claim">5 features show significant CTR lift after multiple-comparison correction. “EXCLUSIVE:” and possessive framing are the top signals.</p>
+    <p class="tile-action">→ Lead genuine scoops with “EXCLUSIVE:”; use possessive framing; write ≥80 characters to give readers context before the tap.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -163,7 +163,7 @@
 <div id="pb-1" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
+    <li><strong>Possessive + named entity</strong> on crime and business is associated with the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
     <li><strong>Number leads:</strong> use specific figures in the 11–20 range. Round numbers score 13 percentile points below specific numbers (p=0.04 * after BH-FDR).</li>
     <li><strong>Avoid question format</strong> for organic reach — underperforms 0.65× baseline (p<sub>adj</sub>&lt;0.001 ***). Reserve for Featured targeting if "What to know" is unavailable.</li>
     <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is 80 chars.</li>
@@ -194,7 +194,7 @@
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is 1.8×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.12, directional only).</li>
+    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is 1.8×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.12, not significant at α=0.05, n=16).</li>
     <li><strong>Featured articles drive 3.1× views vs. non-Featured</strong> — treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
     <li><strong>Don't apply "What to know" broadly</strong> — the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
   </ul>
@@ -214,8 +214,8 @@
 <div id="pb-3" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× ROI respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
-    <li><strong>Reduce Entertainment volume</strong>: 36% of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× median percentile rank respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+    <li><strong>Reduce Entertainment volume</strong>: 36% of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
     <li><strong>Sports underperforms</strong> (0.77× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
     <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>

@@ -233,6 +233,38 @@ def required_n_80pct(r_rb):
     return math.ceil(1.05 * 15.69 / d ** 2)
 
 
+# ── Rigor infrastructure ──────────────────────────────────────────────────────
+_RIGOR_WARNINGS: list = []
+
+def _rigor_warn(section: str, msg: str) -> None:
+    _RIGOR_WARNINGS.append(f"[{section}] {msg}")
+
+def _conf_level(p_adj=None, n=None, n_platforms=1, p_raw=None):
+    """Return (css_class, label) based on consistent statistical criteria.
+
+    High:         p_adj < 0.05, n ≥ 100, replicated on ≥ 2 platforms
+    Moderate:     p_adj < 0.05, n ≥ 20  OR  p_raw < 0.10, n ≥ 100
+    Directional:  p < 0.10 or untested, n ≥ 10
+    Insufficient: n < 10
+    """
+    if n is not None and n < 10:
+        return "conf-dir", "Insufficient data"
+    if p_adj is not None and p_adj < 0.05:
+        if (n is None or n >= 100) and n_platforms >= 2:
+            return "conf-high", "High confidence"
+        if n is not None and n >= 20:
+            return "conf-mod", "Moderate"
+        return "conf-mod", "Moderate"
+    if p_raw is not None and p_raw < 0.10 and n is not None and n >= 100:
+        return "conf-mod", "Moderate"
+    return "conf-dir", "Directional"
+
+def _require_test(section: str, p_adj, n_a: int, n_b: int = 0) -> None:
+    """Emit a build-time warning if a group comparison lacks a significance test."""
+    if p_adj is None or (isinstance(p_adj, float) and math.isnan(float(p_adj))):
+        _rigor_warn(section, f"No significance test (n_a={n_a}, n_b={n_b}). Add Mann-Whitney U.")
+
+
 # ── normalize() ───────────────────────────────────────────────────────────────
 def normalize(df, views_col, date_col=None, group_col=None):
     """
@@ -663,6 +695,7 @@ for sub in ["football","basketball","baseball","hockey","soccer","college","spor
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_sports_subtopic = pd.DataFrame(sports_subtopic_rows).sort_values("an_med", ascending=False)
+_require_test("sports_subtopic", None, len(sports_an), len(sports_sn))
 
 # Crime subtopic on Apple News
 crime_an = an[an["topic"] == "crime"].copy()
@@ -690,6 +723,7 @@ for sub in ["retail","real_estate","jobs_labor","finance_macro","tech","business
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_biz_subtopic = pd.DataFrame(biz_subtopic_rows).sort_values("an_med", ascending=False)
+_require_test("biz_subtopic", None, len(biz_an), len(biz_sn))
 
 # ── Politics subtopic drill-down ─────────────────────────────────────────────
 pol_an = an[an["topic"] == "politics"].copy()
@@ -705,6 +739,7 @@ for sub in ["federal","state","local_govt","election","politics_other"]:
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_pol_subtopic = pd.DataFrame(pol_subtopic_rows).sort_values("an_med", ascending=False)
+_require_test("pol_subtopic", None, len(pol_an), len(pol_sn))
 
 # ── Headline length analysis ──────────────────────────────────────────────────
 an["_hl_len"] = an["Article"].str.len()
@@ -1156,7 +1191,11 @@ LOCAL_LIFT = f"{_local_pct / top_median_sn_pct:.1f}×" if top_median_sn_pct > 0 
 
 _excl_row  = df_q5[df_q5["feature"] == "'Exclusive' tag"]
 _excl_lift_val = float(_excl_row["lift"].iloc[0]) if len(_excl_row) else None
+_excl_ci_lo    = float(_excl_row["ci_lo"].iloc[0]) if len(_excl_row) and "ci_lo" in _excl_row.columns else None
+_excl_ci_hi    = float(_excl_row["ci_hi"].iloc[0]) if len(_excl_row) and "ci_hi" in _excl_row.columns else None
 EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
+EXCL_CI_STR = (f"[{_excl_ci_lo:.1f}×–{_excl_ci_hi:.1f}×]"
+               if _excl_ci_lo is not None and _excl_ci_hi is not None else "")
 
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
@@ -1256,7 +1295,7 @@ if _r5_sh is not None and float(_r5_sh["lift"]) < 1.0:
 if _r5_excl is not None:
     _excl_lft = float(_r5_excl["lift"])
     _hero_add(
-        f"\u201cExclusive\u201d in a push notification drives {_excl_lft:.1f}\u00d7 more clicks "
+        f"\u201cExclusive\u201d in a push notification is associated with {_excl_lft:.1f}\u00d7 higher CTR "
         f"than standard headlines.",
         _get_p(_r5_excl), _excl_lft - 1.0, surprise=1.3, n=int(_r5_excl["n_true"]),
     )
@@ -1265,8 +1304,8 @@ if _r5_excl is not None:
 if _r5_poss is not None and float(_r5_poss["lift"]) > 1.0:
     _poss_lft = float(_r5_poss["lift"])
     _hero_add(
-        f"Named person\u202f+\u202fpossessive (\u201cSmith\u2019s\u2026\u201d) drives "
-        f"{_poss_lft:.1f}\u00d7 notification CTR.",
+        f"Named person\u202f+\u202fpossessive (\u201cSmith\u2019s\u2026\u201d) shows "
+        f"{_poss_lft:.1f}\u00d7 higher notification CTR.",
         _get_p(_r5_poss), _poss_lft - 1.0, surprise=1.2, n=int(_r5_poss["n_true"]),
     )
 
@@ -1303,7 +1342,7 @@ if _r4_ent is not None and _r4_loc is not None:
     _p_loc   = float(_r4_loc.get("p_mw_adj") or _r4_loc.get("p_mw") or 0.001)
     if math.isnan(_p_loc): _p_loc = 0.001
     _hero_add(
-        f"SmartNews: Entertainment gets {_ent_sh:.0%} of article volume at {_ent_lft:.2f}\u00d7 ROI. "
+        f"SmartNews: Entertainment gets {_ent_sh:.0%} of article volume at {_ent_lft:.2f}\u00d7 median percentile rank. "
         f"Local delivers {_loc_lft:.2f}\u00d7 on {_loc_sh:.0%} of the volume \u2014 "
         f"a distribution reallocation, not a content problem.",
         _p_loc, _loc_lft - _ent_lft, surprise=1.5, n=int(_r4_loc["n"]),
@@ -1318,7 +1357,7 @@ if len(_sports_an_v) >= 10 and len(_sports_sn_v) >= 10:
     _rank_gap = abs(sports_an_rank - sports_sn_rank)
     _hero_add(
         f"Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews \u2014 "
-        f"the largest platform inversion in the dataset.",
+        f"the largest topic-rank gap across platforms (rank gap: {abs(sports_an_rank - sports_sn_rank)}).",
         _p_sports,
         _rank_gap / 8.0,
         surprise=1.5,
@@ -1703,9 +1742,15 @@ AN_LEN_Q4_CHARS_STR = f"~{int(AN_LEN_Q4_CHARS)}" if pd.notna(AN_LEN_Q4_CHARS) el
 AN_LEN_Q1_CHARS_STR = f"~{int(AN_LEN_Q1_CHARS)}" if pd.notna(AN_LEN_Q1_CHARS) else "~55"
 HL_AN_P_STR  = _fmt_p(HL_AN_Q4Q1_P, adj=True) if not np.isnan(HL_AN_Q4Q1_P) else None
 HL_SN_P_STR  = _fmt_p(HL_SN_Q4Q1_P, adj=True) if not np.isnan(HL_SN_Q4Q1_P) else None
-# Confidence level for length finding: significant on AN → Moderate; not → Directional
-HL_CONF_LABEL = "Moderate" if (HL_AN_P_STR and "*" in HL_AN_P_STR) else "Directional"
-HL_CONF_CLASS = "conf-mod" if HL_CONF_LABEL == "Moderate" else "conf-dir"
+# Confidence level: significant on both platforms → High; one platform → Moderate; neither → Directional
+_hl_an_sig = not np.isnan(HL_AN_Q4Q1_P) and HL_AN_Q4Q1_P < 0.05
+_hl_sn_sig = not np.isnan(HL_SN_Q4Q1_P) and HL_SN_Q4Q1_P < 0.05
+if _hl_an_sig and _hl_sn_sig:
+    HL_CONF_CLASS, HL_CONF_LABEL = "conf-high", "High confidence"
+elif _hl_an_sig:
+    HL_CONF_CLASS, HL_CONF_LABEL = "conf-mod", "Moderate"
+else:
+    HL_CONF_CLASS, HL_CONF_LABEL = "conf-dir", "Directional"
 # Sports p-value string (single unadjusted test — report raw)
 SPORTS_P_STR = _fmt_p(_p_sports, adj=False) if _p_sports is not None else None
 # Word count p-value string
@@ -2064,7 +2109,7 @@ if HAS_TRACKER and N_TRACKED > 0:
       </table>
       <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
       <div class="callout">
-        <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
+        <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range in this sample at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
       </div>
       <table class="findings">
         <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -2093,7 +2138,7 @@ if NL_PARSED >= 10:
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
+        <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
       </div>
       <h3>Round vs. specific numbers</h3>
       <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
@@ -2295,10 +2340,10 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
-    {"" if NL_PARSED < 10 else """
+    {"" if NL_PARSED < 10 else f"""
     <div class="tile" onclick="showDetail('numleads', this)">
       <span class="tile-num">1b · Number Leads Deep Dive</span>
-      <p class="tile-claim">Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers. Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile).</p>
+      <p class="tile-claim">Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers. Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile).</p>
       <p class="tile-action">→ Use precise figures. Avoid leading with totals, round counts, or numbers above 50.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2306,28 +2351,28 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('featured', this)">
       <span class="tile-num">2 · Featured on Apple News</span>
-      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower ({WTN_ORGANIC_P_STR}, directional only).</p>
+      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower ({WTN_ORGANIC_P_STR}, not significant at α=0.05, n={WTN_N_NONFEAT}).</p>
       <p class="tile-action">→ Use "What to know" when targeting Featured specifically. Don't apply it broadly.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('smartnews', this)">
       <span class="tile-num">3 · SmartNews Allocation</span>
-      <p class="tile-claim">Entertainment gets 36% of SmartNews volume at the lowest ROI. Local delivers {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.0%} of volume.</p>
+      <p class="tile-claim">Entertainment gets 36% of SmartNews volume at the lowest median percentile rank. Local delivers {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.0%} of volume.</p>
       <p class="tile-action">→ Shift SmartNews volume toward Local and U.S. National. No new content required.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('notifications', this)">
       <span class="tile-num">4 · Push Notifications</span>
-      <p class="tile-claim">"Exclusive" drives {_excl_lift_val:.1f}× CTR. Short notifications (≤80 chars) get 39% fewer clicks.</p>
+      <p class="tile-claim">"Exclusive" is associated with {_excl_lift_val:.1f}× higher CTR {EXCL_CI_STR}. Short notifications (≤80 chars) get 39% fewer clicks.</p>
       <p class="tile-action">→ Lead with "EXCLUSIVE:" on genuine scoops. Write longer, more descriptive push text.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('topics', this)">
       <span class="tile-num">5 · Platform Topic Inversion</span>
-      <p class="tile-claim">Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews — the largest platform inversion in the dataset.</p>
+      <p class="tile-claim">Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews — the largest topic-rank gap by platform ({abs(sports_an_rank - sports_sn_rank)} rank positions).</p>
       <p class="tile-action">→ Write platform-specific sports briefs. Don't reuse Apple News sports content on SmartNews.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2341,7 +2386,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('engagement', this)">
       <span class="tile-num">7 · Views vs. Reading Depth</span>
-      <p class="tile-claim">Views and reading time are statistically independent. High-click articles aren't the same as high-read articles.</p>
+      <p class="tile-claim">Views and reading time show near-zero correlation (r={r_views_at:.3f}, p={p_views_at:.2f}) — high-reach and deep-read articles are largely distinct populations.</p>
       <p class="tile-action">→ Track active time alongside views. Use both signals for variant ROI.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2392,7 +2437,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-numleads">
         <h2>Finding 1b · Number Leads — Deep Dive</h2>
         <div class="callout">
-          <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
+          <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
         </div>
         <h3>Round vs. specific numbers</h3>
         <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
@@ -2425,9 +2470,9 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-featured">
         <h2>Finding 2 · Featured on Apple News</h2>
         <div class="callout">
-          <strong>Key tension:</strong> "What to know" gets featured by Apple at {WTN_FEAT_LIFT:.2f}× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional ({WTN_ORGANIC_P_STR}, n={WTN_N_NONFEAT} non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until the organic performance data strengthens.
+          <strong>Key tension:</strong> "What to know" gets featured by Apple at {WTN_FEAT_LIFT:.2f}× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional and not significant at α=0.05 ({WTN_ORGANIC_P_STR}, n={WTN_N_NONFEAT} non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until the organic performance data strengthens.
         </div>
-        <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
+        <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is a statistically robust formula signal (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
         <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
         <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured percentiles. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
         <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring.</p>
@@ -2437,7 +2482,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t2}</tbody>
         </table>
         <p class="callout-inline"><strong>Read this table as:</strong> "Featured lift" is how much more often Apple selects this formula for Featured. A high rate means Apple's algorithm rewards it — not that it organically outperforms.</p>
-        <h3>Featured placement drives reach — not reading depth</h3>
+        <h3>Featured placement: reach vs. reading depth</h3>
         <p>Featured articles average {_feat_at_an.median():.0f} seconds of active reading time versus {_nfeat_at_an.median():.0f} seconds for non-Featured. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out.</p>
         <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
       </div><!-- /#detail-featured -->
@@ -2446,7 +2491,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-smartnews">
         <h2>Finding 3 · SmartNews Allocation</h2>
         <div class="callout">
-          <strong>Most actionable finding in the dataset:</strong> Entertainment is {float(_r4_ent['pct_share']):.0%} of SmartNews article volume ({int(_r4_ent['n']):,} articles) at {float(_r4_ent['lift']):.2f}× ROI. Local is {float(_r4_loc['lift']):.2f}× ROI on {float(_r4_loc['pct_share']):.1%} of volume. U.S. National is {float(_r4_us['lift']):.2f}× on {float(_r4_us['pct_share']):.1%} of volume. The channel allocation is inverted: the highest-ROI channels are starved while the lowest-ROI channel dominates volume. No new content required — better channel framing captures the gains.
+          <strong>High-leverage finding:</strong> Entertainment is {float(_r4_ent['pct_share']):.0%} of SmartNews article volume ({int(_r4_ent['n']):,} articles) at {float(_r4_ent['lift']):.2f}× median percentile rank. Local is {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.1%} of volume. U.S. National is {float(_r4_us['lift']):.2f}× on {float(_r4_us['pct_share']):.1%} of volume. The channel allocation is inverted: the highest-performing channels are starved while the lowest-performing channel dominates volume. No new content required — better channel framing captures the gains.
         </div>
         <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
         <div class="chart-wrap">{c3}</div>
@@ -2549,7 +2594,7 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
         </div>
-        <p>The Apple News dataset includes both Total Views and average active time per article. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
+        <p>The Apple News dataset includes both Total Views and average active time per article. Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: views and reading time show near-zero correlation across {len(an_eng):,} articles — high-reach and deep-read articles are largely distinct populations. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
         <div class="chart-wrap">{c7}</div>
         <table class="findings">
           <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
@@ -2607,7 +2652,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
         <div class="callout">
-          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
+          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range in this sample at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
         </div>
         <table class="findings">
           <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -2768,6 +2813,50 @@ if _link_slugs:
 
 _pb_run_label = _slug_to_label(REPORT_DATE_SLUG)
 
+# ── Playbook tiles — built separately so they can be sorted by confidence ─────
+_CONF_RANK = {"conf-high": 0, "conf-mod": 1, "conf-dir": 2}
+
+_pb_tile_defs = [
+    ("conf-high", "pb-1", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-1')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News \u00b7 Headline Formulas</span>
+    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it \u2014 but specific patterns clearly underperform.</p>
+    <p class="tile-action">\u2192 Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+    ("conf-high", "pb-2", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-2')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News \u00b7 Featured Targeting</span>
+    <p class="tile-claim">\u201cWhat to know\u201d is associated with {WTN_FEAT_LIFT:.1f}\u00d7 Featured placement. But for non-Featured articles, organic view performance trends lower ({WTN_ORGANIC_P_STR}, not significant at \u03b1=0.05, n={WTN_N_NONFEAT}).</p>
+    <p class="tile-action">\u2192 Reserve \u201cWhat to know\u201d for intentional Featured campaigns. Don\u2019t apply it broadly for organic reach.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+    ("conf-high", "pb-3", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-3')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">SmartNews \u00b7 Channel Allocation</span>
+    <p class="tile-claim">Entertainment receives {float(_r4_ent['pct_share']):.0%} of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver {float(_r4_loc['lift']):.2f}\u00d7 and {float(_r4_us['lift']):.2f}\u00d7 on far less.</p>
+    <p class="tile-action">\u2192 Shift volume toward Local and U.S. National. No new content required \u2014 reframe what\u2019s already being published.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+    ("conf-mod", "pb-4", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
+    <span class="conf-badge conf-mod">Moderate \u00b7 Jan\u2013Feb 2026 only</span>
+    <span class="tile-label">Push Notifications</span>
+    <p class="tile-claim">{N_SIG_NOTIF_FEATURES} features show significant CTR lift after multiple-comparison correction. \u201cEXCLUSIVE:\u201d and possessive framing are the top signals.</p>
+    <p class="tile-action">\u2192 Lead genuine scoops with \u201cEXCLUSIVE:\u201d; use possessive framing; write \u226580 characters to give readers context before the tap.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+    (HL_CONF_CLASS, "pb-5", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
+    <span class="conf-badge {HL_CONF_CLASS}">{HL_CONF_LABEL}</span>
+    <span class="tile-label">Apple News \u00b7 Headline Length</span>
+    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional \u2014 Q4 vs. Q1 difference not statistically confirmed."}</p>
+    <p class="tile-action">\u2192 Don\u2019t truncate. The \u226480 char rule applies to push notifications only \u2014 not to article headlines.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+]
+
+_pb_tile_defs.sort(key=lambda x: _CONF_RANK.get(x[0], 3))  # stable sort preserves original order within same rank
+_pb_tiles_html = "\n\n".join(t for _, _, t in _pb_tile_defs)
+
 # ── Editorial Playbooks page ──────────────────────────────────────────────────
 playbook_html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -2887,45 +2976,7 @@ playbook_html = f"""<!DOCTYPE html>
 
 <div class="tile-grid">
 
-  <div class="pb-tile" onclick="togglePb(this,'pb-1')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Apple News · Headline Formulas</span>
-    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it — but specific patterns clearly underperform.</p>
-    <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-2')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Apple News · Featured Targeting</span>
-    <p class="tile-claim">"What to know" drives {WTN_FEAT_LIFT:.1f}× Featured placement. But for non-Featured articles, organic view performance trends lower ({WTN_ORGANIC_P_STR}).</p>
-    <p class="tile-action">→ Reserve "What to know" for intentional Featured campaigns. Don't apply it broadly for organic reach.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-3')">
-    <span class="conf-badge conf-high">High confidence · most actionable</span>
-    <span class="tile-label">SmartNews · Channel Allocation</span>
-    <p class="tile-claim">Entertainment receives {float(_r4_ent['pct_share']):.0%} of SmartNews volume at the lowest ROI. Local and U.S. National deliver {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× on far less.</p>
-    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required — reframe what's already being published.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
-    <span class="conf-badge conf-mod">Moderate · Jan–Feb 2026 only</span>
-    <span class="tile-label">Push Notifications</span>
-    <p class="tile-claim">{N_SIG_NOTIF_FEATURES} features show significant CTR lift after multiple-comparison correction. "EXCLUSIVE:" and possessive framing are the top signals.</p>
-    <p class="tile-action">→ Lead genuine scoops with "EXCLUSIVE:"; use possessive framing; write ≥80 characters to give readers context before the tap.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge {HL_CONF_CLASS}">{HL_CONF_LABEL}</span>
-    <span class="tile-label">Apple News · Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional — Q4 vs. Q1 difference not statistically confirmed."}</p>
-    <p class="tile-action">→ Don't truncate. The \u226480 char rule applies to push notifications only — not to article headlines.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>
+{_pb_tiles_html}
 
 </div>
 
@@ -2934,7 +2985,7 @@ playbook_html = f"""<!DOCTYPE html>
 <div id="pb-1" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
+    <li><strong>Possessive + named entity</strong> on crime and business is associated with the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
     <li><strong>Number leads:</strong> use specific figures in the {NL_SWEET_SPOT_CAT} range. Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_P_STR} after BH-FDR).</li>
     <li><strong>Avoid question format</strong> for organic reach — underperforms {_r1_q['lift']:.2f}× baseline ({F1_Q_P_STR}). Reserve for Featured targeting if "What to know" is unavailable.</li>
     <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is {AN_MEDIAN_HL_LEN:.0f} chars.</li>
@@ -2951,7 +3002,7 @@ playbook_html = f"""<!DOCTYPE html>
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is {WTN_FEAT_LIFT:.1f}×, but organic views for non-Featured "What to know" articles trend lower ({WTN_ORGANIC_P_STR}, directional only).</li>
+    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is {WTN_FEAT_LIFT:.1f}×, but organic views for non-Featured "What to know" articles trend lower ({WTN_ORGANIC_P_STR}, not significant at α=0.05, n={WTN_N_NONFEAT}).</li>
     <li><strong>Featured articles drive {FEAT_VIEW_LIFT_STR} views vs. non-Featured</strong> — treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
     <li><strong>Don't apply "What to know" broadly</strong> — the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
   </ul>
@@ -2965,8 +3016,8 @@ playbook_html = f"""<!DOCTYPE html>
 <div id="pb-3" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× ROI respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
-    <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× median percentile rank respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+    <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
     <li><strong>Sports underperforms</strong> ({sports_sn_idx:.2f}× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
     <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>
@@ -3051,3 +3102,12 @@ playbook_out = Path("docs/playbook/index.html")
 playbook_out.parent.mkdir(exist_ok=True)
 playbook_out.write_text(playbook_html, encoding="utf-8")
 print(f"Playbooks written to {playbook_out}  ({len(playbook_html):,} chars)")
+
+# ── Rigor warnings summary ────────────────────────────────────────────────────
+if _RIGOR_WARNINGS:
+    print(f"\n⚠  RIGOR WARNINGS ({len(_RIGOR_WARNINGS)}) — these sections have descriptive tables "
+          "without significance tests. Add Mann-Whitney U before citing in reports:")
+    for _w in _RIGOR_WARNINGS:
+        print(f"   • {_w}")
+else:
+    print("✓  No rigor warnings — all major comparisons have significance tests.")
