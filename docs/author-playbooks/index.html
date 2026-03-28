@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="data-run" content="2026-03">
+<title>T1 Headline Analysis · Author Playbooks</title>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
+<style>
+  /* ── Reset ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+         background: #0f172a; color: #e2e8f0; font-size: 14px; line-height: 1.6;
+         -webkit-font-smoothing: antialiased; }
+  a { color: #60a5fa; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 0.85em;
+          background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; }
+
+  /* ── Nav ── */
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid #334155; height: 44px;
+        display: flex; align-items: center; padding: 0 28px; gap: 0; }
+  .brand { font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+            text-transform: uppercase; color: #f1f5f9; flex-shrink: 0; }
+  .nav-links { display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }
+  .nav-links a { font-size: 12px; color: #94a3b8; transition: color 0.15s; }
+  .nav-links a:hover { color: #f1f5f9; text-decoration: none; }
+
+  /* ── Layout ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }
+  .eyebrow { display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+              text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; }
+  h1 { font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em;
+        margin-bottom: 0.6rem; }
+  .sub { font-size: 0.85rem; color: #94a3b8; max-width: 800px; margin-bottom: 1.5rem;
+          line-height: 1.6; }
+  .run-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem;
+                 padding: 0.6rem 1rem; background: rgba(255,255,255,0.04);
+                 border: 1px solid #334155; border-radius: 8px; }
+  .run-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+                text-transform: uppercase; color: #64748b; }
+  .run-meta  { font-size: 0.78rem; color: #64748b; }
+
+  /* ── Tile grid ── */
+  .tile-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 1rem; }
+  @media (max-width: 720px)  { .tile-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1000px) and (min-width: 721px) { .tile-grid { grid-template-columns: repeat(2,1fr); } }
+
+  /* ── Tiles ── */
+  .pb-tile { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+              padding: 1.1rem 1.25rem; cursor: pointer;
+              transition: border-color 0.15s, box-shadow 0.15s; user-select: none; }
+  .pb-tile:hover { border-color: #475569; box-shadow: 0 0 0 1px #475569 inset; }
+  .pb-tile.open  { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6 inset; }
+  .conf-badge { display: inline-block; font-size: 9px; font-weight: 700;
+                 text-transform: uppercase; letter-spacing: 0.07em;
+                 padding: 2px 6px; border-radius: 3px; margin-bottom: 8px; }
+  .conf-high { background: rgba(22,163,74,0.2);   color: #4ade80; }
+  .conf-mod  { background: rgba(37,99,235,0.2);    color: #60a5fa; }
+  .conf-dir  { background: rgba(100,116,139,0.15); color: #94a3b8; }
+  .tile-label  { display: block; font-size: 0.88rem; font-weight: 700; color: #f1f5f9;
+                  letter-spacing: 0.01em; margin-bottom: 0.5rem; }
+  .tile-claim  { font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.5rem; line-height: 1.55; }
+  .tile-action { font-size: 0.8rem; color: #60a5fa; font-weight: 500;
+                  margin-bottom: 0.5rem; line-height: 1.45; }
+  .tile-toggle { font-size: 0.7rem; color: #64748b; display: block; margin-top: 0.5rem; }
+
+  /* ── Detail panels ── */
+  .pb-detail { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+                padding: 1.5rem 1.75rem; margin-bottom: 1rem; }
+  .pb-detail h3.rh { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+                      text-transform: uppercase; color: #64748b; margin: 1.4rem 0 0.5rem; }
+  .pb-detail h3.rh:first-child { margin-top: 0; }
+  .pb-detail .detail-sub { font-size: 0.8rem; color: #64748b; margin-bottom: 0.6rem; }
+  .pb-detail p { font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.55; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #334155;
+                 box-shadow: 0 1px 4px rgba(0,0,0,0.3); margin: 0.5rem 0 1.25rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead th { background: #0f172a; color: #94a3b8; font-size: 0.68rem;
+              font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+              padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #334155; }
+  tbody tr:nth-child(odd)  { background: rgba(255,255,255,0.02); }
+  tbody tr:nth-child(even) { background: transparent; }
+  tbody tr:hover { background: rgba(255,255,255,0.05); }
+  tbody td { padding: 8px 12px; color: #e2e8f0; border-bottom: 1px solid rgba(51,65,85,0.5); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  table thead th { cursor: pointer; user-select: none; }
+  .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; }
+  table thead th[data-sort] .sort-icon { opacity: 1; color: #3b82f6; }
+
+  /* ── Lift colors ── */
+  .lift-high { color: #4ade80; font-weight: 600; }
+  .lift-pos  { color: #60a5fa; font-weight: 600; }
+  .lift-neg  { color: #f87171; font-weight: 600; }
+
+  /* ── Export button ── */
+  .export-btn-wrap { float: right; position: relative; margin: 0 0 10px 16px; }
+  .export-btn { font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+                 border: 1px solid #334155; background: #0f172a; color: #94a3b8;
+                 font-family: inherit; transition: background 0.15s; }
+  .export-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .export-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 3px);
+                      min-width: 130px; border-radius: 8px; z-index: 200;
+                      border: 1px solid #334155; background: #0f172a;
+                      box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; }
+  .export-dropdown button { display: block; width: 100%; text-align: left; padding: 8px 14px;
+                              font-size: 0.75rem; font-family: inherit; cursor: pointer;
+                              border: none; background: transparent; color: #e2e8f0; }
+  .export-dropdown button:hover { background: #1e293b; }
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">McClatchy CSA · T1 Headlines</span>
+  <div class="nav-links">
+    <a href="../">← Current analysis</a>
+    <a href="../playbook/">Editorial Playbooks</a>
+    <a href="../experiments/">Experiments</a>
+  </div>
+</nav>
+
+<div class="container">
+  <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+  <h1>Author Playbooks</h1>
+  <p class="sub">Data-driven guidance per author based on matched syndication performance.
+  119 articles across 5 authors.
+  Updated each cycle. Coverage badges reflect matched article count &mdash;
+  treat as directional coaching signal, not statistical significance.
+  Sorted by median percentile rank, highest first.</p>
+  <div class="run-header">
+    <span class="run-label">March 2026</span>
+    <span class="run-meta">T1 syndication data &middot; March 2026</span>
+  </div>
+
+  <div class="tile-grid">
+  <div class="pb-tile" onclick="togglePb(this,'ap-0')">
+    <span class="conf-badge conf-dir">5 ARTICLES</span>
+    <span class="tile-label">Allison Palmer</span>
+    <p class="tile-claim">Ranks 1 of 5 matched authors (57% median percentile, top quartile on the team). 100% of articles use no tracked formula—adding one would create a clearer performance signal.</p>
+    <p class="tile-action">→ Lean into no tracked formula where it&#x27;s working. Platform sweet spot: SmartNews (57%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-1')">
+    <span class="conf-badge conf-high">60 ARTICLES</span>
+    <span class="tile-label">Ryan Brennan</span>
+    <p class="tile-claim">Ranks 2 of 5 matched authors (46% median percentile, top quartile on the team). 85% of articles use no tracked formula—adding one would create a clearer performance signal.</p>
+    <p class="tile-action">→ Best results from possessive named entity (69%ile), not the most-used format. Platform sweet spot: Yahoo (48%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-2')">
+    <span class="conf-badge conf-mod">13 ARTICLES</span>
+    <span class="tile-label">Lauren J-G</span>
+    <p class="tile-claim">Ranks 3 of 5 matched authors (35% median percentile, above team median). 77% of articles use no tracked formula—adding one would create a clearer performance signal.</p>
+    <p class="tile-action">→ Best results from number lead (42%ile), not the most-used format. Platform sweet spot: SmartNews (35%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-3')">
+    <span class="conf-badge conf-high">31 ARTICLES</span>
+    <span class="tile-label">Hanna Wickes</span>
+    <p class="tile-claim">Ranks 4 of 5 matched authors (24% median percentile, below team median). 87% of articles use no tracked formula—adding one would create a clearer performance signal.</p>
+    <p class="tile-action">→ Best results from question (74%ile), not the most-used format. Platform sweet spot: SmartNews (32%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-4')">
+    <span class="conf-badge conf-mod">10 ARTICLES</span>
+    <span class="tile-label">Lauren Schuster</span>
+    <p class="tile-claim">Ranks 5 of 5 matched authors (13% median percentile, bottom quartile on the team). 90% of articles use no tracked formula—adding one would create a clearer performance signal.</p>
+    <p class="tile-action">→ Lean into no tracked formula where it&#x27;s working. Platform sweet spot: Yahoo (44%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+  </div>
+
+<div id="ap-0" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">5 matched articles across 1 platform(s) · 57% median percentile · 21.9 pts above team median (35%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>5</td><td>100%</td><td>57%</td><td><span class="lift-high">1.69×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Platform distribution</h3>
+  <p class="detail-sub">Lift vs. overall team median (35%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>SmartNews</td><td>5</td><td>57%</td><td><span class="lift-high">1.62×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Top 5 articles by percentile rank</h3>
+  <p class="detail-sub">Highest-performing matched articles for Allison Palmer.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>%ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">The Best Shampoos For Thinning Hair: These 5 Formulas Actually Deliver</td><td>SmartNews</td><td>3,723</td><td>84%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Noticing Thinner Hair After 50? Here’s What’s Really Going On And What You Can Do About It</td><td>SmartNews</td><td>416</td><td>59%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your 5-Minute Makeup Routine After 50 (That Actually Works Better Than Your Old One)</td><td>SmartNews</td><td>330</td><td>57%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your Skincare Routine Might Need an Update After 50 - Here Are 12 Ingredients to Rethink</td><td>SmartNews</td><td>24</td><td>15%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">What ‘Clean Beauty’ Really Means And What Your Skincare Labels Aren’t Telling You</td><td>SmartNews</td><td>10</td><td>6%</td></tr></tbody></table>
+</div>
+
+<div id="ap-1" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">60 matched articles across 3 platform(s) · 46% median percentile · 11.0 pts above team median (35%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>51</td><td>85%</td><td>44%</td><td><span class="lift-high">1.31×</span></td></tr>
+<tr><td>number lead</td><td>5</td><td>8%</td><td>57%</td><td><span class="lift-high">1.50×</span></td></tr>
+<tr><td>possessive named entity</td><td>2</td><td>3%</td><td>69%</td><td><span class="lift-pos">1.00×</span></td></tr>
+<tr><td>quoted lede</td><td>2</td><td>3%</td><td>11%</td><td><span class="lift-neg">0.57×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Platform distribution</h3>
+  <p class="detail-sub">Lift vs. overall team median (35%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>Yahoo</td><td>15</td><td>48%</td><td><span class="lift-high">1.38×</span></td></tr>
+<tr><td>Apple News</td><td>4</td><td>36%</td><td><span class="lift-pos">1.02×</span></td></tr>
+<tr><td>SmartNews</td><td>41</td><td>36%</td><td><span class="lift-pos">1.02×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Original vs. variant performance</h3>
+  <p class="detail-sub">30 originals (Parent-P) · 30 generated variants (Child-C)</p>
+  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody>
+    <tr><td>Original (Parent-P)</td><td>30</td><td>40%</td></tr>
+    <tr><td>Variant (Child-C)</td><td>30</td><td>57%</td></tr>
+  </tbody></table>
+  <h3 class="rh">Top 10 articles by percentile rank</h3>
+  <p class="detail-sub">Highest-performing matched articles for Ryan Brennan.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>%ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">A 4-Foot Snake Killed by a Hiker Turned Out to Be Something Scientists Had Never Seen Befo</td><td>SmartNews</td><td>233,065</td><td>100%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Thought They Found a Dead Snake. It Turned Out to Be a New Species</td><td>SmartNews</td><td>20,683</td><td>96%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Strange Creature With ‘Elongated Limbs’ Found in Iranian Canyon. It’s a New Species</td><td>SmartNews</td><td>13,358</td><td>93%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A 1,200-Pound Great White Shark Was Caught on a Florida Beach After Hour-Long Fight</td><td>SmartNews</td><td>12,025</td><td>93%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Underground Railroad Escape Route Found Behind Dresser Drawer in Historic NYC Home</td><td>SmartNews</td><td>10,101</td><td>90%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Freshman Baseball Player Joey Raccuia Dies Four Days After Making College Debut</td><td>SmartNews</td><td>7,910</td><td>89%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">19-Year-Old Son of Kansas City Royals Coach Dies in Car Crash</td><td>SmartNews</td><td>4,613</td><td>85%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Video Shows Anglers Reeling In Massive 1,200-Pound Surprise on Florida Beach</td><td>Yahoo</td><td>20,772</td><td>85%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Hiker’s Deadly Encounter With a 4-Foot Snake Led to a Rare and Unprecedented Discovery</td><td>SmartNews</td><td>3,329</td><td>83%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Video Shows Anglers Reeling In Massive 1,200-Pound Surprise on Florida Beach</td><td>SmartNews</td><td>3,239</td><td>82%</td></tr></tbody></table>
+</div>
+
+<div id="ap-2" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">13 matched articles across 1 platform(s) · 35% median percentile · 0.2 pts above team median (35%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>10</td><td>77%</td><td>33%</td><td><span class="lift-pos">0.98×</span></td></tr>
+<tr><td>number lead</td><td>3</td><td>23%</td><td>42%</td><td><span class="lift-pos">1.09×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Platform distribution</h3>
+  <p class="detail-sub">Lift vs. overall team median (35%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>SmartNews</td><td>13</td><td>35%</td><td><span class="lift-pos">1.01×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Top 10 articles by percentile rank</h3>
+  <p class="detail-sub">Highest-performing matched articles for Lauren J-G.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>%ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">8 Indoor Plants That Are Almost Impossible to Kill</td><td>SmartNews</td><td>293</td><td>56%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your Free Guide to a Clutter-Free Home: Simple Steps That Cost Nothing</td><td>SmartNews</td><td>265</td><td>54%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Why “Burping” Your Home Is the Secret to Healthier Indoor Air This Winter</td><td>SmartNews</td><td>205</td><td>50%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">This Viral Dollar Tree DIY Transforms $5 Worth of Supplies Into a Stunning Two-Tier Perfum</td><td>SmartNews</td><td>204</td><td>50%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">These Decades-Old (Grandma-Approved) Décor Trends Are Back in 2026</td><td>SmartNews</td><td>156</td><td>46%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">5 Home Decor Trends Designers Predict Will Define 2026</td><td>SmartNews</td><td>119</td><td>42%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Simple Design Tricks That Make Any Home Feel Bigger and Brighter</td><td>SmartNews</td><td>86</td><td>35%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">7 Smart Home Tasks to Tackle Before Spring Arrives</td><td>SmartNews</td><td>84</td><td>35%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your Guide to the Nancy Meyers Aesthetic - And How to Actually Pull It Off at Home</td><td>SmartNews</td><td>69</td><td>31%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Simple Ways to Transform Your Home Into a Cozy Winter Retreat</td><td>SmartNews</td><td>27</td><td>17%</td></tr></tbody></table>
+</div>
+
+<div id="ap-3" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">31 matched articles across 3 platform(s) · 24% median percentile · 10.9 pts below team median (35%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>27</td><td>87%</td><td>24%</td><td><span class="lift-neg">0.72×</span></td></tr>
+<tr><td>quoted lede</td><td>2</td><td>6%</td><td>34%</td><td><span class="lift-high">1.77×</span></td></tr>
+<tr><td>number lead</td><td>1</td><td>3%</td><td>6%</td><td><span class="lift-neg">0.17×</span></td></tr>
+<tr><td>question</td><td>1</td><td>3%</td><td>74%</td><td><span class="lift-pos">1.00×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Platform distribution</h3>
+  <p class="detail-sub">Lift vs. overall team median (35%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>SmartNews</td><td>20</td><td>32%</td><td><span class="lift-pos">0.92×</span></td></tr>
+<tr><td>Yahoo</td><td>9</td><td>24%</td><td><span class="lift-neg">0.69×</span></td></tr>
+<tr><td>Apple News</td><td>2</td><td>18%</td><td><span class="lift-neg">0.51×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Original vs. variant performance</h3>
+  <p class="detail-sub">22 originals (Parent-P) · 9 generated variants (Child-C)</p>
+  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody>
+    <tr><td>Original (Parent-P)</td><td>22</td><td>22%</td></tr>
+    <tr><td>Variant (Child-C)</td><td>9</td><td>68%</td></tr>
+  </tbody></table>
+  <h3 class="rh">Top 10 articles by percentile rank</h3>
+  <p class="detail-sub">Highest-performing matched articles for Hanna Wickes.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>%ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">A Curling Cheating Scandal Just Rocked the 2026 Winter Olympics - and It Unraveled In Four</td><td>SmartNews</td><td>24,214</td><td>97%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Found a ‘Giant’ Cave Creature In Australia With 11 Claws - It Fits On Your Fing</td><td>SmartNews</td><td>10,040</td><td>90%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Rare Wildlife Camera Footage Captures One of the World’s Most Endangered Mammals in Action</td><td>SmartNews</td><td>6,802</td><td>88%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Bindi Irwin’s Daughter Grace Has An Adorable New Best Friend at Australia Zoo - And the Vi</td><td>SmartNews</td><td>6,422</td><td>88%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Flavor Flav Hosts U.S. Women’s Hockey Team in Las Vegas After They Decline Trump’s State o</td><td>SmartNews</td><td>3,228</td><td>82%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Went Looking For an Extinct Fish in South Africa. They Found Something No One H</td><td>SmartNews</td><td>2,499</td><td>80%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">‘Single’s Inferno’: Which Couples Are Still Together From the Reality Dating Show?</td><td>Yahoo</td><td>11,425</td><td>74%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Cheating Accusation In Olympic Curling Spiraled Into A Tournament-Wide Controversy. Cana</td><td>Yahoo</td><td>1,487</td><td>68%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">What Exactly Is a Lady-in-Waiting? ‘Bridgerton’ Season 4 Explains the Prestigious Royal Ro</td><td>Yahoo</td><td>1,041</td><td>54%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Pull 50,000 Fossils and 91 New Species From a Single Quarry in China</td><td>SmartNews</td><td>240</td><td>53%</td></tr></tbody></table>
+</div>
+
+<div id="ap-4" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">10 matched articles across 2 platform(s) · 13% median percentile · 22.3 pts below team median (35%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>9</td><td>90%</td><td>13%</td><td><span class="lift-neg">0.40×</span></td></tr>
+<tr><td>number lead</td><td>1</td><td>10%</td><td>8%</td><td><span class="lift-neg">0.21×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Platform distribution</h3>
+  <p class="detail-sub">Lift vs. overall team median (35%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Median %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>Yahoo</td><td>1</td><td>44%</td><td><span class="lift-high">1.27×</span></td></tr>
+<tr><td>SmartNews</td><td>9</td><td>12%</td><td><span class="lift-neg">0.35×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Original vs. variant performance</h3>
+  <p class="detail-sub">9 originals (Parent-P) · 1 generated variants (Child-C)</p>
+  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody>
+    <tr><td>Original (Parent-P)</td><td>9</td><td>12%</td></tr>
+    <tr><td>Variant (Child-C)</td><td>1</td><td>13%</td></tr>
+  </tbody></table>
+  <h3 class="rh">Top 10 articles by percentile rank</h3>
+  <p class="detail-sub">Highest-performing matched articles for Lauren Schuster.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>%ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">Skip the Upgrade Fee: How to Create Your Own First-Class Flight Experience for the Price o</td><td>SmartNews</td><td>172</td><td>48%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">The Carry-On Upgrades Frequent Flyers Swear By (That You Probably Haven’t Tried Yet)</td><td>SmartNews</td><td>147</td><td>45%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">How to Make Your Own Cocktails at 30,000 Feet Using What Airlines Already Offer</td><td>Yahoo</td><td>867</td><td>44%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Solo Travel Is Surging in 2026 - Here Are the Budget-Friendly Destinations Worth Booking R</td><td>SmartNews</td><td>51</td><td>26%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">How to Find the Right Financial Planner When Retirement is Around the Corner</td><td>SmartNews</td><td>21</td><td>13%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Why Spending Money on Experiences Instead of Things Could Be the Key to Lasting Happiness</td><td>SmartNews</td><td>19</td><td>12%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Where to See Cherry Blossoms This Spring Without Leaving the Northeast</td><td>SmartNews</td><td>13</td><td>9%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">5 U.S. Cities That Make the Perfect Girls Trip - No Passport Required</td><td>SmartNews</td><td>12</td><td>8%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your In-Flight Skincare Game Plan: How to Actually Land With Glowing Skin</td><td>SmartNews</td><td>10</td><td>6%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Your Guide to Los Angeles’ Best Brunch Spots: From Soul Food to French Pastries</td><td>SmartNews</td><td>2</td><td>0%</td></tr></tbody></table>
+</div>
+</div>
+<script>
+var _openTile = null, _openPanel = null;
+
+function togglePb(tile, id) {
+  var panel  = document.getElementById(id);
+  var toggle = tile.querySelector('.tile-toggle');
+  var isOpen = tile.classList.contains('open');
+  if (_openTile && _openTile !== tile) {
+    _openTile.classList.remove('open');
+    var prevToggle = _openTile.querySelector('.tile-toggle');
+    if (prevToggle) prevToggle.textContent = 'Details ↓';
+    if (_openPanel) _openPanel.style.display = 'none';
+  }
+  if (!isOpen) {
+    tile.classList.add('open');
+    if (toggle) toggle.textContent = 'Details ↑';
+    panel.style.display = 'block';
+    _openTile = tile; _openPanel = panel;
+    setTimeout(function() { panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50);
+  } else {
+    tile.classList.remove('open');
+    if (toggle) toggle.textContent = 'Details ↓';
+    panel.style.display = 'none';
+    _openTile = null; _openPanel = null;
+  }
+}
+
+// ── Table sorting ──────────────────────────────────────────
+(function() {
+  function parseCell(text) {
+    var s = text.replace(/<[^>]+>/g, '').trim();
+    if (s === '—' || s === '') return -Infinity;
+    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return s.toLowerCase();
+  }
+  function sortBy(table, colIdx, asc) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort(function(a, b) {
+      var av = parseCell(a.cells[colIdx] ? a.cells[colIdx].innerHTML : '');
+      var bv = parseCell(b.cells[colIdx] ? b.cells[colIdx].innerHTML : '');
+      if (typeof av === 'number' && typeof bv === 'number') return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('table').forEach(function(t) {
+      if (t.parentNode && !t.parentNode.classList.contains('table-wrap')) {
+        var w = document.createElement('div');
+        w.className = 'table-wrap';
+        t.parentNode.insertBefore(w, t);
+        w.appendChild(t);
+      }
+    });
+    document.querySelectorAll('table thead th').forEach(function(th) {
+      var icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.textContent = '↕';
+      th.appendChild(icon);
+      th.addEventListener('click', function() {
+        var table  = th.closest('table');
+        var idx    = Array.from(th.parentNode.children).indexOf(th);
+        var asc    = th.getAttribute('data-sort') !== 'asc';
+        table.querySelectorAll('thead th').forEach(function(h) {
+          h.removeAttribute('data-sort');
+          var ic = h.querySelector('.sort-icon');
+          if (ic) ic.textContent = '↕';
+        });
+        th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+        th.querySelector('.sort-icon').textContent = asc ? '↑' : '↓';
+        sortBy(table, idx, asc);
+      });
+    });
+  });
+})();
+
+// ── Export (PNG / PDF) ──────────────────────────────────────────────────────
+function _findTileForPanel(panelEl) {
+  var pid = panelEl.id || '';
+  var tileEl = null;
+  document.querySelectorAll('.pb-tile').forEach(function(t) {
+    if ((t.getAttribute('onclick') || '').indexOf(pid) >= 0) tileEl = t;
+  });
+  return tileEl;
+}
+
+function _exportPanel(panelEl, format, dropdownEl) {
+  if (dropdownEl) dropdownEl.style.display = 'none';
+  var heading = panelEl.querySelector('h3.rh, h2');
+  var titleEl = panelEl.previousElementSibling;
+  var title   = (titleEl && titleEl.querySelector('.tile-label'))
+                  ? titleEl.querySelector('.tile-label').textContent.trim()
+                  : (heading ? heading.textContent.trim() : (panelEl.id || 'export'));
+  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date    = new Date().toISOString().slice(0, 10);
+
+  if (format === 'pdf') {
+    var _pdfTile = _findTileForPanel(panelEl);
+    var _pdfWrap = document.createElement('div');
+    _pdfWrap.id = '_exp_print';
+    if (_pdfTile) {
+      var _tc = _pdfTile.cloneNode(true);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) { el.remove(); });
+      _pdfWrap.appendChild(_tc);
+    }
+    var _pc = panelEl.cloneNode(true);
+    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+    _pdfWrap.appendChild(_pc);
+    document.body.appendChild(_pdfWrap);
+    var style = document.createElement('style');
+    style.id = '_exp_style';
+    style.textContent = [
+      '@media print {',
+      '  body > *:not(#_exp_print) { display: none !important; }',
+      '  #_exp_print { display: block !important; padding: 28px; }',
+      '  #_exp_print * { -webkit-print-color-adjust: exact !important;',
+      '                   print-color-adjust: exact !important; }',
+      '}'
+    ].join('\n');
+    document.head.appendChild(style);
+    function _cleanup() {
+      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+      if (w) w.remove(); if (s) s.remove();
+      window.removeEventListener('afterprint', _cleanup);
+    }
+    window.addEventListener('afterprint', _cleanup);
+    window.print();
+  } else {
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_png';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
+    var tileEl = _findTileForPanel(panelEl);
+    if (tileEl) {
+      var tc = tileEl.cloneNode(true);
+      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;width:100%;box-sizing:border-box;border-bottom:none;';
+      tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) { el.remove(); });
+      container.appendChild(tc);
+    }
+    var pc = panelEl.cloneNode(true);
+    pc.style.display = 'block';
+    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+    container.appendChild(pc);
+    document.body.appendChild(container);
+    var _scale = 3;
+    domtoimage.toPng(container, {
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      },
+      bgcolor: bg
+    }).then(function(dataUrl) {
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      var a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'author-playbook-' + slug + '-' + date + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }).catch(function(err) {
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      console.error('PNG export failed:', err);
+    });
+  }
+}
+
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.pb-detail').forEach(function(panel) {
+      var wrap = document.createElement('div');
+      wrap.className = 'export-btn-wrap';
+      var btn = document.createElement('button');
+      btn.className = 'export-btn'; btn.title = 'Export this author profile';
+      btn.textContent = '↓ Export';
+      var dd = document.createElement('div'); dd.className = 'export-dropdown';
+      var pngBtn = document.createElement('button'); pngBtn.textContent = 'PNG image';
+      var pdfBtn = document.createElement('button'); pdfBtn.textContent = 'PDF document';
+      pngBtn.addEventListener('click', function(e) { e.stopPropagation(); _exportPanel(panel, 'png', dd); });
+      pdfBtn.addEventListener('click', function(e) { e.stopPropagation(); _exportPanel(panel, 'pdf', dd); });
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+      });
+      document.addEventListener('click', function() { dd.style.display = 'none'; });
+      dd.appendChild(pngBtn); dd.appendChild(pdfBtn);
+      wrap.appendChild(btn); wrap.appendChild(dd);
+      panel.insertBefore(wrap, panel.firstChild);
+    });
+  });
+})();
+</script>
+</body>
+</html>
