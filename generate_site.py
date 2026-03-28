@@ -3308,7 +3308,7 @@ html = f"""<!DOCTYPE html>
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
   body.theme-light {{
@@ -4368,7 +4368,7 @@ playbook_html = f"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis · Editorial Playbooks</title>
-<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -4873,7 +4873,7 @@ author_pb_html = f"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis \u00b7 Author Playbooks</title>
-<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Reset ── */
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
