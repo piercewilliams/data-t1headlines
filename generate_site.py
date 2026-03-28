@@ -2370,9 +2370,9 @@ for _hc in _hero_cands[:5]:
 
 # ── Table generators ──────────────────────────────────────────────────────────
 def _row_tag(lift, is_red=False):
-    if is_red:          return '<span class="tag tag-red">↓</span>'
-    if lift >= 1.5:     return '<span class="tag tag-green">★</span>'
-    if lift < 0.8:      return '<span class="tag tag-red">↓</span>'
+    if is_red:          return '<span class="tag tag-red">↓</span>&nbsp;'
+    if lift >= 1.5:     return '<span class="tag tag-green">★</span>&nbsp;'
+    if lift < 0.8:      return '<span class="tag tag-red">↓</span>&nbsp;'
     return ""
 
 def _wc_table():
@@ -3310,6 +3310,9 @@ html = f"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -4098,7 +4101,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   container.id = containerId;
   // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
   // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
-  // inlines opacity:1 on every child. The style:{opacity:'1'} override then makes the
+  // inlines opacity:1 on every child. The style:{{opacity:'1'}} override then makes the
   // root visible too. visibility:hidden would be inherited by all children via
   // getComputedStyle, causing blank output even after the root override.
   // No overflow:hidden — let content expand freely so scrollHeight is accurate.
@@ -4373,6 +4376,9 @@ playbook_html = f"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis · Editorial Playbooks</title>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
@@ -4878,6 +4884,9 @@ author_pb_html = f"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis \u00b7 Author Playbooks</title>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
