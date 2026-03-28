@@ -766,12 +766,14 @@ an["_pub_dt"] = pd.to_datetime(an["Date Published"], errors="coerce")
 an["_month_str"] = an["_pub_dt"].dt.to_period("M").astype(str)
 
 PERIODS = [
-    ("H1 2025", "2025-01", "2025-06"),
-    ("H2 2025", "2025-07", "2025-12"),
+    ("Q1 2025", "2025-01", "2025-03"),
+    ("Q2 2025", "2025-04", "2025-06"),
+    ("Q3 2025", "2025-07", "2025-09"),
+    ("Q4 2025", "2025-10", "2025-12"),
     ("Q1 2026", "2026-01", "2026-02"),
 ]
 _PERIOD_FORMULAS = ["number_lead", "question", "possessive_named_entity", "heres_formula", "what_to_know"]
-_PERIOD_MIN_N = 5
+_PERIOD_MIN_N = 3
 
 period_rows = []
 for period_label, m_start, m_end in PERIODS:
@@ -832,9 +834,9 @@ for f, label in FORMULA_LABELS.items():
 df_yoy = pd.DataFrame(yoy_rows)
 
 # Lift values for tile text — pulled from the 3-period table
-NL_LIFT_EARLY = _period_lift("number_lead", "H1 2025")
+NL_LIFT_EARLY = _period_lift("number_lead", "Q1 2025")
 NL_LIFT_LATE  = _period_lift("number_lead", "Q1 2026")
-Q_LIFT_EARLY  = _period_lift("question",    "H1 2025")
+Q_LIFT_EARLY  = _period_lift("question",    "Q1 2025")
 Q_LIFT_LATE   = _period_lift("question",    "Q1 2026")
 
 # Formula with biggest relative lift change YoY
@@ -1337,6 +1339,7 @@ def _yoy_table():
 def _periods_table():
     html_out = ""
     formulas_in_order = ["number_lead", "question", "possessive_named_entity", "heres_formula", "what_to_know"]
+    _all_periods = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
     for f in formulas_in_order:
         label = FORMULA_LABELS.get(f, f)
         def _cell(period, _f=f):
@@ -1344,13 +1347,11 @@ def _periods_table():
             if len(r) == 0:
                 return "—", "—"
             return f"{float(r['lift'].iloc[0]):.2f}×", str(int(r['n'].iloc[0]))
-        l1, n1 = _cell("H1 2025")
-        l2, n2 = _cell("H2 2025")
-        l3, n3 = _cell("Q1 2026")
-        html_out += (f"<tr><td>{label}</td>"
-                     f"<td>{l1}</td><td style='color:#94a3b8'>(n={n1})</td>"
-                     f"<td>{l2}</td><td style='color:#94a3b8'>(n={n2})</td>"
-                     f"<td>{l3}</td><td style='color:#94a3b8'>(n={n3})</td></tr>\n")
+        cells = ""
+        for p in _all_periods:
+            lv, nv = _cell(p)
+            cells += f"<td>{lv}</td><td style='color:#94a3b8'>(n={nv})</td>"
+        html_out += f"<tr><td>{label}</td>{cells}</tr>\n"
     return html_out
 
 def _author_table():
@@ -1617,7 +1618,7 @@ _period_colors_8 = {
     "heres_formula":           GREEN,
     "what_to_know":            GRAY,
 }
-_period_order_8 = ["H1 2025", "H2 2025", "Q1 2026"]
+_period_order_8 = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
 
 fig8 = go.Figure()
 
@@ -1652,7 +1653,7 @@ fig8.add_hline(
 
 fig8.update_layout(
     **make_layout(THEME, height=420, margin=dict(l=20, r=160, t=50, b=60),
-                  title="Headline formula lift vs. unclassified baseline — Early 2025 → Late 2025 → 2026"),
+                  title="Headline formula lift vs. unclassified baseline — Q1 2025 through Q1 2026"),
     xaxis=dict(
         title="",
         gridcolor=_T["grid"],
@@ -1664,7 +1665,7 @@ fig8.update_layout(
         gridcolor=_T["grid"],
         zeroline=False,
         tickformat=".2f",
-        range=[0, 2.5],
+        range=[0, 2.0],
     ),
     legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
@@ -1985,7 +1986,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('longitudinal', this)">
       <span class="tile-num">8 · Trends Over Time</span>
-      <p class="tile-claim">Number leads improved from {NL_LIFT_EARLY:.2f}× to {NL_LIFT_LATE:.2f}× of baseline across 2025, continuing into 2026. Question format trended the opposite direction ({Q_LIFT_EARLY:.2f}× → {Q_LIFT_LATE:.2f}×).</p>
+      <p class="tile-claim">Number leads climbed from {NL_LIFT_EARLY:.2f}× (Q1 2025) to {NL_LIFT_LATE:.2f}× (Q1 2026) — the only formula to cross into above-baseline territory. Question format dropped from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}×.</p>
       <p class="tile-action">→ Lean into number leads; deprioritize question-format headlines. Re-check quarterly as 2026 data accumulates.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2182,8 +2183,8 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-longitudinal">
         <h2>Finding 8 · Trends Over Time</h2>
         <div class="callout">
-          <strong>Key shift:</strong> Number leads rose from {NL_LIFT_EARLY:.2f}× in H1 2025 to {NL_LIFT_LATE:.2f}× in Q1 2026 — holding above baseline throughout. Question-format headlines moved in the opposite direction: {Q_LIFT_EARLY:.2f}× early 2025 → {Q_LIFT_LATE:.2f}× most recently, now below baseline. The chart tracks median lift per formula across three broad periods (H1 2025 · H2 2025 · Q1 2026) relative to unclassified headlines.
-          <br><br><em>How to read "lift":</em> 1.0× = same as unclassified headlines. 1.5× = median 50% above baseline. Dashed line = baseline. Periods are grouped broadly to ensure enough articles per cell (n≥5 required to appear).
+          <strong>Key shift:</strong> Number leads started below baseline ({NL_LIFT_EARLY:.2f}× in Q1 2025) and climbed to {NL_LIFT_LATE:.2f}× by Q1 2026 — the only formula to cross into above-baseline territory. Question-format headlines moved in the opposite direction: {Q_LIFT_EARLY:.2f}× in Q1 2025 → {Q_LIFT_LATE:.2f}× in Q1 2026, now well below baseline. The chart shows five quarterly data points per formula from Q1 2025 through Q1 2026.
+          <br><br><em>How to read "lift":</em> 1.0× = same as unclassified headlines. 1.5× = median 50% above baseline. Dashed line = baseline. Minimum 3 articles per formula per quarter required to appear.
         </div>
         <div class="chart-wrap">{c8}</div>
         <h3>Lift by formula across periods</h3>
@@ -2191,13 +2192,15 @@ html = f"""<!DOCTYPE html>
         <table class="findings">
           <thead><tr>
             <th>Formula</th>
-            <th>H1 2025 lift</th><th></th>
-            <th>H2 2025 lift</th><th></th>
-            <th>Q1 2026 lift</th><th></th>
+            <th>Q1 2025</th><th></th>
+            <th>Q2 2025</th><th></th>
+            <th>Q3 2025</th><th></th>
+            <th>Q4 2025</th><th></th>
+            <th>Q1 2026</th><th></th>
           </tr></thead>
           <tbody>{_t_periods}</tbody>
         </table>
-        <p class="caveat">Periods: H1 2025 = Jan–Jun 2025, H2 2025 = Jul–Dec 2025, Q1 2026 = Jan–Feb 2026. Lift = formula median views_per_day ÷ unclassified baseline median within same period. Minimum 5 articles per formula per period to appear. Data through {REPORT_DATE}.</p>
+        <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median percentile_within_cohort ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
