@@ -1480,19 +1480,34 @@ team_combined = pd.DataFrame()
 author_stats  = pd.DataFrame()
 team_top      = pd.DataFrame()
 N_TRACKED     = 0
+df_formula_team    = pd.DataFrame()
+df_content_type    = pd.DataFrame()
+df_author_profiles = pd.DataFrame()
+df_vert_plat       = pd.DataFrame()
+PARENT_MED_PCT = CHILD_MED_PCT = CT_P = np.nan
+_ft_untagged_share = 0.0
+_ft_top_formula    = "untagged"
+_ft_top_formula_pct = 0.0
 
 def _hn(t):
     return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
 
 try:
     tracker_raw = pd.read_excel(TRACKER, sheet_name="Data")
-    tracker_df  = tracker_raw[["Published URL/Link", "Author", "Vertical",
-                                "Word Count", "Headline"]].copy()
+    _t_cols = ["Published URL/Link", "Author", "Vertical", "Word Count", "Headline"]
+    for _opt in ["Content_Type", "Personas (Target Audience)"]:
+        if _opt in tracker_raw.columns:
+            _t_cols.append(_opt)
+    tracker_df  = tracker_raw[_t_cols].copy()
     tracker_df  = tracker_df.dropna(subset=["Author"])
     tracker_df["_url"] = tracker_df["Published URL/Link"].fillna("").str.strip().str.lower()
     tracker_df["_hn"]  = tracker_df["Headline"].apply(_hn)
     # Rename to avoid column conflicts when merging with datasets that also have Author column
-    tracker_df = tracker_df.rename(columns={"Author": "t_author", "Vertical": "t_vertical"})
+    tracker_df = tracker_df.rename(columns={
+        "Author": "t_author", "Vertical": "t_vertical",
+        "Content_Type": "t_content_type",
+        "Personas (Target Audience)": "t_persona",
+    })
     HAS_TRACKER = True
 except Exception as e:
     print(f"Tracker not loaded: {e}")
@@ -1504,12 +1519,16 @@ if HAS_TRACKER:
     an_work = an.copy()
     an_work["_url"] = an_work["Publisher Article ID"].fillna("").str.strip().str.lower()
     an_work["_hn"]  = an_work["Article"].apply(_hn)
+    # Build merge column list (includes optional tracker columns if present)
+    _t_extra_cols = [c for c in ["t_content_type","t_persona"] if c in tracker_df.columns]
+    _t_merge_base = ["t_author","t_vertical","Word Count"] + _t_extra_cols
     # URL join
     an_url_j = (an_work[an_work["_url"] != ""]
-                .merge(tracker_df[["_url","t_author","t_vertical","Word Count"]], on="_url", how="inner"))
+                .merge(tracker_df[["_url"] + _t_merge_base], on="_url", how="inner"))
     # Headline join (fallback for articles where URL format differs)
+
     an_hn_j  = (an_work[an_work["_hn"].str.len() > 10]
-                .merge(tracker_df[["_hn","t_author","t_vertical","Word Count"]], on="_hn", how="inner"))
+                .merge(tracker_df[["_hn"] + _t_merge_base], on="_hn", how="inner"))
     an_joined = pd.concat([an_url_j, an_hn_j]).drop_duplicates(subset=["Article ID"])
     for _, r in an_joined.iterrows():
         rows.append(dict(
@@ -1518,6 +1537,8 @@ if HAS_TRACKER:
             brand=r.get("Brand", ""),
             author=r["t_author"],
             vertical=r.get("t_vertical", ""),
+            content_type=r.get("t_content_type", ""),
+            persona=r.get("t_persona", ""),
             pub_date=r["Date Published"],
             views=r["Total Views"],
             percentile=r[VIEWS_METRIC],
@@ -1530,7 +1551,7 @@ if HAS_TRACKER:
     sn26_work["_url"] = sn26_work["url"].fillna("").str.strip().str.lower()
     sn26_work["percentile"] = sn26_work["article_view"].rank(pct=True)
     sn26_j = (sn26_work[sn26_work["_url"] != ""]
-              .merge(tracker_df[["_url","t_author","t_vertical","Word Count"]], on="_url", how="inner"))
+              .merge(tracker_df[["_url"] + _t_merge_base], on="_url", how="inner"))
     for _, r in sn26_j.iterrows():
         rows.append(dict(
             platform="SmartNews",
@@ -1538,6 +1559,8 @@ if HAS_TRACKER:
             brand=r.get("domain", ""),
             author=r["t_author"],
             vertical=r.get("t_vertical", ""),
+            content_type=r.get("t_content_type", ""),
+            persona=r.get("t_persona", ""),
             pub_date=r.get("date", pd.NaT),
             views=r["article_view"],
             percentile=r["percentile"],
@@ -1550,7 +1573,7 @@ if HAS_TRACKER:
     yahoo26_work["_hn"] = yahoo26_work["Content Title"].apply(_hn)
     yahoo26_work["percentile"] = yahoo26_work["Content Views"].rank(pct=True)
     yahoo26_j = (yahoo26_work[yahoo26_work["_hn"].str.len() > 10]
-                 .merge(tracker_df[["_hn","t_author","t_vertical","Word Count"]], on="_hn", how="inner"))
+                 .merge(tracker_df[["_hn"] + _t_merge_base], on="_hn", how="inner"))
     for _, r in yahoo26_j.iterrows():
         rows.append(dict(
             platform="Yahoo",
@@ -1558,6 +1581,8 @@ if HAS_TRACKER:
             brand=r.get("Provider Name", ""),
             author=r["t_author"],
             vertical=r.get("t_vertical", ""),
+            content_type=r.get("t_content_type", ""),
+            persona=r.get("t_persona", ""),
             pub_date=r.get("Publish Date", pd.NaT),
             views=r["Content Views"],
             percentile=r["percentile"],
@@ -1606,6 +1631,72 @@ if HAS_TRACKER:
             WC_Q1_MED = np.nan
             WC_Q4_MED = np.nan
             WC_Q4_VS_Q2_P = np.nan
+
+        # ── Formula diagnosis: classify the team's actual headlines ──────────
+        # Shows whether the team's formula distribution aligns with what performs well
+        team_combined["formula"] = team_combined["headline"].apply(classify_formula)
+        df_formula_team = (team_combined.groupby("formula")
+            .agg(n=("percentile","count"), med_pct=("percentile","median"))
+            .reset_index()
+            .sort_values("n", ascending=False))
+        df_formula_team["share"] = df_formula_team["n"] / df_formula_team["n"].sum()
+        _ft_total = df_formula_team["n"].sum()
+        _ft_untagged_share = float(
+            df_formula_team.loc[df_formula_team["formula"] == "untagged", "share"].values[0]
+            if "untagged" in df_formula_team["formula"].values else 0)
+        _ft_top_formula = (
+            df_formula_team[df_formula_team["formula"] != "untagged"]
+            .sort_values("n", ascending=False)["formula"].values[0]
+            if len(df_formula_team[df_formula_team["formula"] != "untagged"]) > 0 else "untagged")
+        _ft_top_formula_pct = float(
+            df_formula_team.loc[df_formula_team["formula"] == _ft_top_formula, "share"].values[0]
+            if _ft_top_formula in df_formula_team["formula"].values else 0)
+
+        # ── Parent vs. Child (variant) performance ───────────────────────────
+        # Parent-P = original article; Child-C = generated variant
+        # Directly tests whether variants syndicate as well as originals
+        df_content_type = pd.DataFrame()
+        PARENT_MED_PCT = CHILD_MED_PCT = np.nan
+        CT_P = np.nan
+        if "content_type" in team_combined.columns:
+            _ct = team_combined[team_combined["content_type"].fillna("") != ""]
+            if len(_ct) > 0:
+                df_content_type = (_ct.groupby("content_type")
+                    .agg(n=("percentile","count"), med_pct=("percentile","median"))
+                    .reset_index().sort_values("med_pct", ascending=False))
+                _p_v = _ct[_ct["content_type"] == "Parent-P"]["percentile"].dropna()
+                _c_v = _ct[_ct["content_type"] == "Child-C"]["percentile"].dropna()
+                if len(_p_v) > 0: PARENT_MED_PCT = float(_p_v.median())
+                if len(_c_v) > 0: CHILD_MED_PCT  = float(_c_v.median())
+                if len(_p_v) >= 5 and len(_c_v) >= 5:
+                    _, CT_P = stats.mannwhitneyu(_p_v, _c_v, alternative="two-sided")
+
+        # ── Author formula profiles ──────────────────────────────────────────
+        # Per author: most-used formula, median percentile, n articles
+        df_author_formula = (team_combined.groupby(["author","formula"])
+            .agg(n=("percentile","count"), med_pct=("percentile","median"))
+            .reset_index())
+        # Dominant formula per author (by count)
+        _af_dominant = (df_author_formula
+            .sort_values("n", ascending=False)
+            .drop_duplicates(subset=["author"])
+            [["author","formula","n","med_pct"]]
+            .rename(columns={"formula":"top_formula","n":"n_top_formula","med_pct":"top_formula_med_pct"}))
+        # Overall per-author stats
+        _af_overall = (team_combined.groupby("author")
+            .agg(n_total=("percentile","count"), med_pct_overall=("percentile","median"))
+            .reset_index())
+        df_author_profiles = _af_overall.merge(_af_dominant, on="author").sort_values("med_pct_overall", ascending=False)
+
+        # ── Vertical routing: which team verticals perform where ─────────────
+        df_vert_plat = pd.DataFrame()
+        if "vertical" in team_combined.columns:
+            _vp = team_combined[team_combined["vertical"].fillna("") != ""]
+            if len(_vp) > 0:
+                df_vert_plat = (_vp.groupby(["vertical","platform"])
+                    .agg(n=("percentile","count"), med_pct=("percentile","median"))
+                    .reset_index().query("n >= 3")
+                    .sort_values(["vertical","med_pct"], ascending=[True,False]))
 
 
 # ── Key stats ─────────────────────────────────────────────────────────────────
@@ -1843,6 +1934,65 @@ def _wc_table():
                 f"<td>{int(r['med_wc'])}</td><td>{r['med_pct']:.0%}</td></tr>\n")
     return out
 
+def _formula_team_table() -> str:
+    """Formula distribution in tracked articles; shows what the team actually writes vs. performance."""
+    if df_formula_team.empty:
+        return "<tr><td colspan='4'>No data.</td></tr>"
+    _FORMULA_LABELS = {
+        "number_lead": "Number lead", "heres_formula": "Here's / Here are",
+        "what_to_know": "What to know", "question": "Question",
+        "possessive_named_entity": "Possessive named entity",
+        "quoted_lede": "Quoted lede", "untagged": "Untagged",
+    }
+    out = []
+    for _, r in df_formula_team.iterrows():
+        label = _FORMULA_LABELS.get(r["formula"], r["formula"])
+        out.append(f"<tr><td>{label}</td><td>{int(r['n'])}</td>"
+                   f"<td>{r['share']:.0%}</td><td>{r['med_pct']:.0%}</td></tr>")
+    return "\n".join(out)
+
+def _content_type_table() -> str:
+    """Parent (original) vs. Child (variant) syndication performance."""
+    if df_content_type.empty:
+        return "<tr><td colspan='3'>Content type data not available in tracker.</td></tr>"
+    _CT_LABELS = {"Parent-P": "Original (Parent-P)", "Child-C": "Variant (Child-C)"}
+    out = []
+    for _, r in df_content_type.iterrows():
+        label = _CT_LABELS.get(r["content_type"], r["content_type"])
+        out.append(f"<tr><td>{label}</td><td>{int(r['n'])}</td><td>{r['med_pct']:.0%}</td></tr>")
+    return "\n".join(out)
+
+def _author_profiles_table() -> str:
+    """Per-author: total articles, median percentile, dominant formula type."""
+    if df_author_profiles.empty:
+        return "<tr><td colspan='4'>No data.</td></tr>"
+    _FORMULA_LABELS = {
+        "number_lead": "Number lead", "heres_formula": "Here's / Here are",
+        "what_to_know": "What to know", "question": "Question",
+        "possessive_named_entity": "Possessive NE", "quoted_lede": "Quoted lede",
+        "untagged": "Untagged",
+    }
+    out = []
+    for _, r in df_author_profiles.iterrows():
+        formula_label = _FORMULA_LABELS.get(r["top_formula"], r["top_formula"])
+        out.append(f"<tr><td>{html_module.escape(str(r['author']))}</td>"
+                   f"<td>{int(r['n_total'])}</td>"
+                   f"<td>{r['med_pct_overall']:.0%}</td>"
+                   f"<td>{formula_label} ({int(r['n_top_formula'])} articles, "
+                   f"{r['top_formula_med_pct']:.0%}ile)</td></tr>")
+    return "\n".join(out)
+
+def _vert_plat_table() -> str:
+    """Vertical performance by platform (n≥3 per cell)."""
+    if df_vert_plat.empty:
+        return "<tr><td colspan='4'>Insufficient data (need ≥3 articles per vertical × platform).</td></tr>"
+    out = []
+    for _, r in df_vert_plat.iterrows():
+        out.append(f"<tr><td>{html_module.escape(str(r['vertical']))}</td>"
+                   f"<td>{html_module.escape(str(r['platform']))}</td>"
+                   f"<td>{int(r['n'])}</td><td>{r['med_pct']:.0%}</td></tr>")
+    return "\n".join(out)
+
 def _nl_type_table():
     if df_nl_type.empty: return "<tr><td colspan='4'>Insufficient data.</td></tr>"
     out = ""
@@ -2073,6 +2223,10 @@ _t_team = _team_top_table()
 _t_nl_type = _nl_type_table()
 _t_nl_size = _nl_size_table()
 _t_wc = _wc_table()
+_t_formula_team    = _formula_team_table()
+_t_content_type    = _content_type_table()
+_t_author_profiles = _author_profiles_table()
+_t_vert_plat       = _vert_plat_table()
 
 _excl_sensitivity_html = ""
 if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
@@ -3212,29 +3366,54 @@ html = f"""<!DOCTYPE html>
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
       <!-- DETAIL: TEAM -->
       <div class="detail-panel" id="detail-team">
-        <h2>Finding 9 · Team Performance (Tracker)</h2>
+        <h2>Finding 9 · Team Content Analysis</h2>
         <div class="callout">
-          <strong>Note:</strong> {N_TRACKED} articles from the content tracker matched to syndication data via URL or headline. Results are directional; match rate limits coverage.
+          <strong>Coverage:</strong> {N_TRACKED} articles from the content tracker matched to syndication data (Apple News, SmartNews, Yahoo) via URL or headline text. Mostly SmartNews. Results are directional; treat as signal, not significance.
         </div>
-        <h3>Author performance by platform (sorted by median percentile)</h3>
+
+        <h3>Are variants performing as well as originals?</h3>
+        <p>{"The tracker distinguishes original articles (Parent-P) from generated variants (Child-C). " + (f"Originals syndicate at the <strong>{PARENT_MED_PCT:.0%}ile</strong>; variants at <strong>{CHILD_MED_PCT:.0%}ile</strong> — a {abs(PARENT_MED_PCT - CHILD_MED_PCT):.0%}-point gap. " + ("Originals outperform variants in this sample. " if PARENT_MED_PCT > CHILD_MED_PCT else "Variants are holding up in this sample. ") + (_fmt_p(CT_P) + " (Mann-Whitney, unadjusted). " if not np.isnan(CT_P) else "Sample too small for significance test. ") + "Directional — but this is exactly the signal the variant allocation model needs to track over time as match rates grow." if not (np.isnan(PARENT_MED_PCT) or np.isnan(CHILD_MED_PCT)) else "Parent/Child data available but sample too small to compare.") if not df_content_type.empty else "Content type breakdown not available in tracker."}</p>
         <table class="findings">
-          <thead><tr><th>Author</th><th>Platform</th><th>n articles</th><th>Median percentile</th></tr></thead>
-          <tbody>{_t_auth}</tbody>
+          <thead><tr><th>Content type</th><th>n matched</th><th>Median percentile</th></tr></thead>
+          <tbody>{_t_content_type}</tbody>
         </table>
-        <h3>Top 20 articles by percentile rank</h3>
+
+        <h3>What formula types is the team actually writing?</h3>
+        <p>Tracked headlines were classified using the same formula detector as Finding 1. <strong>{_ft_untagged_share:.0%} are untagged</strong> (no detectable formula); the most common tagged formula is <strong>{_ft_top_formula.replace("_"," ")} ({_ft_top_formula_pct:.0%} of articles)</strong>. Cross-reference with Finding 1: number leads and question-format headlines significantly underperform the Apple News baseline. If those formula types dominate here, there is a gap to close.</p>
         <table class="findings">
-          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
-          <tbody>{_t_team}</tbody>
+          <thead><tr><th>Formula type</th><th>n articles</th><th>Share of team output</th><th>Median percentile (this sample)</th></tr></thead>
+          <tbody>{_t_formula_team}</tbody>
         </table>
-        <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
+
+        <h3>Author formula profiles</h3>
+        <p>Each author's dominant formula (by article count), their overall median percentile across platforms, and how that formula performs in their own work. Use this to identify whether individual writers are aligned with the highest-performing formats.</p>
+        <table class="findings">
+          <thead><tr><th>Author</th><th>Total matched</th><th>Median percentile</th><th>Dominant formula (performance)</th></tr></thead>
+          <tbody>{_t_author_profiles}</tbody>
+        </table>
+
+        <h3>Vertical routing: which team content types perform where</h3>
+        <p>Cells with n&lt;3 are suppressed. Use this to inform which content verticals to prioritize per platform.</p>
+        <table class="findings">
+          <thead><tr><th>Vertical</th><th>Platform</th><th>n</th><th>Median percentile</th></tr></thead>
+          <tbody>{_t_vert_plat}</tbody>
+        </table>
+
+        <h3>Word count and syndication performance</h3>
         <div class="callout">
-          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range in this sample at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
+          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR}; worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles; too small for reliable significance testing. Treat as directional."}
         </div>
         <table class="findings">
           <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
           <tbody>{_t_wc}</tbody>
         </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
+
+        <h3>Top 20 articles by percentile rank</h3>
+        <table class="findings">
+          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+          <tbody>{_t_team}</tbody>
+        </table>
+        <p class="caveat">Percentile ranks are platform-relative (SmartNews vs. SmartNews, etc.). Word count is from the tracker. Match rate is low for Apple News (URL format mismatch); SmartNews is the most reliable cohort.</p>
       </div><!-- /#detail-team -->
       """}
 
