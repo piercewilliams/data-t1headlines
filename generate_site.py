@@ -2627,17 +2627,40 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             f'  </div>'
         )
 
+        # Determine DO vs. TRY verb for the guidance items based on signal confidence.
+        # Moderate badge = statistically supported → DO. Directional = hypothesis → TRY.
+        _primary_verb = "DO" if _badge_cls == "conf-mod" else "TRY"
+
+        # Build the structured guidance list. Primary item: the signal-derived action.
+        # Secondary item: platform routing — always available and always actionable.
+        _guidance_rows = [(_primary_verb, _safe_action)]
+        # Add platform item only if it's not redundant (i.e. not already the sole platform signal).
+        if not _platform_split and _n_plats >= 2:
+            _plat_note = html_module.escape(
+                f"Route new articles through {_best_plat} first ({_best_plat_m:.0%}ile) — "
+                f"your highest-ROI distribution channel this round."
+            )
+            _guidance_rows.append(("DO", _plat_note))
+        _guidance_li = "\n".join(
+            f'    <li style="margin-bottom:0.4rem">'
+            f'<strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;'
+            f'text-transform:uppercase">{v}:</strong> '
+            f'<span style="font-size:0.84rem;line-height:1.45">{t}</span></li>'
+            for v, t in _guidance_rows
+        )
+
         _detail_html = (
             f'<div id="{_ap_id}" class="pb-detail" style="display:none">\n'
-            f'  <div style="background:rgba(255,255,255,0.03);border:1px solid #334155;'
+            f'  <div style="background:var(--bg-muted);border:1px solid var(--border);'
             f'border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">\n'
             f'    <span class="conf-badge {_badge_cls}" style="margin-bottom:0.6rem">{_badge_lbl}</span>\n'
-            f'    <p style="font-size:0.88rem;color:#e2e8f0;line-height:1.55;margin-bottom:0.75rem">'
+            f'    <p style="font-size:0.88rem;color:var(--text);line-height:1.55;margin-bottom:0.75rem">'
             f'{_safe_claim}</p>\n'
             f'    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;'
-            f'color:#64748b;margin-bottom:0.35rem">Worth experimenting on</p>\n'
-            f'    <p style="font-size:0.84rem;color:#60a5fa;font-weight:500;line-height:1.45;margin:0">'
-            f'\u2192 {_safe_action}</p>\n'
+            f'color:var(--text-muted);margin-bottom:0.5rem">Recommended actions this round</p>\n'
+            f'  <ul style="margin:0;padding-left:1.1rem;color:var(--text-secondary)">\n'
+            f'{_guidance_li}\n'
+            f'  </ul>\n'
             f'  </div>\n'
             f'  <h3 class="rh">Performance overview</h3>\n'
             f'  <p class="detail-sub">{_n} matched articles across {_n_plats} platform(s) \u00b7 '
@@ -4124,8 +4147,8 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('notifications', this)">
       <span class="tile-num">4 · Push Notifications</span>
-      <p class="tile-claim">"Exclusive" is associated with {_excl_lift_val:.1f}× higher CTR {EXCL_CI_STR}. Short notifications (≤80 chars) get 39% fewer clicks.</p>
-      <p class="tile-action">→ Lead with "EXCLUSIVE:" on genuine scoops. Write longer, more descriptive push text.</p>
+      <p class="tile-claim">Short push notifications (≤80 chars) get 39% fewer clicks — counter to standard mobile-first brevity advice. When the story is a genuine scoop, "EXCLUSIVE:" is associated with {_excl_lift_val:.1f}× higher CTR {EXCL_CI_STR}.</p>
+      <p class="tile-action">→ Write longer, more descriptive push text. Reserve "EXCLUSIVE:" for actual scoops — the lift disappears when overused.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
@@ -4145,8 +4168,8 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('engagement', this)">
       <span class="tile-num">7 · Views vs. Reading Depth</span>
-      <p class="tile-claim">Views and reading time show near-zero correlation (r={r_views_at:.3f}, p={p_views_at:.2f}) — high-reach and deep-read articles are largely distinct populations.</p>
-      <p class="tile-action">→ Track active time alongside views. Use both signals for variant ROI.</p>
+      <p class="tile-claim">On Apple News, high-view and high-engagement articles are largely separate populations (r={r_views_at:.3f}) — a headline optimized for reach won't advance depth, and vice versa. These are two distinct editorial strategies, not one.</p>
+      <p class="tile-action">→ Define success separately for reach campaigns vs. depth campaigns. Don't optimize headline variants for views and expect active time to follow.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
