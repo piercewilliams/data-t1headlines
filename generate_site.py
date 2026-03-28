@@ -117,7 +117,8 @@ def tag_topic(text):
     if re.search(r"\b(game|team|nfl|nba|mlb|nhl|coach|season|championship|super bowl|playoff|quarterback)\b", t): return "sports"
     if re.search(r"\b(storm|hurricane|tornado|flood|rain|snow|weather|forecast|wildfire|earthquake|heat)\b", t): return "weather"
     if re.search(r"\b(business|economy|job|hire|layoff|company|market|real estate|housing|price|cost|wage|salary|tax)\b", t): return "business"
-    if re.search(r"\b(school|student|teacher|education|college|university|election|vote|city|county|state|local|community|neighborhood)\b", t): return "local_civic"
+    if re.search(r"\b(trump|biden|congress|senate|white house|president|governor|election|vote|campaign|ballot|democrat|republican|gop|legislation|bill|policy|lawmaker|politician)\b", t): return "politics"
+    if re.search(r"\b(school|student|teacher|education|college|university|city|county|state|local|community|neighborhood)\b", t): return "local_civic"
     if re.search(r"\b(restaurant|food|eat|chef|menu|recipe|bar|coffee|dining|hotel|travel|beach|park|festival|concert)\b", t): return "lifestyle"
     if re.search(r"\b(animal|creature|species|wildlife|shark|bear|alligator|snake|bird|dog|cat|pet)\b", t): return "nature_wildlife"
     return "other"
@@ -139,6 +140,19 @@ def tag_subtopic(text, topic):
         if re.search(r"\bmissing\b|disappeared|search|kidnap|abduct|last seen", t): return "missing_persons"
         if re.search(r"\barrested\b|arrest|suspect|detained|taken into custody", t): return "arrest"
         return "crime_other"
+    if topic == "business":
+        if re.search(r"\bretail\b|store|shop|walmart|target|amazon|grocery|costco|consumer", t): return "retail"
+        if re.search(r"\breal estate\b|housing|home price|mortgage|rent\b|apartment|landlord|zillow|for sale|home sale", t): return "real_estate"
+        if re.search(r"\bjobs?\b|hiring|layoff|unemployment|workforce|worker|employee|salary|wage|fired|rehire", t): return "jobs_labor"
+        if re.search(r"\bstock|wall street|fed\b|federal reserve|interest rate|inflation|gdp|recession|economy|bank|finance|investor|nasdaq|dow\b", t): return "finance_macro"
+        if re.search(r"\btech\b|apple\b|google|microsoft|\bai\b|artificial intelligence|startup|silicon valley|software|app\b|meta\b|tesla\b", t): return "tech"
+        return "business_other"
+    if topic == "politics":
+        if re.search(r"\btrump\b|congress|senate|house of representatives|white house|president|federal|administration|biden\b|supreme court", t): return "federal"
+        if re.search(r"\bgovernor|state legislature|state senate|state house|statehouse\b", t): return "state"
+        if re.search(r"\bmayor|city council|county|local government|school board|municipality", t): return "local_govt"
+        if re.search(r"\belection|ballot|primary\b|vote|campaign|candidate|polling|midterm\b", t): return "election"
+        return "politics_other"
     return None
 
 
@@ -286,7 +300,8 @@ an["formula"]     = an["Article"].apply(classify_formula)
 an["topic"]       = an["Article"].apply(tag_topic)
 an["_pub_month"]  = pd.to_datetime(an["Date Published"], errors="coerce").dt.to_period("M").astype(str)
 
-sn["topic"] = sn["title"].apply(tag_topic)
+sn["topic"]   = sn["title"].apply(tag_topic)
+sn["formula"] = sn["title"].apply(classify_formula)
 sn["_sn_month"] = sn["date"].astype(str)
 
 # Topic classifier coverage (fraction of AN articles tagged into a named topic, not "other")
@@ -584,7 +599,7 @@ at_high_n = int((an_eng[AT_COL] > 300).sum())
 
 TOPIC_LABELS = {
     "weather":"Weather","sports":"Sports","crime":"Crime","business":"Business",
-    "local_civic":"Local/Civic","lifestyle":"Lifestyle",
+    "politics":"Politics","local_civic":"Local/Civic","lifestyle":"Lifestyle",
     "nature_wildlife":"Nature/Wildlife","other":"Other"
 }
 
@@ -660,6 +675,69 @@ for sub in ["violent_crime","court_legal","missing_persons","arrest","crime_othe
     ))
 df_crime_subtopic = pd.DataFrame(crime_subtopic_rows).sort_values("med", ascending=False)
 
+# ── Business subtopic drill-down ─────────────────────────────────────────────
+biz_an = an[an["topic"] == "business"].copy()
+biz_sn = sn[sn["topic"] == "business"].copy()
+biz_subtopic_rows = []
+for sub in ["retail","real_estate","jobs_labor","finance_macro","tech","business_other"]:
+    an_vals = biz_an[biz_an["subtopic"] == sub][VIEWS_METRIC].dropna()
+    sn_vals = biz_sn[biz_sn["subtopic"] == sub][VIEWS_METRIC].dropna()
+    biz_subtopic_rows.append(dict(
+        subtopic=sub, label=sub.replace("_"," ").title(),
+        an_n=len(an_vals), sn_n=len(sn_vals),
+        an_med=an_vals.median() if len(an_vals) >= 3 else np.nan,
+        sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
+    ))
+df_biz_subtopic = pd.DataFrame(biz_subtopic_rows).sort_values("an_med", ascending=False)
+
+# ── Politics subtopic drill-down ─────────────────────────────────────────────
+pol_an = an[an["topic"] == "politics"].copy()
+pol_sn = sn[sn["topic"] == "politics"].copy()
+pol_subtopic_rows = []
+for sub in ["federal","state","local_govt","election","politics_other"]:
+    an_vals = pol_an[pol_an["subtopic"] == sub][VIEWS_METRIC].dropna()
+    sn_vals = pol_sn[pol_sn["subtopic"] == sub][VIEWS_METRIC].dropna()
+    pol_subtopic_rows.append(dict(
+        subtopic=sub, label=sub.replace("_"," ").title(),
+        an_n=len(an_vals), sn_n=len(sn_vals),
+        an_med=an_vals.median() if len(an_vals) >= 3 else np.nan,
+        sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
+    ))
+df_pol_subtopic = pd.DataFrame(pol_subtopic_rows).sort_values("an_med", ascending=False)
+
+# ── Headline length analysis ──────────────────────────────────────────────────
+an["_hl_len"] = an["Article"].str.len()
+sn["_hl_len"] = sn["title"].str.len()
+try:
+    an["_hl_bucket"] = pd.qcut(an["_hl_len"], 4,
+        labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"], duplicates="drop")
+    sn["_hl_bucket"] = pd.qcut(sn["_hl_len"], 4,
+        labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"], duplicates="drop")
+except Exception:
+    an["_hl_bucket"] = pd.cut(an["_hl_len"], bins=[0,55,75,95,999],
+        labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"])
+    sn["_hl_bucket"] = pd.cut(sn["_hl_len"], bins=[0,55,75,95,999],
+        labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"])
+
+_HL_BUCKET_ORDER = ["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"]
+hl_len_rows = []
+for bucket in _HL_BUCKET_ORDER:
+    an_sub  = an[an["_hl_bucket"] == bucket]
+    sn_sub  = sn[sn["_hl_bucket"] == bucket]
+    an_vals = an_sub[VIEWS_METRIC].dropna()
+    sn_vals = sn_sub[VIEWS_METRIC].dropna()
+    hl_len_rows.append(dict(
+        bucket=bucket,
+        an_n=len(an_vals), sn_n=len(sn_vals),
+        an_med=an_vals.median() if len(an_vals) >= 3 else np.nan,
+        sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
+        an_len_med=an_sub["_hl_len"].median() if len(an_sub) > 0 else np.nan,
+        sn_len_med=sn_sub["_hl_len"].median() if len(sn_sub) > 0 else np.nan,
+    ))
+df_hl_len = pd.DataFrame(hl_len_rows)
+AN_MEDIAN_HL_LEN = float(an["_hl_len"].median())
+SN_MEDIAN_HL_LEN = float(sn["_hl_len"].median())
+
 
 # ── Top/bottom headline examples ──────────────────────────────────────────────
 def top_bottom_html(df, text_col, views_col, topic, n=6):
@@ -674,6 +752,7 @@ def top_bottom_html(df, text_col, views_col, topic, n=6):
 
 crime_top_h, crime_bot_h   = top_bottom_html(an, "Article", VIEWS_METRIC, "crime")
 biz_top_h,   biz_bot_h     = top_bottom_html(an, "Article", VIEWS_METRIC, "business")
+pol_top_h,   pol_bot_h     = top_bottom_html(an, "Article", VIEWS_METRIC, "politics")
 
 # ── Number leads deep dive ────────────────────────────────────────────────────
 numleads = nf[nf["formula"] == "number_lead"].copy()
@@ -858,6 +937,40 @@ if len(df_yoy_valid) > 0:
 else:
     YOY_CHANGING_FORMULA = "—"
     YOY_CHANGING_DELTA   = 0.0
+
+
+# ── Editorial guidance: formula × topic cross-tab (Apple News) ──────────────
+_an_guide_rows = []
+for f in ["possessive_named_entity","heres_formula","number_lead","what_to_know","question"]:
+    for topic in ["crime","business","politics","sports","weather","lifestyle","local_civic"]:
+        sub = nf[(nf["formula"] == f) & (nf["topic"] == topic)][VIEWS_METRIC].dropna()
+        if len(sub) >= 5:
+            _an_guide_rows.append(dict(
+                formula=FORMULA_LABELS.get(f, f),
+                topic=TOPIC_LABELS.get(topic, topic),
+                n=len(sub),
+                med=float(sub.median()),
+                lift=float(sub.median() / baseline.median()) if baseline.median() > 0 else np.nan,
+            ))
+df_an_guide = (pd.DataFrame(_an_guide_rows).sort_values("lift", ascending=False)
+               if _an_guide_rows else pd.DataFrame())
+
+# SN formula × topic cross-tab (SmartNews)
+_sn_guide_rows = []
+for f in ["possessive_named_entity","heres_formula","number_lead","what_to_know","question"]:
+    for topic in ["crime","business","politics","sports","weather","lifestyle","local_civic"]:
+        sub = sn[(sn["formula"] == f) & (sn["topic"] == topic)][VIEWS_METRIC].dropna()
+        if len(sub) >= 5:
+            _sn_guide_rows.append(dict(
+                formula=FORMULA_LABELS.get(f, f),
+                topic=TOPIC_LABELS.get(topic, topic),
+                n=len(sub),
+                med=float(sub.median()),
+                lift=float(sub.median() / sn[sn["formula"]=="untagged"][VIEWS_METRIC].median())
+                     if sn[sn["formula"]=="untagged"][VIEWS_METRIC].median() > 0 else np.nan,
+            ))
+df_sn_guide = (pd.DataFrame(_sn_guide_rows).sort_values("lift", ascending=False)
+               if _sn_guide_rows else pd.DataFrame())
 
 
 df_wc_quartile = pd.DataFrame()
@@ -1324,6 +1437,52 @@ def _sports_subtopic_table():
                      f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
     return html_out
 
+def _biz_subtopic_table():
+    html_out = ""
+    for _, r in df_biz_subtopic.iterrows():
+        an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
+        sn_str = f"{r['sn_med']:.0%}" if pd.notna(r['sn_med']) else "—"
+        html_out += (f"<tr><td>{r['label']}</td>"
+                     f"<td>{int(r['an_n'])}</td><td>{an_str}</td>"
+                     f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
+    return html_out
+
+def _pol_subtopic_table():
+    html_out = ""
+    for _, r in df_pol_subtopic.iterrows():
+        an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
+        sn_str = f"{r['sn_med']:.0%}" if pd.notna(r['sn_med']) else "—"
+        html_out += (f"<tr><td>{r['label']}</td>"
+                     f"<td>{int(r['an_n'])}</td><td>{an_str}</td>"
+                     f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
+    return html_out
+
+def _hl_len_table():
+    html_out = ""
+    for _, r in df_hl_len.iterrows():
+        an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
+        sn_str = f"{r['sn_med']:.0%}" if pd.notna(r['sn_med']) else "—"
+        an_chars = f"{int(r['an_len_med'])} chars" if pd.notna(r['an_len_med']) else "—"
+        html_out += (f"<tr><td>{r['bucket']}</td><td>{an_chars}</td>"
+                     f"<td>{int(r['an_n']):,}</td><td>{an_str}</td>"
+                     f"<td>{int(r['sn_n']):,}</td><td>{sn_str}</td></tr>\n")
+    return html_out
+
+def _guide_table(df, max_rows=20):
+    if df.empty: return "<tr><td colspan='5'>Insufficient data (need ≥5 articles per formula × topic cell).</td></tr>"
+    html_out = ""
+    for _, r in df.head(max_rows).iterrows():
+        lift_val = r['lift']
+        if pd.notna(lift_val):
+            color = "#4ade80" if lift_val >= 1.5 else ("#60a5fa" if lift_val >= 1.0 else "#f87171")
+            lift_str = f'<span style="color:{color};font-weight:600">{lift_val:.2f}×</span>'
+        else:
+            lift_str = "—"
+        html_out += (f"<tr><td>{r['formula']}</td><td>{r['topic']}</td>"
+                     f"<td>{int(r['n'])}</td><td>{r['med']:.0%}</td>"
+                     f"<td>{lift_str}</td></tr>\n")
+    return html_out
+
 def _yoy_table():
     html_out = ""
     for _, r in df_yoy.iterrows():
@@ -1393,6 +1552,11 @@ _t2 = _q2_table()
 _t3 = _q4_table()
 _t4 = _q5_table()
 _t5 = _sports_subtopic_table()
+_t_biz_sub  = _biz_subtopic_table()
+_t_pol_sub  = _pol_subtopic_table()
+_t_hl_len   = _hl_len_table()
+_t_an_guide = _guide_table(df_an_guide)
+_t_sn_guide = _guide_table(df_sn_guide)
 _t_yoy = _yoy_table()
 _t_periods = _periods_table()
 _t_auth = _author_table()
@@ -1687,6 +1851,35 @@ fig8.update_layout(
     legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
 
+# Chart HL — Headline length quartile vs. percentile (Apple News + SmartNews)
+fig_hl = go.Figure()
+if not df_hl_len.empty:
+    fig_hl.add_trace(go.Bar(
+        y=df_hl_len["bucket"].tolist(), x=df_hl_len["an_med"].tolist(),
+        name="Apple News", orientation="h", marker_color=BLUE, opacity=0.85,
+        text=[f"{v:.0%}  (n={n:,})" if pd.notna(v) else "—"
+              for v, n in zip(df_hl_len["an_med"], df_hl_len["an_n"])],
+        textposition="outside", cliponaxis=False,
+    ))
+    fig_hl.add_trace(go.Bar(
+        y=df_hl_len["bucket"].tolist(), x=df_hl_len["sn_med"].tolist(),
+        name="SmartNews", orientation="h", marker_color=GREEN, opacity=0.85,
+        text=[f"{v:.0%}  (n={n:,})" if pd.notna(v) else "—"
+              for v, n in zip(df_hl_len["sn_med"], df_hl_len["sn_n"])],
+        textposition="outside", cliponaxis=False,
+    ))
+fig_hl.add_vline(x=0.5, line_dash="dash", line_color=_T["baseline"],
+                 annotation_text="50th %ile", annotation_position="top")
+fig_hl.update_layout(
+    **make_layout(THEME, height=360, margin=dict(l=20, r=180, t=50, b=80),
+                  title="Headline length (character count quartile) vs. median percentile rank"),
+    barmode="group",
+    xaxis=dict(title="Median percentile_within_cohort", gridcolor=_T["grid"],
+               zeroline=False, tickformat=".0%"),
+    yaxis=dict(title=""),
+    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
+)
+
 
 # ── Render charts ─────────────────────────────────────────────────────────────
 def chart_html(fig):
@@ -1698,8 +1891,9 @@ c3 = chart_html(fig3)
 c4 = chart_html(fig4)
 c5 = chart_html(fig5)
 c6 = chart_html(fig6)
-c7 = chart_html(fig7)
-c8 = chart_html(fig8)
+c7   = chart_html(fig7)
+c8   = chart_html(fig8)
+c_hl = chart_html(fig_hl)
 
 # ── Conditional sections ──────────────────────────────────────────────────────
 _finding9_html = ""
@@ -2007,6 +2201,13 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
+    <div class="tile" onclick="showDetail('playbook', this)">
+      <span class="tile-num">Editorial Playbook</span>
+      <p class="tile-claim">Platform-by-platform headline rules synthesized from all 8 findings. Apple News, SmartNews, and Push Notifications.</p>
+      <p class="tile-action">→ Use as a pre-publication checklist. One section per platform.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+
     {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
     <div class="tile" onclick="showDetail('team', this)">
       <span class="tile-num">9 · Team Performance</span>
@@ -2147,7 +2348,17 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Sport</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
           <tbody>{_t5}</tbody>
         </table>
-        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
+        <h3>Politics subtopic performance by platform</h3>
+        <p>Within politics, which story type drives the most engagement on each platform?</p>
+        <table class="findings">
+          <thead><tr><th>Subtopic</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+          <tbody>{_t_pol_sub}</tbody>
+        </table>
+        <div class="example-cols">
+          <div class="example-list example-top"><h4>Top quartile politics headlines</h4><ul>{pol_top_h}</ul></div>
+          <div class="example-list example-bot"><h4>Bottom quartile politics headlines</h4><ul>{pol_bot_h}</ul></div>
+        </div>
+        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Subtopics with n&lt;3 show "—".</p>
       </div><!-- /#detail-topics -->
 
       <!-- DETAIL: ALLOCATION -->
@@ -2171,6 +2382,19 @@ html = f"""<!DOCTYPE html>
           <div class="example-list example-bot"><h4>Bottom quartile business headlines</h4><ul>{biz_bot_h}</ul></div>
         </div>
         <p class="callout-inline"><strong>What separates top from bottom business headlines:</strong> Top performers anchor to a specific company, dollar figure, or named individual. Bottom performers describe economic conditions abstractly ("rising costs," "market uncertainty") without a concrete hook.</p>
+        <h3>Business subtopic drill-down</h3>
+        <p>Within business, which sub-category performs best on each platform?</p>
+        <table class="findings">
+          <thead><tr><th>Subtopic</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+          <tbody>{_t_biz_sub}</tbody>
+        </table>
+        <h3>Headline length vs. performance</h3>
+        <p>Headline character count split into quartiles — median Apple News headline is {AN_MEDIAN_HL_LEN:.0f} chars; SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars. Does length correlate with percentile rank?</p>
+        <div class="chart-wrap">{c_hl}</div>
+        <table class="findings">
+          <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+          <tbody>{_t_hl_len}</tbody>
+        </table>
         <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure. Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is substantially explained by channel-placement bimodality (Finding 3).</p>
       </div><!-- /#detail-allocation -->
 
@@ -2218,6 +2442,64 @@ html = f"""<!DOCTYPE html>
         </table>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median percentile_within_cohort ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
+
+      <!-- DETAIL: EDITORIAL PLAYBOOK -->
+      <div class="detail-panel" id="detail-playbook">
+        <h2>Editorial Playbook · Per-Platform Headline Guidance</h2>
+        <div class="callout">
+          <strong>How to use this:</strong> Each platform rewards different headline structures. This playbook translates Findings 1–8 into per-channel rules. Top formula × topic combinations are ranked by lift vs. untagged baseline (≥5 articles required per cell).
+        </div>
+
+        <h3>Apple News — top formula × topic combinations</h3>
+        <p>Non-Featured articles only, ranked by lift vs. untagged baseline. Use these as starting points for which formula to reach for when writing for a given topic.</p>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+          <tbody>{_t_an_guide}</tbody>
+        </table>
+        <div class="callout-inline">
+          <strong>Apple News rules of thumb:</strong>
+          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
+            <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
+            <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the 11–20 range; avoid round numbers (round leads underperform specific leads).</li>
+            <li><strong>Avoid question format</strong> for organic performance — underperforms {_r1_q['lift']:.2f}× baseline. Reserve for Featured targeting only if "What to know" is unavailable.</li>
+            <li><strong>Longer headlines outperform shorter ones</strong> — median length is {AN_MEDIAN_HL_LEN:.0f} chars; don't truncate to fit a format preference.</li>
+            <li><strong>Business and lifestyle</strong> have the widest outcome variance (CV=1.55) — headline choice matters most here. Concentrate variant production on these topics first.</li>
+          </ul>
+        </div>
+
+        <h3>SmartNews — top formula × topic combinations</h3>
+        <p>Ranked by lift vs. untagged SmartNews baseline. SmartNews rewards local/geographic specificity — the channel placement (Finding 3) matters as much as the formula.</p>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+          <tbody>{_t_sn_guide}</tbody>
+        </table>
+        <div class="callout-inline">
+          <strong>SmartNews rules of thumb:</strong>
+          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
+            <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× ROI. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+            <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
+            <li><strong>Sports underperforms SmartNews</strong> ({sports_sn_idx:.2f}× platform median) — don't rely on sports content for SmartNews reach; the same story with a local/civic frame does better.</li>
+            <li><strong>Median headline length</strong> on SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars — see the length analysis in Finding 6 for platform-specific guidance.</li>
+          </ul>
+        </div>
+
+        <h3>Push Notifications — top features by CTR lift</h3>
+        <table class="findings">
+          <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Lift</th><th>Significant?</th></tr></thead>
+          <tbody>{_t4}</tbody>
+        </table>
+        <div class="callout-inline">
+          <strong>Notification rules of thumb:</strong>
+          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
+            <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — {EXCL_LIFT} CTR lift. The word must be earned; overuse erodes the signal.</li>
+            <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" ({_r5_poss['lift']:.2f}× lift).</li>
+            <li><strong>Write longer notifications</strong>: ≤80 chars gets {(1-float(_r5_sh['lift'])):.0%} fewer clicks. Give readers context before asking them to tap.</li>
+            <li><strong>Avoid question format</strong>: hurts notification CTR ({_r5_q['lift']:.2f}×), consistent with the article finding.</li>
+            <li><strong>Serial/escalating stories with a celebrity anchor</strong> are the highest-CTR content type — structure updates as installments with named-person possessive framing.</li>
+          </ul>
+        </div>
+        <p class="caveat">This playbook synthesizes Findings 1–8. Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels for p-values and sample sizes. Treat as directional guidance, not policy.</p>
+      </div><!-- /#detail-playbook -->
 
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
       <!-- DETAIL: TEAM -->
