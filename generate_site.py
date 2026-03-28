@@ -4162,7 +4162,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
           style.id = '_exp_style';
-          style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
+          style.textContent = '@page{{margin:0;size:' + w + 'px ' + h + 'px}}@media print{{html,body{{height:' + h + 'px!important;overflow:hidden!important}}body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0;margin:0}}#_exp_print img{{width:100%!important;height:auto!important;display:block!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
           var _origTitle = document.title;
           document.title = title;
@@ -4807,7 +4807,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
           style.id = '_exp_style';
-          style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
+          style.textContent = '@page{{margin:0;size:' + w + 'px ' + h + 'px}}@media print{{html,body{{height:' + h + 'px!important;overflow:hidden!important}}body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0;margin:0}}#_exp_print img{{width:100%!important;height:auto!important;display:block!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
           var _origTitle2 = document.title;
           document.title = title;
@@ -5223,7 +5223,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           document.body.appendChild(printDiv);
           var style = document.createElement('style');
           style.id = '_exp_style';
-          style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
+          style.textContent = '@page{{margin:0;size:' + w + 'px ' + h + 'px}}@media print{{html,body{{height:' + h + 'px!important;overflow:hidden!important}}body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0;margin:0}}#_exp_print img{{width:100%!important;height:auto!important;display:block!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
           var _origTitle3 = document.title;
           document.title = title;
