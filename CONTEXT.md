@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — all 9 findings live, playbook, experiments, full ingest pipeline
+**Phase:** Phase 2 complete — all 9 findings live, playbook, author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-28 (code quality / refactor pass)
+**Last session:** 2026-03-28 (DRY refactor — nav + export JS)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,9 +11,12 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 9 findings, interactive tiles, dark/light mode, sortable tables
-- **Playbook:** `docs/playbook/index.html` — 5 tiles sorted by confidence level
-- **Generator:** `generate_site.py` — fully typed, documented, refactored; run via `ingest.py`
+- **Site:** `docs/index.html` — 9 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Playbook:** `docs/playbook/index.html` — 5 tiles sorted by confidence level, PNG/PDF export
+- **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker), PNG/PDF export
+- **Generator:** `generate_site.py` — fully typed, documented, DRY; run via `ingest.py`
+  - Nav: `_build_nav()` / `_NAV_PAGES` — single source of truth, all 3 pages
+  - Export JS: `_make_export_js()` — parameterized, all 3 pages
 - **Data in use:**
   - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, SmartNews, MSN Dec, Yahoo)
   - `Top Stories 2026 Syndication.xlsx` — 2026 YTD (Apple News, Notifications, SmartNews, Yahoo, MSN)
@@ -53,6 +56,15 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads
 
 ## Session Log
+
+**2026-03-28: DRY refactor (nav + export JS)**
+- Added `_NAV_PAGES` + `_build_nav()` to `generate_site.py` — replaced 3 hardcoded nav blocks (~40 lines each → 1 call each)
+- Added `_make_export_js()` to `generate_site.py` — replaced 3 hardcoded `_findTileForPanel` + `_exportPanel` blocks (~120 lines each → 1 call each)
+- Copied `_NAV_PAGES` + adapted `_build_nav()` into `generate_experiment.py` — replaced 2 hardcoded nav blocks
+- Verified formula label keys consistent between `FORMULA_LABELS` and `_FORMULA_LABELS` (both 7 keys, display strings intentionally differ)
+- Confirmed cache-control meta tags present on all 3 main pages
+- All 5 page types pass nav consistency audit (4 links each, correct active link, correct hrefs)
+- Build: JS syntax valid, 6 expected rigor warnings, row counts unchanged (AN=4174, SN=38251, Notif=351)
 
 **2026-03-28: Code quality / refactor**
 Full refactor pass on all three Python scripts:

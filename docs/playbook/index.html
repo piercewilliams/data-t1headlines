@@ -450,10 +450,18 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
+  // Wait 2 frames for Plotly to finish its async redraws before cloning,
+  // so the clone captures the correctly-themed chart SVGs.
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       var container = document.createElement('div');
       container.id = containerId;
+      // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
+      // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
+      // inlines opacity:1 on every child. The style:{opacity:'1'} override then makes the
+      // root visible too. visibility:hidden would be inherited by all children via
+      // getComputedStyle, causing blank output even after the root override.
+      // No overflow:hidden—let content expand freely so scrollHeight is accurate.
       container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
         'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
@@ -471,6 +479,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
       container.appendChild(pc);
       document.body.appendChild(container);
 
+  // Second double rAF ensures layout is committed before we measure dimensions.
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       var w = container.offsetWidth || 1100;
@@ -513,6 +522,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
           };
           img.src = dataUrl;
         } else {
+          // Blob URL required—Safari silently blocks a.download with data: URLs.
           try {
             var arr = dataUrl.split(',');
             var mime = (arr[0].match(/:(.*?);/) || [,'image/png'])[1];
