@@ -1709,513 +1709,424 @@ html = f"""<!DOCTYPE html>
     --amber:  {AMBER};
     --gray:   {GRAY};
     --light:  {LIGHT};
-    --border: #e2e8f0;
-    --text:   {NAVY};
-    --sub:    #4b5563;
-    --bg:     #f8fafc;
   }}
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    color: var(--text); background: var(--bg); font-size: 15px; line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
-  }}
-
-  /* NAV */
-  nav {{
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(15,23,42,0.96);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    padding: 0 2rem;
-    display: flex; align-items: center; gap: 1.5rem; height: 46px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    overflow-x: auto;
-  }}
-  nav::-webkit-scrollbar {{ display: none; }}
-  nav .brand {{
-    color: #fff; font-weight: 700; font-size: 0.72rem;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    white-space: nowrap; flex-shrink: 0;
-  }}
-  nav .nav-links {{ display: flex; gap: 1rem; align-items: center; }}
-  nav a {{
-    color: rgba(255,255,255,0.38); text-decoration: none;
-    font-size: 0.73rem; white-space: nowrap;
-    transition: color 0.15s; letter-spacing: 0.01em;
-  }}
-  nav a:hover {{ color: rgba(255,255,255,0.82); }}
-  nav .spacer {{ flex: 1; min-width: 1rem; }}
-  nav .date {{
-    color: rgba(255,255,255,0.22); font-size: 0.68rem;
-    white-space: nowrap; flex-shrink: 0; letter-spacing: 0.02em;
-  }}
-
-  /* HERO */
-  .hero {{
-    background: linear-gradient(150deg, #0f172a 0%, #1a2744 100%);
-    color: #fff; padding: 5.5rem 2rem 5rem; text-align: center;
-  }}
-  .hero .eyebrow {{
-    text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.6rem;
-    color: rgba(255,255,255,0.28); margin-bottom: 1.4rem; font-weight: 600;
-  }}
-  .hero h1 {{
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 2.35rem; font-weight: 700; line-height: 1.22;
-    max-width: 700px; margin: 0 auto 1rem; letter-spacing: -0.015em;
-  }}
-  .hero .sub {{
-    font-size: 0.85rem; color: rgba(255,255,255,0.32);
-    max-width: 540px; margin: 0 auto 3.5rem; letter-spacing: 0.01em;
-  }}
-  .hero .meta {{
-    display: inline-flex; flex-wrap: wrap; justify-content: center;
-    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-    overflow: hidden; background: rgba(255,255,255,0.03);
-  }}
-  .hero .meta-item {{
-    text-align: center; padding: 1.4rem 2.5rem;
-    border-right: 1px solid rgba(255,255,255,0.08);
-  }}
-  .hero .meta-item:last-child {{ border-right: none; }}
-  .hero .meta-item .num {{
-    font-size: 2.4rem; font-weight: 700; color: #fff;
-    display: block; letter-spacing: -0.035em; line-height: 1;
-    margin-bottom: 0.45rem;
-  }}
-  .hero .meta-item .label {{
-    font-size: 0.6rem; color: rgba(255,255,255,0.28);
-    text-transform: uppercase; letter-spacing: 0.1em; display: block; line-height: 1.5;
-  }}
-
-  /* LAYOUT */
-  .container {{ max-width: 840px; margin: 0 auto; padding: 0 2rem; }}
-
-  /* TYPOGRAPHY */
-  .section-label {{
-    text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem;
-    color: var(--blue); font-weight: 700; margin-bottom: 0.5rem; display: block;
-  }}
-  h2 {{
-    font-size: 1.45rem; font-weight: 700; line-height: 1.3;
-    letter-spacing: -0.02em; color: var(--text);
-  }}
-  h3 {{
-    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--gray); margin: 2rem 0 0.6rem;
-  }}
-  p {{ color: var(--sub); margin-bottom: 0.9rem; font-size: 0.9375rem; }}
-  p:last-child {{ margin-bottom: 0; }}
-
-  /* CHART */
-  .chart-wrap {{
-    margin: 1.5rem 0; border-radius: 10px; overflow: hidden;
-    background: #fff; padding: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
-  }}
-
-  /* CALLOUT */
-  .callout {{
-    background: #eff6ff; border: 1px solid #bfdbfe;
-    padding: 1rem 1.25rem; border-radius: 8px;
-    margin: 1.5rem 0; font-size: 0.875rem; color: var(--text); line-height: 1.65;
-  }}
-  .callout strong {{ color: #1e40af; }}
-  .callout em {{ color: var(--sub); }}
-  .callout-inline {{ font-size: 0.82rem; color: #475569; background: #f1f5f9; border-left: 3px solid #94a3b8; padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
-
-  /* TAGS */
-  .tag {{
-    display: inline-block; font-size: 0.6rem; font-weight: 700;
-    padding: 1px 5px; border-radius: 3px; margin-right: 5px; vertical-align: middle;
-  }}
-  .tag-blue  {{ background: #eff6ff; color: #1d4ed8; }}
-  .tag-green {{ background: #f0fdf4; color: #15803d; }}
-  .tag-red   {{ background: #fff1f2; color: #be123c; }}
-  .tag-amber {{ background: #fffbeb; color: #b45309; }}
-
-  /* FINDINGS TABLE */
-  .findings {{
-    width: 100%; border-collapse: collapse; font-size: 0.84rem; margin: 1.25rem 0;
-    background: #fff; border-radius: 8px; overflow: hidden;
-    box-shadow: 0 0 0 1px var(--border), 0 1px 3px rgba(0,0,0,0.04);
-  }}
-  .findings th {{
-    text-align: left; padding: 8px 12px; background: #f8fafc;
-    color: var(--gray); font-weight: 600; font-size: 0.62rem;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    border-bottom: 1px solid var(--border);
-  }}
-  .findings td {{
-    padding: 8px 12px; border-bottom: 1px solid #f1f5f9;
-    vertical-align: top; color: var(--sub);
-  }}
-  .findings tr:last-child td {{ border-bottom: none; }}
-  .findings tr:hover td {{ background: #fafbfd; }}
-  .findings td:nth-child(n+2) {{ font-variant-numeric: tabular-nums; }}
-
-  /* CAVEAT */
-  .caveat {{ font-size: 0.74rem; color: #94a3b8; margin-top: 0.75rem; line-height: 1.6; }}
-
-  /* FINDING CARDS */
-  .finding-card {{ border-bottom: 1px solid var(--border); }}
-  .finding-card:first-of-type {{ border-top: 1px solid var(--border); margin-top: 2.5rem; }}
-  .finding-card:last-of-type {{ border-bottom: 1px solid var(--border); margin-bottom: 3rem; }}
-  .finding-card > summary {{
-    list-style: none; cursor: pointer;
-    padding: 1.75rem 0;
-    display: grid; grid-template-columns: 1.1rem 1fr;
-    gap: 0 0.85rem; align-items: start; user-select: none;
-  }}
-  .finding-card > summary::-webkit-details-marker {{ display: none; }}
-  .finding-card > summary::marker {{ display: none; }}
-  .finding-chevron {{
-    margin-top: 0.4rem; color: #cbd5e1; font-size: 0.55rem;
-    transition: transform 0.2s ease, color 0.15s; display: inline-block;
-  }}
-  .finding-card[open] > summary .finding-chevron {{
-    transform: rotate(90deg); color: var(--blue);
-  }}
-  .finding-card > summary:hover .finding-chevron {{ color: var(--blue); }}
-  .finding-card > summary h2 {{ transition: color 0.15s; }}
-  .finding-card > summary:hover h2 {{ color: var(--blue); }}
-  .finding-body {{ padding: 0 0 2.5rem 1.95rem; }}
-  .finding-body > .callout:first-child {{ margin-top: 0; }}
-
-  /* NAV TOGGLE */
-  .nav-toggle {{
-    background: transparent; border: 1px solid rgba(255,255,255,0.16);
-    color: rgba(255,255,255,0.42); border-radius: 4px;
-    padding: 3px 10px; font-size: 0.66rem; cursor: pointer;
-    white-space: nowrap; flex-shrink: 0; font-family: inherit;
-    letter-spacing: 0.04em; transition: all 0.15s;
-  }}
-  .nav-toggle:hover {{ border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.8); }}
-
-  /* EXAMPLE LISTS */
-  .example-cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }}
-  .example-list {{ background: #fff; border-radius: 8px; padding: 0.75rem 1rem;
-    box-shadow: 0 0 0 1px var(--border); }}
-  .example-list h4 {{ font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--gray); margin-bottom: 0.5rem; }}
-  .example-list ul {{ padding-left: 1.2rem; font-size: 0.82rem; color: var(--sub); }}
-  .example-list li {{ margin-bottom: 0.35rem; }}
-  .example-top h4 {{ color: #15803d; }}
-  .example-bot h4 {{ color: #be123c; }}
-
-  /* FOOTER */
-  footer {{
-    padding: 3.5rem 0; text-align: center; color: #94a3b8;
-    font-size: 0.75rem; border-top: 1px solid var(--border);
-    background: #fff; margin-top: 1rem;
-    letter-spacing: 0.01em;
-  }}
-  footer a {{ color: var(--blue); text-decoration: none; }}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; background: #fff; color: #1d1d1f; font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }}
+  nav {{ position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #d2d2d7; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }}
+  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #1d1d1f; }}
+  .nav-date {{ font-size: 11px; color: #6e6e73; }}
+  .hero {{ padding: 56px 28px 48px; text-align: center; border-bottom: 1px solid #f0f0f0; }}
+  .eyebrow {{ font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: #6e6e73; margin-bottom: 16px; }}
+  .hero h1 {{ font-size: 26px; font-weight: 600; line-height: 1.35; color: #1d1d1f; max-width: 840px; margin: 0 auto 30px; letter-spacing: -0.01em; }}
+  .hero-stats {{ display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 18px; }}
+  .stat-num {{ font-size: 18px; font-weight: 600; color: #1d1d1f; margin-right: 4px; }}
+  .stat-label {{ font-size: 11px; color: #6e6e73; }}
+  .stat-sep {{ color: #d2d2d7; margin: 0 2px; }}
+  main {{ max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; }}
+  .grid-label {{ font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: #6e6e73; margin-bottom: 14px; }}
+  .tile-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 0; }}
+  .tile {{ background: #fff; border: 1px solid #d2d2d7; border-radius: 12px; padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; transition: box-shadow 0.15s ease, border-color 0.15s ease; min-height: 140px; }}
+  .tile:hover {{ box-shadow: 0 2px 12px rgba(0,0,0,0.07); border-color: #acacac; }}
+  .tile.active {{ border-color: #0071e3; box-shadow: 0 0 0 3px rgba(0,113,227,0.1); }}
+  .tile-num {{ font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #6e6e73; }}
+  .tile-claim {{ font-size: 13px; font-weight: 500; color: #1d1d1f; line-height: 1.45; flex: 1; }}
+  .tile-action {{ font-size: 12px; color: #424245; line-height: 1.4; padding-top: 7px; border-top: 1px solid #f0f0f0; margin-top: auto; }}
+  .tile-more {{ font-size: 11px; color: #0071e3; display: block; text-align: right; margin-top: 4px; }}
+  .detail-area {{ background: #f5f5f7; border-top: 1px solid #d2d2d7; margin-top: 20px; padding: 28px 24px 48px; }}
+  .detail-wrap {{ max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 16px; border: 1px solid #d2d2d7; padding: 40px 44px; position: relative; }}
+  .detail-close {{ position: absolute; top: 14px; right: 18px; background: none; border: none; font-size: 20px; color: #6e6e73; cursor: pointer; padding: 4px 10px; border-radius: 6px; line-height: 1; }}
+  .detail-close:hover {{ background: #f5f5f7; color: #1d1d1f; }}
+  .detail-panel {{ display: none; }}
+  .detail-panel h2 {{ font-size: 20px; font-weight: 600; color: #1d1d1f; margin-bottom: 18px; line-height: 1.3; }}
+  .detail-panel h3 {{ font-size: 14px; font-weight: 600; color: #1d1d1f; margin: 24px 0 10px; text-transform: none; letter-spacing: 0; }}
+  .detail-panel h4 {{ font-size: 13px; font-weight: 600; margin: 16px 0 8px; }}
+  .detail-panel p {{ font-size: 13px; margin-bottom: 12px; color: #424245; }}
+  .callout {{ background: #f5f5f7; border-left: 3px solid #1d1d1f; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.55; margin: 0 0 20px; }}
+  .callout strong {{ font-weight: 600; color: #1d1d1f; }}
+  .callout em {{ color: #6e6e73; }}
+  .callout-inline {{ font-size: 12px; color: #6e6e73; background: #f5f5f7; border-left: 2px solid #d2d2d7; padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
+  table.findings {{ width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0 20px; }}
+  table.findings th {{ text-align: left; padding: 7px 10px; border-bottom: 1px solid #d2d2d7; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #6e6e73; }}
+  table.findings td {{ padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; color: #424245; }}
+  table.findings tr:last-child td {{ border-bottom: none; }}
+  table.findings tr:hover td {{ background: #f5f5f7; }}
+  .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; }}
+  .tag-green {{ background: #e8f5e9; color: #1d8348; }}
+  .tag-red {{ background: #fdecea; color: #c0392b; }}
+  .tag-gray {{ background: #f0f0f0; color: #6e6e73; }}
+  .tag-blue {{ background: #e8f0fe; color: #1a73e8; }}
+  .tag-amber {{ background: #fff8e1; color: #b45309; }}
+  .chart-wrap {{ margin: 16px 0; }}
+  .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 12px 0; }}
+  .example-cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }}
+  .example-list {{ background: #f5f5f7; border-radius: 8px; padding: 14px 16px; }}
+  .example-top h4 {{ color: #1d8348; }}
+  .example-bot h4 {{ color: #c0392b; }}
+  .example-list ul, .headline-list {{ padding-left: 16px; }}
+  .example-list li, .headline-list li {{ font-size: 12px; line-height: 1.5; margin-bottom: 5px; color: #424245; }}
+  p.caveat {{ font-size: 11px; color: #6e6e73; margin-top: 16px; line-height: 1.5; }}
+  .section-label {{ display: none; }}
+  footer {{ padding: 40px 28px; text-align: center; color: #6e6e73; font-size: 11px; border-top: 1px solid #f0f0f0; background: #fff; margin-top: 0; letter-spacing: 0.01em; }}
+  footer a {{ color: #0071e3; text-decoration: none; }}
   footer a:hover {{ text-decoration: underline; }}
+  @media (max-width: 760px) {{ .tile-grid {{ grid-template-columns: 1fr 1fr; }} .hero h1 {{ font-size: 20px; }} .detail-wrap {{ padding: 24px 20px; }} }}
+  @media (max-width: 480px) {{ .tile-grid {{ grid-template-columns: 1fr; }} }}
 </style>
 </head>
 <body>
 
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <div class="nav-links">
-    <a href="#formulas">Formulas</a>
-    <a href="#featuring">Featuring</a>
-    <a href="#smartnews">SmartNews</a>
-    <a href="#notifications">Notifications</a>
-    <a href="#topics">Topics</a>
-    <a href="#allocation">Allocation</a>
-    <a href="#engagement">Engagement</a>
-    <a href="#trends">Trends</a>
-    {"<a href='#numleads'>Number leads</a>" if NL_PARSED >= 10 else ""}
-    {"<a href='#team'>Team</a>" if HAS_TRACKER and N_TRACKED > 0 else ""}
-  </div>
-  <span class="spacer"></span>
-  <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
-  <span class="date">{REPORT_DATE}</span>
+  <span class="nav-date">{REPORT_DATE}</span>
 </nav>
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
   <h1>{HERO_H1}</h1>
-  <p class="sub">{N_AN:,} Apple News articles · {N_SN:,} SmartNews articles · {N_NOTIF} push notifications · {PLATFORMS} platforms · 2025–2026</p>
-  <div class="meta">
-    <div class="meta-item"><span class="num">{WTN_FEAT}</span><span class="label">Featured rate for "What to know" headlines</span></div>
-    <div class="meta-item"><span class="num">{LOCAL_LIFT}</span><span class="label">SmartNews Local percentile lift vs. Top feed</span></div>
-    <div class="meta-item"><span class="num">{EXCL_LIFT}</span><span class="label">CTR lift for "exclusive" in push notifications</span></div>
+  <div class="hero-stats">
+    <span><span class="stat-num">{N_AN:,}</span><span class="stat-label">Apple News articles</span></span>
+    <span class="stat-sep">·</span>
+    <span><span class="stat-num">{N_SN:,}</span><span class="stat-label">SmartNews articles</span></span>
+    <span class="stat-sep">·</span>
+    <span><span class="stat-num">{N_NOTIF}</span><span class="stat-label">push notifications</span></span>
+    <span class="stat-sep">·</span>
+    <span><span class="stat-num">{PLATFORMS}</span><span class="stat-label">platforms · 2025–2026</span></span>
   </div>
 </div>
 
-<div class="container">
+<main>
+  <p class="grid-label">9 findings — click any card to expand</p>
+  <div class="tile-grid">
 
-  <!-- FORMULAS -->
-  <details id="formulas" class="finding-card" open>
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 1 · Apple News Formulas</p>
-        <h2>Number leads and questions consistently underperform. "Here's" and possessive named entities lead — but sample sizes are small.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Key finding:</strong> No formula consistently beats writing a good headline. "Here's/Here are" posts the highest median percentile (59th) but on only 17 articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline (p=0.003 and p&lt;0.001 respectively). The formula alone isn't the signal — how you execute it is.
-      </div>
-      <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×), question format ({_r1_q['lift']:.2f}×), and quoted ledes ({_r1_ql['lift']:.2f}×) — all with FDR-adjusted p&lt;0.001. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
-      <p>These lifts are now expressed as percentile ratios: a lift of {_r1_h['lift']:.2f}× means the "Here's" group's median article falls in a {_r1_h['lift']:.2f}× higher monthly cohort percentile than untagged articles. Number leads fall to the {_r1_num['median']:.0%}ile of their monthly cohort, versus {baseline.median():.0%}ile for untagged articles.</p>
-      <div class="chart-wrap">{c1}</div>
-      <table class="findings">
-        <thead><tr><th>Formula</th><th>n</th><th>Median %ile</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
-        <tbody>
-          {_t1}
-        </tbody>
-      </table>
-      <p class="callout-inline"><strong>Read this table as:</strong> "lift" is the formula's median percentile divided by the untagged baseline (46th percentile). Lift &lt;1.0 means the formula underperforms. BH-adj p corrects for testing 6 formulas simultaneously.</p>
-      <h3>Untagged baseline characterisation</h3>
-      <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>.</p>
-      <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: percentile_within_cohort — percentile rank within same publication month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
+    <div class="tile" onclick="showDetail('formulas', this)">
+      <span class="tile-num">1 · Apple News Formulas</span>
+      <p class="tile-claim">Number leads and questions significantly underperform. No formula reliably beats good writing.</p>
+      <p class="tile-action">→ Audit number-lead headlines for specificity. The format alone isn't the signal.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- FEATURING -->
-  <details id="featuring" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 2 · Featured by Apple</p>
-        <h2>"What to know" headlines get Featured at {WTN_FEAT} — {WTN_FEAT_LIFT:.1f}× the {overall_feat_rate:.0%} baseline rate.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Key tension:</strong> "What to know" gets featured by Apple at 1.81× the baseline rate — but non-featured WTN articles sit at only the 23rd percentile. Apple's recommendation algorithm favors the format; organic readers don't follow through. Use WTN specifically when chasing Featured placement, not as a general-purpose formula.
-      </div>
-      <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
-      <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
-      <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured percentiles. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
-      <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring.</p>
-      <div class="chart-wrap">{c2}</div>
-      <table class="findings">
-        <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH–FDR)</th><th>Within-Featured median %ile</th></tr></thead>
-        <tbody>
-          {_t2}
-        </tbody>
-      </table>
-      <p class="callout-inline"><strong>Read this table as:</strong> "Featured lift" is how much more often Apple selects this formula for Featured. A high rate means Apple's algorithm rewards it — not that it organically outperforms.</p>
-      <h3>Featured placement drives reach — not reading depth</h3>
-      <p>Featured articles average {_feat_at_an.median():.0f} seconds of active reading time versus {_nfeat_at_an.median():.0f} seconds for non-Featured. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out.</p>
-      <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
+    {"" if NL_PARSED < 10 else """
+    <div class="tile" onclick="showDetail('numleads', this)">
+      <span class="tile-num">1b · Number Leads Deep Dive</span>
+      <p class="tile-claim">Round numbers (100, 1,000) score 14 percentile points below specific numbers. Numbers 11–20 are the sweet spot.</p>
+      <p class="tile-action">→ Use precise figures. Avoid leading with totals, round counts, or numbers above 50.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
+    """}
 
-  <!-- SMARTNEWS -->
-  <details id="smartnews" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 3 · SmartNews Allocation</p>
-        <h2>SmartNews Local delivers {LOCAL_LIFT} the percentile rank of average Top-feed articles. Entertainment gets {_ent_local_ratio}× more articles and performs like average.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Most actionable finding in the dataset:</strong> Entertainment is 36% of SmartNews article volume (13,713 articles) at 1.14× ROI. Local is 1.85× ROI on 2.9% of volume. U.S. National is 1.81× on 2.4%. If you shifted just 500 Entertainment articles per month to Local or U.S. National framing, the expected percentile rank improvement is substantial — with no additional content production required.
-      </div>
-      <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
-      <div class="chart-wrap">{c3}</div>
-      <table class="findings">
-        <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
-        <tbody>
-          {_t3}
-        </tbody>
-      </table>
-      <p class="callout-inline"><strong>Read this table as:</strong> "Lift" compares each channel's median percentile to the Top feed baseline (88.9% of articles). Values above 1.0× mean that channel's articles outperform the overall Top-feed median. High lift + low volume share = underused channel.</p>
-      <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category. 2026 export lacks category breakdown — 2025 data only.</p>
+    <div class="tile" onclick="showDetail('featured', this)">
+      <span class="tile-num">2 · Featured on Apple News</span>
+      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic readers don't follow through.</p>
+      <p class="tile-action">→ Use "What to know" when targeting Featured specifically. Don't apply it broadly.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- NOTIFICATIONS -->
-  <details id="notifications" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 4 · Push Notification CTR</p>
-        <h2>"Exclusive" delivers {EXCL_LIFT} CTR lift. Possessive framing on a full name adds {_r5_poss['lift']:.2f}×. Questions hurt.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Two signals dominate:</strong> "Exclusive" tag (2.49× CTR lift, p&lt;0.001) and named person + possessive construction (1.86×, p&lt;0.001). Both are independent — combining them likely compounds. The counter-intuitive result: short notifications (≤80 chars) get 39% fewer clicks. Longer, more descriptive notification text outperforms across the board.
-      </div>
-      <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
-      <div class="chart-wrap">{c4}</div>
-      <table class="findings">
-        <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
-        <tbody>
-          {_t4}
-        </tbody>
-      </table>
-      <p class="callout-inline"><strong>Read this table as:</strong> "Lift" is median CTR when the feature is present vs. absent. Overall median CTR is ~1.6%. A 2.0× lift means ~3.2% CTR. BH-adj p corrects for testing multiple features simultaneously.</p>
-      {_excl_sensitivity_html}
-      <h3>The serial/escalating story as a content type</h3>
-      <p>The top 10 notifications by CTR are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
-      <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction.</p>
-      <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. N=2 months only — findings are directional. Feature classifier unvalidated.</p>
+    <div class="tile" onclick="showDetail('smartnews', this)">
+      <span class="tile-num">3 · SmartNews Allocation</span>
+      <p class="tile-claim">Entertainment gets 36% of SmartNews volume at the lowest ROI. Local delivers {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.0%} of volume.</p>
+      <p class="tile-action">→ Shift SmartNews volume toward Local and U.S. National. No new content required.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- TOPICS -->
-  <details id="topics" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 5 · Platform Topic Inversion</p>
-        <h2>Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews. You cannot use the same sports content strategy across platforms — the magnitude of the inversion is the surprise.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
-      </div>
-      <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: the same sports content sits in the top quartile of one platform and the bottom quartile of another. The inversion is directionally consistent across the full year of 2025 data.</p>
-      <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
-      <div class="chart-wrap">{c5}</div>
-
-      <h3>Sports subtopic performance by platform</h3>
-      <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
-      <table class="findings">
-        <thead><tr><th>Sport</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-        <tbody>{_t5}</tbody>
-      </table>
-
-      <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
+    <div class="tile" onclick="showDetail('notifications', this)">
+      <span class="tile-num">4 · Push Notifications</span>
+      <p class="tile-claim">"Exclusive" drives {_excl_lift_val:.1f}× CTR. Short notifications (≤80 chars) get 39% fewer clicks.</p>
+      <p class="tile-action">→ Lead with "EXCLUSIVE:" on genuine scoops. Write longer, more descriptive push text.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- ALLOCATION / VARIANCE -->
-  <details id="allocation" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 6 · Headline Variance by Topic</p>
-        <h2>Business and lifestyle headlines have the most unpredictable outcomes. A business headline can land anywhere — that's where variant testing pays off most.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Action:</strong> Concentrate variant production on high-variance topics: business and lifestyle (both CV=1.55 on Apple News) — where a top-quartile headline outperforms the bottom quartile by the widest margin. Crime and sports are more consistent mid-performers — less room to move with headline optimization alone.
-      </div>
-      <p>The chart shows IQR ÷ median of percentile_within_cohort for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
-      <div class="chart-wrap">{c6}</div>
-      <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank. A value of 1.55 means the gap between a 25th-percentile and 75th-percentile article in that topic is 1.55× the median — a wide, high-stakes range where headline choice has real leverage. Values close to 0.7 (sports, weather) mean outcomes cluster tightly regardless of headline.</p>
-
-      <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
-      <div class="example-cols">
-        <div class="example-list example-top"><h4>Top quartile crime headlines</h4><ul>{crime_top_h}</ul></div>
-        <div class="example-list example-bot"><h4>Bottom quartile crime headlines</h4><ul>{crime_bot_h}</ul></div>
-      </div>
-      <p class="callout-inline"><strong>What separates top from bottom crime headlines:</strong> Top performers almost always include a named location, a named individual, or a specific count. Bottom performers use vague agency ("police say"), generic action words ("incident," "situation"), or lead with institutional attribution rather than the crime itself.</p>
-
-      <h3>Business: top vs. bottom quartile headlines on Apple News</h3>
-      <div class="example-cols">
-        <div class="example-list example-top"><h4>Top quartile business headlines</h4><ul>{biz_top_h}</ul></div>
-        <div class="example-list example-bot"><h4>Bottom quartile business headlines</h4><ul>{biz_bot_h}</ul></div>
-      </div>
-      <p class="callout-inline"><strong>What separates top from bottom business headlines:</strong> Top performers anchor to a specific company, dollar figure, or named individual. Bottom performers describe economic conditions abstractly ("rising costs," "market uncertainty") without a concrete hook.</p>
-
-      <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure. Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is substantially explained by channel-placement bimodality (Finding 3).</p>
+    <div class="tile" onclick="showDetail('topics', this)">
+      <span class="tile-num">5 · Platform Topic Inversion</span>
+      <p class="tile-claim">Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews — the largest platform inversion in the dataset.</p>
+      <p class="tile-action">→ Write platform-specific sports briefs. Don't reuse Apple News sports content on SmartNews.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- ENGAGEMENT -->
-  <details id="engagement" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 7 · Views vs. Reading Depth</p>
-        <h2>Views and reading time are statistically independent. Optimizing for clicks and optimizing for reading are different problems.</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
-      </div>
-      <p>The Apple News dataset includes both Total Views and average active time per article. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
-      <div class="chart-wrap">{c7}</div>
-      <table class="findings">
-        <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
-        <tbody>
-          <tr><td>Avg. active time</td><td>r = {r_views_at:.3f}, ρ = {r_views_at_sp:.3f} (not significant)</td><td>Depth of the current read</td></tr>
-          <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
-          <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
-          <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
-        </tbody>
-      </table>
-      <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — a behavioral difference, not a quality problem.</p>
-      <p class="caveat">Apple News 2025–2026 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s; {at_high_n} have &gt;300s — not filtered, ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Spearman ρ is the preferred test for independence given skewed views distribution.</p>
+    <div class="tile" onclick="showDetail('allocation', this)">
+      <span class="tile-num">6 · Headline Variance by Topic</span>
+      <p class="tile-claim">Business and lifestyle have the most unpredictable outcomes (CV=1.55). This is where headline testing pays off most.</p>
+      <p class="tile-action">→ Concentrate headline variant testing on business and lifestyle content.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  <!-- TRENDS -->
-  <details id="trends" class="finding-card">
-    <summary class="finding-header">
-      <span class="finding-chevron">▶</span>
-      <div class="finding-summary">
-        <p class="section-label">Finding 8 · Longitudinal Trends &amp; Year-over-Year</p>
-        <h2>The formula lift patterns from 2025 are holding in 2026 — with one exception: {YOY_CHANGING_FORMULA} shows the largest shift ({YOY_CHANGING_DELTA:+.0%}ile).</h2>
-      </div>
-    </summary>
-    <div class="finding-body">
-      <div class="callout">
-        <strong>Action:</strong> The core formula rankings are stable across seasons. The longitudinal chart below shows whether the underperformance of number leads and questions has been consistent, or whether it is driven by a specific period. Monitor the changing formula ({YOY_CHANGING_FORMULA}) as 2026 data accumulates.
-        <br><br><em>Caveat:</em> 2026 data covers only Jan–Feb. Seasonal effects (e.g., peak news cycles, sports seasons) are not controlled. YoY comparison is directional only.
-      </div>
-      <div class="chart-wrap">{c8}</div>
-
-      <h3>Year-over-Year: Jan–Feb 2025 vs. Jan–Feb 2026</h3>
-      <p>Comparing the same two-month window across years controls for seasonal effects. The table shows formula distribution, Featured rate, and median percentile rank for each formula.</p>
-      <table class="findings">
-        <thead><tr>
-          <th>Formula</th>
-          <th>2025 n</th><th>2025 Featured</th><th>2025 Median %ile</th>
-          <th>2026 n</th><th>2026 Featured</th><th>2026 Median %ile</th>
-        </tr></thead>
-        <tbody>{_t_yoy}</tbody>
-      </table>
-      <p class="caveat">Longitudinal chart: only formula-months with n≥3 articles plotted. YoY comparison: 2025 Jan–Feb vs. all of 2026 (Jan–Feb only). Percentile ranks are computed within each year separately — cross-year percentile comparisons are directional. 2026 data through {REPORT_DATE}.</p>
+    <div class="tile" onclick="showDetail('engagement', this)">
+      <span class="tile-num">7 · Views vs. Reading Depth</span>
+      <p class="tile-claim">Views and reading time are statistically independent. High-click articles aren't the same as high-read articles.</p>
+      <p class="tile-action">→ Track active time alongside views. Use both signals for variant ROI.</p>
+      <span class="tile-more">Details ↓</span>
     </div>
-  </details>
 
-  {_finding_numleads_html}
+    <div class="tile" onclick="showDetail('longitudinal', this)">
+      <span class="tile-num">8 · Trends Over Time</span>
+      <p class="tile-claim">Formula performance shifts month to month. 2026 data (dotted lines) shows where momentum is changing now.</p>
+      <p class="tile-action">→ Review this chart monthly. Newer data should override older conclusions.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
 
-  {_finding9_html}
+    {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
+    <div class="tile" onclick="showDetail('team', this)">
+      <span class="tile-num">9 · Team Performance</span>
+      <p class="tile-claim">{N_TRACKED} articles matched across platforms. Long-form articles (1,200+ words) syndicate at the 18th percentile.</p>
+      <p class="tile-action">→ Target 800–950 words for syndication. Review team percentile rankings monthly.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+    """}
 
-</div>
+  </div><!-- /.tile-grid -->
+
+  <div class="detail-area" id="detail-area" style="display:none;">
+    <div class="detail-wrap">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+
+      <!-- DETAIL: FORMULAS -->
+      <div class="detail-panel" id="detail-formulas">
+        <h2>Finding 1 · Apple News Formulas</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> No formula consistently beats writing a good headline. "Here's/Here are" posts the highest median percentile (59th) but on only 17 articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline (p=0.003 and p&lt;0.001 respectively). The formula alone isn't the signal — how you execute it is.
+        </div>
+        <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×), question format ({_r1_q['lift']:.2f}×), and quoted ledes ({_r1_ql['lift']:.2f}×) — all with FDR-adjusted p&lt;0.001. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
+        <p>These lifts are now expressed as percentile ratios: a lift of {_r1_h['lift']:.2f}× means the "Here's" group's median article falls in a {_r1_h['lift']:.2f}× higher monthly cohort percentile than untagged articles. Number leads fall to the {_r1_num['median']:.0%}ile of their monthly cohort, versus {baseline.median():.0%}ile for untagged articles.</p>
+        <div class="chart-wrap">{c1}</div>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>n</th><th>Median %ile</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
+          <tbody>{_t1}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Read this table as:</strong> "lift" is the formula's median percentile divided by the untagged baseline (46th percentile). Lift &lt;1.0 means the formula underperforms. BH-adj p corrects for testing 6 formulas simultaneously.</p>
+        <h3>Untagged baseline characterisation</h3>
+        <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>.</p>
+        <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: percentile_within_cohort — percentile rank within same publication month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
+      </div><!-- /#detail-formulas -->
+
+      {"" if NL_PARSED < 10 else f"""
+      <!-- DETAIL: NUMLEADS -->
+      <div class="detail-panel" id="detail-numleads">
+        <h2>Finding 1b · Number Leads — Deep Dive</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> Round numbers (100, 50, 1,000) score at the 27th percentile — 14 points below specific numbers (41st). The difference is statistically significant (p=0.036). Numbers in the 11–20 range are the sweet spot (57th percentile). Numbers above 50 drag performance to the 25th percentile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
+        </div>
+        <h3>Round vs. specific numbers</h3>
+        <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%} vs. specific numbers: median {NL_SPECIFIC_MED:.0%}. ({_nl_round_sig})</p>
+        <div class="two-col">
+          <div>
+            <p><strong>Top performers — specific numbers</strong></p>
+            <ul class="headline-list">{_nl_specific_examples}</ul>
+          </div>
+          <div>
+            <p><strong>Top performers — round numbers</strong></p>
+            <ul class="headline-list">{_nl_round_examples}</ul>
+          </div>
+        </div>
+        <h3>By number type</h3>
+        <table class="findings">
+          <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+          <tbody>{_t_nl_type}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles (183/190) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
+        <h3>By number magnitude</h3>
+        <table class="findings">
+          <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+          <tbody>{_t_nl_size}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Unexpected:</strong> The 11–20 range outperforms even single-digit numbers. Very large numbers (50+) are the weakest performers — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large round-ish numbers.</p>
+      </div><!-- /#detail-numleads -->
+      """}
+
+      <!-- DETAIL: FEATURED -->
+      <div class="detail-panel" id="detail-featured">
+        <h2>Finding 2 · Featured on Apple News</h2>
+        <div class="callout">
+          <strong>Key tension:</strong> "What to know" gets featured by Apple at 1.81× the baseline rate — but non-featured WTN articles sit at only the 23rd percentile. Apple's recommendation algorithm favors the format; organic readers don't follow through. Use WTN specifically when chasing Featured placement, not as a general-purpose formula.
+        </div>
+        <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
+        <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
+        <p>Quoted ledes present the inverse pattern: Featured at roughly the baseline rate ({_r2_ql['featured_rate']:.0%}), but once Featured they deliver among the highest within-Featured percentiles. Questions get into the Featured tier and stall; quoted ledes get in and overperform.</p>
+        <p><em>Causal note:</em> The association between "What to know" and Featured placement is observational. The causal direction is ambiguous: editors may independently choose the same stories that writers frame as "What to know," rather than the format itself driving featuring.</p>
+        <div class="chart-wrap">{c2}</div>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH–FDR)</th><th>Within-Featured median %ile</th></tr></thead>
+          <tbody>{_t2}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Read this table as:</strong> "Featured lift" is how much more often Apple selects this formula for Featured. A high rate means Apple's algorithm rewards it — not that it organically outperforms.</p>
+        <h3>Featured placement drives reach — not reading depth</h3>
+        <p>Featured articles average {_feat_at_an.median():.0f} seconds of active reading time versus {_nfeat_at_an.median():.0f} seconds for non-Featured. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out.</p>
+        <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
+      </div><!-- /#detail-featured -->
+
+      <!-- DETAIL: SMARTNEWS -->
+      <div class="detail-panel" id="detail-smartnews">
+        <h2>Finding 3 · SmartNews Allocation</h2>
+        <div class="callout">
+          <strong>Most actionable finding in the dataset:</strong> Entertainment is 36% of SmartNews article volume (13,713 articles) at 1.14× ROI. Local is 1.85× ROI on 2.9% of volume. U.S. National is 1.81× on 2.4%. If you shifted just 500 Entertainment articles per month to Local or U.S. National framing, the expected percentile rank improvement is substantial — with no additional content production required.
+        </div>
+        <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
+        <div class="chart-wrap">{c3}</div>
+        <table class="findings">
+          <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
+          <tbody>{_t3}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Read this table as:</strong> "Lift" compares each channel's median percentile to the Top feed baseline (88.9% of articles). Values above 1.0× mean that channel's articles outperform the overall Top-feed median. High lift + low volume share = underused channel.</p>
+        <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category. 2026 export lacks category breakdown — 2025 data only.</p>
+      </div><!-- /#detail-smartnews -->
+
+      <!-- DETAIL: NOTIFICATIONS -->
+      <div class="detail-panel" id="detail-notifications">
+        <h2>Finding 4 · Push Notifications</h2>
+        <div class="callout">
+          <strong>Two signals dominate:</strong> "Exclusive" tag (2.49× CTR lift, p&lt;0.001) and named person + possessive construction (1.86×, p&lt;0.001). Both are independent — combining them likely compounds. The counter-intuitive result: short notifications (≤80 chars) get 39% fewer clicks. Longer, more descriptive notification text outperforms across the board.
+        </div>
+        <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+        <div class="chart-wrap">{c4}</div>
+        <table class="findings">
+          <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
+          <tbody>{_t4}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Read this table as:</strong> "Lift" is median CTR when the feature is present vs. absent. Overall median CTR is ~1.6%. A 2.0× lift means ~3.2% CTR. BH-adj p corrects for testing multiple features simultaneously.</p>
+        {_excl_sensitivity_html}
+        <h3>The serial/escalating story as a content type</h3>
+        <p>The top 10 notifications by CTR are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
+        <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction.</p>
+        <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. N=2 months only — findings are directional. Feature classifier unvalidated.</p>
+      </div><!-- /#detail-notifications -->
+
+      <!-- DETAIL: TOPICS -->
+      <div class="detail-panel" id="detail-topics">
+        <h2>Finding 5 · Platform Topic Inversion</h2>
+        <div class="callout">
+          <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
+        </div>
+        <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: the same sports content sits in the top quartile of one platform and the bottom quartile of another. The inversion is directionally consistent across the full year of 2025 data.</p>
+        <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
+        <div class="chart-wrap">{c5}</div>
+        <h3>Sports subtopic performance by platform</h3>
+        <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
+        <table class="findings">
+          <thead><tr><th>Sport</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+          <tbody>{_t5}</tbody>
+        </table>
+        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Sports subtopics with n&lt;3 show "—".</p>
+      </div><!-- /#detail-topics -->
+
+      <!-- DETAIL: ALLOCATION -->
+      <div class="detail-panel" id="detail-allocation">
+        <h2>Finding 6 · Headline Variance by Topic</h2>
+        <div class="callout">
+          <strong>Action:</strong> Concentrate variant production on high-variance topics: business and lifestyle (both CV=1.55 on Apple News) — where a top-quartile headline outperforms the bottom quartile by the widest margin. Crime and sports are more consistent mid-performers — less room to move with headline optimization alone.
+        </div>
+        <p>The chart shows IQR ÷ median of percentile_within_cohort for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
+        <div class="chart-wrap">{c6}</div>
+        <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank. A value of 1.55 means the gap between a 25th-percentile and 75th-percentile article in that topic is 1.55× the median — a wide, high-stakes range where headline choice has real leverage. Values close to 0.7 (sports, weather) mean outcomes cluster tightly regardless of headline.</p>
+        <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
+        <div class="example-cols">
+          <div class="example-list example-top"><h4>Top quartile crime headlines</h4><ul>{crime_top_h}</ul></div>
+          <div class="example-list example-bot"><h4>Bottom quartile crime headlines</h4><ul>{crime_bot_h}</ul></div>
+        </div>
+        <p class="callout-inline"><strong>What separates top from bottom crime headlines:</strong> Top performers almost always include a named location, a named individual, or a specific count. Bottom performers use vague agency ("police say"), generic action words ("incident," "situation"), or lead with institutional attribution rather than the crime itself.</p>
+        <h3>Business: top vs. bottom quartile headlines on Apple News</h3>
+        <div class="example-cols">
+          <div class="example-list example-top"><h4>Top quartile business headlines</h4><ul>{biz_top_h}</ul></div>
+          <div class="example-list example-bot"><h4>Bottom quartile business headlines</h4><ul>{biz_bot_h}</ul></div>
+        </div>
+        <p class="callout-inline"><strong>What separates top from bottom business headlines:</strong> Top performers anchor to a specific company, dollar figure, or named individual. Bottom performers describe economic conditions abstractly ("rising costs," "market uncertainty") without a concrete hook.</p>
+        <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure. Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is substantially explained by channel-placement bimodality (Finding 3).</p>
+      </div><!-- /#detail-allocation -->
+
+      <!-- DETAIL: ENGAGEMENT -->
+      <div class="detail-panel" id="detail-engagement">
+        <h2>Finding 7 · Views vs. Reading Depth</h2>
+        <div class="callout">
+          <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
+        </div>
+        <p>The Apple News dataset includes both Total Views and average active time per article. The result: Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: across {len(an_eng):,} articles, views and reading time are statistically independent. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
+        <div class="chart-wrap">{c7}</div>
+        <table class="findings">
+          <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
+          <tbody>
+            <tr><td>Avg. active time</td><td>r = {r_views_at:.3f}, ρ = {r_views_at_sp:.3f} (not significant)</td><td>Depth of the current read</td></tr>
+            <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
+            <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
+            <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
+          </tbody>
+        </table>
+        <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — a behavioral difference, not a quality problem.</p>
+        <p class="caveat">Apple News 2025–2026 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s; {at_high_n} have &gt;300s — not filtered, ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Spearman ρ is the preferred test for independence given skewed views distribution.</p>
+      </div><!-- /#detail-engagement -->
+
+      <!-- DETAIL: LONGITUDINAL -->
+      <div class="detail-panel" id="detail-longitudinal">
+        <h2>Finding 8 · Trends Over Time</h2>
+        <div class="callout">
+          <strong>Action:</strong> The core formula rankings are stable across seasons. The longitudinal chart below shows whether the underperformance of number leads and questions has been consistent, or whether it is driven by a specific period. Monitor the changing formula ({YOY_CHANGING_FORMULA}) as 2026 data accumulates.
+          <br><br><em>Caveat:</em> 2026 data covers only Jan–Feb. Seasonal effects (e.g., peak news cycles, sports seasons) are not controlled. YoY comparison is directional only.
+        </div>
+        <div class="chart-wrap">{c8}</div>
+        <h3>Year-over-Year: Jan–Feb 2025 vs. Jan–Feb 2026</h3>
+        <p>Comparing the same two-month window across years controls for seasonal effects. The table shows formula distribution, Featured rate, and median percentile rank for each formula.</p>
+        <table class="findings">
+          <thead><tr>
+            <th>Formula</th>
+            <th>2025 n</th><th>2025 Featured</th><th>2025 Median %ile</th>
+            <th>2026 n</th><th>2026 Featured</th><th>2026 Median %ile</th>
+          </tr></thead>
+          <tbody>{_t_yoy}</tbody>
+        </table>
+        <p class="caveat">Longitudinal chart: only formula-months with n≥3 articles plotted. YoY comparison: 2025 Jan–Feb vs. all of 2026 (Jan–Feb only). Percentile ranks are computed within each year separately — cross-year percentile comparisons are directional. 2026 data through {REPORT_DATE}.</p>
+      </div><!-- /#detail-longitudinal -->
+
+      {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
+      <!-- DETAIL: TEAM -->
+      <div class="detail-panel" id="detail-team">
+        <h2>Finding 9 · Team Performance (Tracker)</h2>
+        <div class="callout">
+          <strong>Note:</strong> {N_TRACKED} articles from the content tracker matched to syndication data via URL or headline. Results are directional; match rate limits coverage.
+        </div>
+        <h3>Author performance by platform (sorted by median percentile)</h3>
+        <table class="findings">
+          <thead><tr><th>Author</th><th>Platform</th><th>n articles</th><th>Median percentile</th></tr></thead>
+          <tbody>{_t_auth}</tbody>
+        </table>
+        <h3>Top 20 articles by percentile rank</h3>
+        <table class="findings">
+          <thead><tr><th>Article</th><th>Platform — Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+          <tbody>{_t_team}</tbody>
+        </table>
+        <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
+        <div class="callout">
+          <strong>Unexpected:</strong> Articles in the longest quartile (1,200+ words) perform at the 18th percentile — worse than any other length group. The 900-word range (Q2) is the apparent sweet spot at 48th percentile. <em>Caveat: this is based on 120 tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
+        </div>
+        <table class="findings">
+          <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
+          <tbody>{_t_wc}</tbody>
+        </table>
+        <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to Tarrow syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
+      </div><!-- /#detail-team -->
+      """}
+
+    </div><!-- /.detail-wrap -->
+  </div><!-- /#detail-area -->
+
+</main>
 
 <script>
-function toggleAll() {{
-  const cards = document.querySelectorAll('.finding-card');
-  const anyOpen = Array.from(cards).some(d => d.open);
-  cards.forEach(d => d.open = !anyOpen);
-  document.getElementById('expand-btn').textContent = anyOpen ? 'Expand all' : 'Collapse all';
+function showDetail(id, tile) {{
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+  tile.classList.add('active');
+  document.querySelectorAll('.detail-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById('detail-' + id);
+  if (panel) panel.style.display = 'block';
+  const area = document.getElementById('detail-area');
+  area.style.display = 'block';
+  setTimeout(() => area.scrollIntoView({{ behavior: 'smooth', block: 'start' }}), 50);
 }}
 
-function openByHash() {{
-  const hash = window.location.hash;
-  if (!hash) return;
-  const target = document.querySelector(hash);
-  if (target && target.tagName === 'DETAILS') {{
-    target.open = true;
-    setTimeout(() => target.scrollIntoView({{behavior: 'smooth', block: 'start'}}), 50);
-  }}
+function closeDetail() {{
+  document.getElementById('detail-area').style.display = 'none';
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
 }}
-window.addEventListener('hashchange', openByHash);
-document.addEventListener('DOMContentLoaded', openByHash);
 </script>
 
 <footer>
   <p>McClatchy CSA · T1 Headline Performance Analysis · {REPORT_DATE}</p>
-  <p style="margin-top: 0.5rem;">
+  <p style="margin-top: 6px;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
