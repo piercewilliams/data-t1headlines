@@ -3946,7 +3946,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -3964,7 +3964,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
@@ -4007,7 +4007,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
 
     // Prepend the tile summary (finding number + claim + action) as context
@@ -4036,7 +4036,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png');
@@ -4580,7 +4580,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -4598,7 +4598,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
@@ -4637,7 +4637,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var tileEl = _findTileForPanel(panelEl);
     if (tileEl) {{
@@ -4654,7 +4654,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
@@ -4966,7 +4966,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -4984,7 +4984,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
@@ -5023,7 +5023,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;pointer-events:none;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var tileEl = _findTileForPanel(panelEl);
     if (tileEl) {{
@@ -5040,7 +5040,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     domtoimage.toPng(container, {{
       width:  container.offsetWidth,
       height: container.scrollHeight,
-      style:  {{ position: 'relative', left: '0', top: '0' }},
+      style:  {{ opacity: '1' }},
       bgcolor: bg
     }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
