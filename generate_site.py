@@ -28,10 +28,12 @@ parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site
 parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
 parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx")
 parser.add_argument("--tracker",   default="Tracker Template.xlsx")
+parser.add_argument("--theme",     default="light", choices=["light", "dark"])
 _args = parser.parse_args()
 DATA_2025 = _args.data_2025
 DATA_2026 = _args.data_2026
 TRACKER   = _args.tracker
+THEME     = _args.theme
 
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
@@ -44,6 +46,49 @@ AMBER  = "#d97706"
 GRAY   = "#64748b"
 LIGHT  = "#f8fafc"
 BORDER = "#e2e8f0"
+
+# ── Theme system ──────────────────────────────────────────────────────────────
+THEME_LIGHT = dict(
+    paper_bg   = "white",
+    plot_bg    = "white",
+    text       = NAVY,
+    text_muted = GRAY,
+    grid       = BORDER,
+    baseline   = GRAY,
+)
+THEME_DARK = dict(
+    paper_bg   = "#0f172a",   # slate-900 (matches NAVY for body bg)
+    plot_bg    = "#1e293b",   # slate-800
+    text       = "#f1f5f9",   # slate-100
+    text_muted = "#94a3b8",   # slate-400
+    grid       = "#334155",   # slate-700
+    baseline   = "#64748b",   # slate-500 (same as GRAY)
+)
+
+def get_theme(theme: str = "light") -> dict:
+    """Return the theme color dict for 'light' or 'dark'."""
+    return THEME_DARK if theme == "dark" else THEME_LIGHT
+
+def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -> dict:
+    """Build a Plotly layout dict from a named theme. All figures use this instead
+    of PLOTLY_LAYOUT so a single --theme flag re-skins the entire report."""
+    t = get_theme(theme)
+    layout: dict = dict(
+        paper_bgcolor = t["paper_bg"],
+        plot_bgcolor  = t["plot_bg"],
+        font = dict(
+            family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
+            size   = 12,
+            color  = t["text"],
+        ),
+    )
+    if height is not None:
+        layout["height"] = height
+    if margin is not None:
+        layout["margin"] = margin
+    if title is not None:
+        layout["title"] = dict(text=title, font=dict(size=13, color=t["text"]), x=0)
+    return layout
 
 
 # ── Classifiers ───────────────────────────────────────────────────────────────
@@ -1341,14 +1386,7 @@ _q1_power_rows = df_q1[(df_q1["formula"] != "untagged") & df_q1["req_n"].notna()
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 CHART_H = 400
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="white",
-    plot_bgcolor="white",
-    font=dict(family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
-              size=12, color=NAVY),
-    margin=dict(l=20, r=120, t=50, b=40),
-    height=CHART_H,
-)
+_T = get_theme(THEME)   # resolved once; use _T["grid"] / _T["baseline"] in chart code
 
 def bar_color(lift):
     if lift >= 1.5:   return GREEN
@@ -1370,14 +1408,13 @@ fig1 = go.Figure(go.Bar(
     hovertext=hover_q1,
     hoverinfo="y+text",
 ))
-fig1.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+fig1.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Baseline", annotation_position="top")
 fig1.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="Percentile-within-cohort lift vs. baseline by formula — non-Featured articles only",
-               font=dict(size=13, color=NAVY), x=0),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=120, t=50, b=40),
+                  title="Percentile-within-cohort lift vs. baseline by formula — non-Featured articles only"),
     xaxis=dict(title="Median percentile rank relative to untagged baseline (1.0 = same as baseline)",
-               gridcolor=BORDER, zeroline=False, range=[0, 4.5]),
+               gridcolor=_T["grid"], zeroline=False, range=[0, 4.5]),
     yaxis=dict(title=""),
     showlegend=False,
 )
@@ -1394,14 +1431,13 @@ fig2 = go.Figure(go.Bar(
     hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
     hoverinfo="y+x+text",
 ))
-fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=GRAY,
+fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=_T["baseline"],
                annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
 fig2.update_layout(
-    **PLOTLY_LAYOUT,
-    title=dict(text="% of articles Featured by Apple, by headline formula",
-               font=dict(size=13, color=NAVY), x=0),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=120, t=50, b=40),
+                  title="% of articles Featured by Apple, by headline formula"),
     xaxis=dict(title="% of articles in formula group that were Featured by Apple",
-               gridcolor=BORDER, zeroline=False, range=[0, 85]),
+               gridcolor=_T["grid"], zeroline=False, range=[0, 85]),
     yaxis=dict(title=""),
     showlegend=False,
 )
@@ -1427,14 +1463,12 @@ fig3 = go.Figure(go.Bar(
     hoverinfo="y+text",
 ))
 fig3.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
-    title=dict(text="Median percentile rank by SmartNews channel — with article volume",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=BORDER,
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=280, t=50, b=40),
+                  title="Median percentile rank by SmartNews channel — with article volume"),
+    xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
     showlegend=False,
-    margin=dict(l=20, r=280, t=50, b=40),
 )
 
 # Chart 4 — Notification CTR lift
@@ -1456,16 +1490,14 @@ fig4 = go.Figure(go.Bar(
                for _, r in df_q5.iterrows()],
     hoverinfo="y+text",
 ))
-fig4.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+fig4.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="No effect", annotation_position="top")
 fig4.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k != "margin"},
-    title=dict(text="Notification CTR lift by headline feature (median CTR, feature present vs. absent)",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=BORDER, zeroline=False, range=[0, 3.8]),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=220, t=50, b=40),
+                  title="Notification CTR lift by headline feature (median CTR, feature present vs. absent)"),
+    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=_T["grid"], zeroline=False, range=[0, 3.8]),
     yaxis=dict(title=""),
     showlegend=False,
-    margin=dict(l=20, r=220, t=50, b=40),
 )
 
 # Chart 5 — Topic index by platform
@@ -1482,18 +1514,15 @@ fig5.add_trace(go.Bar(
     marker_color=GREEN, opacity=0.85,
     hovertemplate="<b>%{y}</b><br>SmartNews: %{x:.2f}× platform median<extra></extra>",
 ))
-fig5.add_vline(x=1.0, line_dash="dash", line_color=GRAY,
+fig5.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Platform median", annotation_position="top")
 fig5.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Topic performance by platform — percentile rank vs. platform median",
-               font=dict(size=13, color=NAVY), x=0),
+    **make_layout(THEME, height=480, margin=dict(l=20, r=40, t=50, b=80),
+                  title="Topic performance by platform — percentile rank vs. platform median"),
     barmode="group",
-    xaxis=dict(title="Percentile index (1.0 = platform median)", gridcolor=BORDER, zeroline=False),
+    xaxis=dict(title="Percentile index (1.0 = platform median)", gridcolor=_T["grid"], zeroline=False),
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
-    height=480,
-    margin=dict(l=20, r=40, t=50, b=80),
 )
 
 # Chart 6 — Variance (IQR/median of percentile)
@@ -1515,16 +1544,13 @@ fig6.add_trace(go.Bar(
     hovertemplate="<b>%{y}</b><br>SmartNews IQR/median: %{x:.2f}<extra></extra>",
 ))
 fig6.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Outcome spread by topic — where headline choice has the most room to move performance",
-               font=dict(size=13, color=NAVY), x=0),
+    **make_layout(THEME, height=480, margin=dict(l=20, r=140, t=50, b=80),
+                  title="Outcome spread by topic — where headline choice has the most room to move performance"),
     barmode="group",
     xaxis=dict(title="IQR ÷ median percentile (higher = wider spread between top and bottom articles)",
-               gridcolor=BORDER, zeroline=False),
+               gridcolor=_T["grid"], zeroline=False),
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
-    height=480,
-    margin=dict(l=20, r=140, t=50, b=80),
 )
 
 # Chart 7 — Views vs active time scatter
@@ -1548,15 +1574,12 @@ fig7.add_trace(go.Scatter(
     hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Featured</extra>",
 ))
 fig7.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})",
-               font=dict(size=13, color=NAVY), x=0),
-    xaxis=dict(title="Total views (log scale)", type="log", gridcolor=BORDER),
-    yaxis=dict(title="Avg. active time (seconds)", gridcolor=BORDER,
+    **make_layout(THEME, height=460, margin=dict(l=20, r=40, t=50, b=80),
+                  title=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})"),
+    xaxis=dict(title="Total views (log scale)", type="log", gridcolor=_T["grid"]),
+    yaxis=dict(title="Avg. active time (seconds)", gridcolor=_T["grid"],
                range=[0, max(an_eng[AT_COL].quantile(0.99), 180)]),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
-    height=460,
-    margin=dict(l=20, r=40, t=50, b=80),
 )
 
 # Chart 8 — Longitudinal: monthly median percentile by formula
@@ -1622,9 +1645,9 @@ if not df_long.empty:
 
 # Baseline reference line at 1.0
 fig8.add_hline(
-    y=1.0, line_dash="dash", line_color=GRAY, line_width=1.5,
+    y=1.0, line_dash="dash", line_color=_T["baseline"], line_width=1.5,
     annotation_text="Baseline (1.0×)", annotation_position="bottom right",
-    annotation_font_size=10, annotation_font_color=GRAY,
+    annotation_font_size=10, annotation_font_color=_T["baseline"],
     row=1, col=1,
 )
 
@@ -1650,24 +1673,21 @@ if not _yoy_bar.empty:
             hovertemplate="%{x}: %{y:.2f}× baseline<extra>2026 Jan–Feb</extra>",
         ), row=1, col=2)
     fig8.add_hline(
-        y=1.0, line_dash="dash", line_color=GRAY, line_width=1.5,
+        y=1.0, line_dash="dash", line_color=_T["baseline"], line_width=1.5,
         annotation_text="Baseline (1.0×)", annotation_position="bottom right",
-        annotation_font_size=10, annotation_font_color=GRAY,
+        annotation_font_size=10, annotation_font_color=_T["baseline"],
         row=1, col=2,
     )
 
 fig8.update_layout(
+    **make_layout(THEME, height=490, margin=dict(l=20, r=20, t=60, b=110)),
     barmode="group",
-    height=490,
-    margin=dict(l=20, r=20, t=60, b=110),
-    plot_bgcolor=LIGHT, paper_bgcolor="white",
-    font=dict(color=NAVY),
     legend=dict(orientation="h", yanchor="top", y=-0.24, xanchor="center", x=0.5, font=dict(size=11)),
 )
 fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=1)
 fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=2)
-fig8.update_xaxes(gridcolor=BORDER, tickangle=-30, row=1, col=1)
-fig8.update_xaxes(gridcolor=BORDER, tickangle=-20, row=1, col=2)
+fig8.update_xaxes(gridcolor=_T["grid"], tickangle=-30, row=1, col=1)
+fig8.update_xaxes(gridcolor=_T["grid"], tickangle=-20, row=1, col=2)
 
 
 # ── Render charts ─────────────────────────────────────────────────────────────
