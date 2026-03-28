@@ -36,7 +36,9 @@
       "Bash(find /Users/pierce/Documents/GitHub/data-t1headlines/docs -name *.html)",
       "Bash(curl:*)",
       "Bash(head -15 echo \"---\" grep -n -A8 \"<nav>\" /Users/pierce/Documents/GitHub/data-t1headlines/docs/playbook/index.html)",
-      "Bash(head -15 echo \"---\" grep -n -A8 \"<nav>\" /Users/pierce/Documents/GitHub/data-t1headlines/docs/author-playbooks/index.html)"
+      "Bash(head -15 echo \"---\" grep -n -A8 \"<nav>\" /Users/pierce/Documents/GitHub/data-t1headlines/docs/author-playbooks/index.html)",
+      "Bash(awk 'length > 100' /Users/pierce/Documents/GitHub/data-t1headlines/generate_site.py)",
+      "Bash(awk 'length > 100 && !/f\"\"\"\"/ && !/#/' /Users/pierce/Documents/GitHub/data-t1headlines/generate_site.py)"
     ]
   }
 }
