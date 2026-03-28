@@ -1868,7 +1868,7 @@ html = f"""<!DOCTYPE html>
   table.findings tr:hover td {{ background: var(--bg-muted); }}
 
   /* ── Tags (semantic status colors stay fixed) ── */
-  .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; }}
+  .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; margin-right: 6px; }}
   .tag-green {{ background: #e8f5e9; color: #1d8348; }}
   .tag-red {{ background: #fdecea; color: #c0392b; }}
   .tag-gray {{ background: var(--bg-subtle); color: var(--text-muted); }}
