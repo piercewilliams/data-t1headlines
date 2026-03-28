@@ -4726,15 +4726,7 @@ else:
 <div class="container">
   <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
   <h1>Author Playbooks</h1>
-  <p class="sub">Data-driven guidance per author based on matched syndication performance.
-  {_ap_n_articles} articles across {_ap_n_authors} authors.
-  Updated each cycle. Coverage badges reflect matched article count &mdash;
-  treat as directional coaching signal, not statistical significance.
-  Sorted by median percentile rank, highest first.</p>
-  <div class="run-header">
-    <span class="run-label">{_pb_run_label}</span>
-    <span class="run-meta">T1 syndication data &middot; {REPORT_DATE}</span>
-  </div>
+  <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
   <div class="tile-grid">
 {_ap_tiles_html}
