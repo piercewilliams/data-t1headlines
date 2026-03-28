@@ -4065,10 +4065,14 @@ function closeDetail() {{
 //      does not apply, so dark-mode panels print correctly.
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
-  var heading = panelEl.querySelector('h2');
-  var title   = heading ? heading.textContent.trim() : (panelEl.id || 'export');
-  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
-  var date    = new Date().toISOString().slice(0, 10);
+  // Prefer the tile label (concise, specific) over the panel heading.
+  var _tfl = _findTileForPanel(panelEl);
+  var _tlEl = _tfl ? _tfl.querySelector('.tile-label') : null;
+  var title = _tlEl ? _tlEl.textContent.trim()
+            : (panelEl.querySelector('h2') ? panelEl.querySelector('h2').textContent.trim()
+            : (panelEl.id || 'export'));
+  var slug  = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date  = new Date().toISOString().slice(0, 10);
 
   // Show status toast immediately so the user sees something is happening.
   var _toast = document.createElement('div');
@@ -4158,14 +4162,15 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           style.id = '_exp_style';
           style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
+          var _origTitle = document.title;
+          document.title = title;
           function _afterPrint() {{
             var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
             if (pw) pw.remove(); if (ps) ps.remove();
+            document.title = _origTitle;
             window.removeEventListener('afterprint', _afterPrint);
           }}
           window.addEventListener('afterprint', _afterPrint);
-          // Wait for the image to fully load before opening print dialog,
-          // otherwise the browser prints a blank page (data URLs still need a frame to decode).
           img.onload = function() {{
             _showResult('PDF dialog opened \u2014 print or save from browser', false);
             window.print();
@@ -4713,10 +4718,13 @@ function _findTileForPanel(panelEl) {{
 
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
-  var heading = panelEl.querySelector('h2');
-  var title   = heading ? heading.textContent.trim() : (panelEl.id || 'export');
-  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
-  var date    = new Date().toISOString().slice(0, 10);
+  var _tfl2 = _findTileForPanel(panelEl);
+  var _tlEl2 = _tfl2 ? _tfl2.querySelector('.tile-label') : null;
+  var title = _tlEl2 ? _tlEl2.textContent.trim()
+            : (panelEl.querySelector('h2') ? panelEl.querySelector('h2').textContent.trim()
+            : (panelEl.id || 'export'));
+  var slug  = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date  = new Date().toISOString().slice(0, 10);
 
   var _toast2 = document.createElement('div');
   _toast2.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
@@ -4797,9 +4805,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           style.id = '_exp_style';
           style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
+          var _origTitle2 = document.title;
+          document.title = title;
           function _afterPrint2() {{
             var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
             if (pw) pw.remove(); if (ps) ps.remove();
+            document.title = _origTitle2;
             window.removeEventListener('afterprint', _afterPrint2);
           }}
           window.addEventListener('afterprint', _afterPrint2);
@@ -5121,13 +5132,13 @@ function _findTileForPanel(panelEl) {{
 
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
-  var heading = panelEl.querySelector('h3.rh, h2');
-  var titleEl = panelEl.previousElementSibling;
-  var title   = (titleEl && titleEl.querySelector('.tile-label'))
-                  ? titleEl.querySelector('.tile-label').textContent.trim()
-                  : (heading ? heading.textContent.trim() : (panelEl.id || 'export'));
-  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
-  var date    = new Date().toISOString().slice(0, 10);
+  var _tfl3 = _findTileForPanel(panelEl);
+  var _tlEl3 = _tfl3 ? _tfl3.querySelector('.tile-label') : null;
+  var title = _tlEl3 ? _tlEl3.textContent.trim()
+            : (panelEl.querySelector('h3.rh,h2') ? panelEl.querySelector('h3.rh,h2').textContent.trim()
+            : (panelEl.id || 'export'));
+  var slug  = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date  = new Date().toISOString().slice(0, 10);
 
   var _toast3 = document.createElement('div');
   _toast3.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
@@ -5208,9 +5219,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
           style.id = '_exp_style';
           style.textContent = '@page{{margin:0}}@media print{{body>*:not(#_exp_print){{display:none!important}}#_exp_print{{display:block!important;padding:0}}#_exp_print img{{width:100%!important;height:auto!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}}}';
           document.head.appendChild(style);
+          var _origTitle3 = document.title;
+          document.title = title;
           function _afterPrint3() {{
             var pw = document.getElementById('_exp_print'); var ps = document.getElementById('_exp_style');
             if (pw) pw.remove(); if (ps) ps.remove();
+            document.title = _origTitle3;
             window.removeEventListener('afterprint', _afterPrint3);
           }}
           window.addEventListener('afterprint', _afterPrint3);
