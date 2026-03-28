@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 """
-Monthly data ingest for T1 Headline Analysis.
+ingest.py — Monthly data ingest entry point.
 
-What it does:
-  1. Profiles new data files and diffs against last run (flags what changed,
-     what's newly analyzable, which skills to reach for)
-  2. Snapshots docs/index.html → docs/archive/YYYY-MM/index.html
-  3. Updates docs/archive/index.html (the timeline index)
-  4. Runs generate_site.py with the new data files
-  5. Commits everything
+Profiles new data against the previous run, archives the current site,
+regenerates all pages via generate_site.py, and commits the result.
 
 Usage:
-  python3 ingest.py                                           # same files, new snapshot
-  python3 ingest.py --data-2026 "New 2026 file.xlsx"         # drop in new 2026 data
-  python3 ingest.py --data-2025 "a.xlsx" --data-2026 "b.xlsx"
-  python3 ingest.py --note "Added MSN full year"
-  python3 ingest.py --no-commit                              # dry run, no git commit
+    python3 ingest.py [--data-2026 FILE] [--data-2025 FILE]
+                      [--release YYYY-MM] [--note TEXT] [--no-commit]
 
-See PLAYBOOK.md for full analysis guidance by scenario type.
+See CLAUDE.md for the automated Claude Code workflow.
 """
 
 import argparse
@@ -153,11 +145,12 @@ def _new_sheets(old, new):
 
 # ── Profiling ─────────────────────────────────────────────────────────────────
 
-def _profile_data(path_2025, path_2026):
+def _profile_data(path_2025: str, path_2026: str) -> dict:
     """Snapshot key stats from both data files. Returns flat dict keyed by 'YEAR/Sheet'."""
     try:
         import pandas as pd
     except ImportError:
+        print("Error: pandas is required for data profiling but is not installed.")
         return {}
 
     profile = {}
@@ -177,12 +170,16 @@ def _profile_data(path_2025, path_2026):
                     "cols": len(df.columns),
                     "null_rates": null_rates,
                 }
-        except Exception as e:
+        except FileNotFoundError:
+            print(f"Error: data file not found — {path}")
+            profile[f"{year_label}/_error"] = {"error": f"FileNotFoundError: {path}"}
+        except ValueError as e:
+            print(f"Error reading {path}: {e}")
             profile[f"{year_label}/_error"] = {"error": str(e)}
     return profile
 
 
-def _load_prev_profile():
+def _load_prev_profile() -> "tuple[dict | None, str | None]":
     """Find the most recent archived data_profile.json and load it."""
     archive_dirs = sorted(
         [d for d in Path("docs/archive").glob("*/data_profile.json") if d.is_file()],
@@ -195,11 +192,11 @@ def _load_prev_profile():
         data = json.loads(path.read_text())
         period = path.parent.name
         return data, period
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         return None, None
 
 
-def _print_diff(old_profile, old_period, new_profile):
+def _print_diff(old_profile: "dict | None", old_period: "str | None", new_profile: dict) -> None:
     """Print a data change summary and analysis suggestions."""
     SEP = "─" * 60
 

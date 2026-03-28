@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-Experiment report generator for T1 Headline Analysis.
+generate_experiment.py — Experiment report generator.
 
-Reads an experiment spec from experiments/SLUG.md and writes a comparison
-report to docs/experiments/SLUG/index.html.
+Generates before/after experiment pages from spec files (experiments/SLUG.md)
+and updates the experiments index page.
 
 Usage:
-  python3 generate_experiment.py experiments/SLUG.md       # one experiment
-  python3 generate_experiment.py experiments/              # all active/pending specs
+    python3 generate_experiment.py experiments/SLUG.md
+    python3 generate_experiment.py experiments/   # regenerate all
 
-Experiment types supported:
-  temporal_cohort   — compare metric before vs. after a date
-  formula_comparison — compare metric for formula A vs. formula B
-
-See experiments/README.md for the spec format.
+Spec file format (YAML frontmatter + markdown body):
+    title: Does X improve Y?
+    platform: Apple News
+    metric: views
+    hypothesis: ...
+    start_date: 2026-04-01
+    status: active   # active | complete | pending
 """
 
 import re
@@ -100,7 +102,7 @@ TOPIC_PATTERNS = {
 
 # ── Spec parsing ──────────────────────────────────────────────────────────────
 
-def parse_spec(path):
+def parse_spec(path: str) -> dict:
     """Parse YAML frontmatter + markdown body from an experiment spec file."""
     text = Path(path).read_text(encoding="utf-8")
     match = re.match(r"^---\n(.*?)\n---\n?(.*)", text, re.DOTALL)
@@ -124,7 +126,7 @@ def parse_spec(path):
 
 _cache = {}
 
-def load_platform(platform):
+def load_platform(platform: str) -> pd.DataFrame:
     if platform in _cache:
         return _cache[platform]
     if platform == "apple_news":
@@ -171,7 +173,7 @@ def _classify_topic(text):
 
 # ── Cohort splitting ──────────────────────────────────────────────────────────
 
-def split_cohorts(df, spec, metric_info):
+def split_cohorts(df: pd.DataFrame, spec: dict, metric_info: dict) -> "tuple[pd.Series, pd.Series, str, str]":
     exp_type = spec.get("experiment_type", "temporal_cohort")
 
     # Common filters
@@ -219,7 +221,7 @@ def split_cohorts(df, spec, metric_info):
 
 # ── Statistical tests ─────────────────────────────────────────────────────────
 
-def run_test(group_a, group_b, test_type):
+def run_test(group_a: pd.Series, group_b: pd.Series, test_type: str) -> dict:
     n_a, n_b = len(group_a), len(group_b)
 
     if n_a < 5 or n_b < 5:
@@ -281,7 +283,6 @@ def make_comparison_chart(group_a, group_b, label_a, label_b, metric_info, resul
 
 def make_timeseries_chart(df, spec, metric_info):
     """Monthly time series with vertical line at intervention date, for temporal cohorts."""
-    col = spec.get("filter_formula")  # used for filtering, not the chart col
     metric_col = metric_info["col"]
     test = metric_info["test"]
 
