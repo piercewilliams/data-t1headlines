@@ -139,7 +139,8 @@ def _cols_newly_populated(old_sheet, new_sheet, threshold=0.5):
     return False
 
 
-def _new_sheets(old, new):
+def _new_sheets(old: dict, new: dict) -> set:
+    """Return sheet keys present in new profile but not in old."""
     return set(new.keys()) - set(old.keys())
 
 
@@ -270,7 +271,14 @@ def _print_diff(old_profile: "dict | None", old_period: "str | None", new_profil
 
 # ── Archive index ─────────────────────────────────────────────────────────────
 
-def _update_archive_index(period, period_label, generated_date, hero_headline, args):
+def _update_archive_index(
+    period: str,
+    period_label: str,
+    generated_date: str,
+    hero_headline: str,
+    args: "argparse.Namespace",
+) -> None:
+    """Rebuild docs/archive/index.html with the current run prepended to the entry list."""
     archive_index = Path("docs/archive/index.html")
 
     entries = []
@@ -364,7 +372,8 @@ def _update_archive_index(period, period_label, generated_date, hero_headline, a
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def main():
+def main() -> int:
+    """Run the full ingest pipeline: profile, archive, regenerate, commit."""
     parser = argparse.ArgumentParser(description="Ingest new T1 data and archive current site")
     parser.add_argument("--data-2025", default=DEFAULT_2025)
     parser.add_argument("--data-2026", default=DEFAULT_2026)
