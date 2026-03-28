@@ -3874,40 +3874,71 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {{
-    // Find the associated tile so the PDF includes the summary header too
+    // Render to PNG first, then print the image. Raster pixels preserve exact
+    // colors regardless of browser print-color-adjust settings — dark backgrounds
+    // stay intact rather than being stripped to white.
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_print_src';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
-    var _pdfWrap = document.createElement('div');
-    _pdfWrap.id = '_exp_print';
     if (_pdfTile) {{
       var _tc = _pdfTile.cloneNode(true);
-      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0 0 0 0;';
-      _tc.querySelectorAll('.tile-more').forEach(function(el) {{ el.remove(); }});
-      _tc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-      _pdfWrap.appendChild(_tc);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+        'width:100%;box-sizing:border-box;border-bottom:none;';
+      _tc.querySelectorAll('.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(_tc);
     }}
     var _pc = panelEl.cloneNode(true);
+    _pc.style.display = 'block';
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    _pdfWrap.appendChild(_pc);
-    document.body.appendChild(_pdfWrap);
-
-    var style = document.createElement('style');
-    style.id = '_exp_style';
-    style.textContent = [
-      '@media print {{',
-      '  body > *:not(#_exp_print) {{ display: none !important; }}',
-      '  #_exp_print {{ display: block !important; padding: 28px; }}',
-      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
-      '                   print-color-adjust: exact !important; }}'  ,
-      '}}'
-    ].join('\\n');
-    document.head.appendChild(style);
-    function _cleanup() {{
-      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
-      if (w) w.remove(); if (s) s.remove();
-      window.removeEventListener('afterprint', _cleanup);
-    }}
-    window.addEventListener('afterprint', _cleanup);
-    window.print();
+    container.appendChild(_pc);
+    document.body.appendChild(container);
+    var _scale = 2;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      var printDiv = document.createElement('div');
+      printDiv.id = '_exp_print';
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'width:100%;display:block;';
+      printDiv.appendChild(img);
+      document.body.appendChild(printDiv);
+      var style = document.createElement('style');
+      style.id = '_exp_style';
+      style.textContent = [
+        '@page {{ margin: 0; }}',
+        '@media print {{',
+        '  body > *:not(#_exp_print) {{ display: none !important; }}',
+        '  #_exp_print {{ display: block !important; padding: 0; }}',
+        '  #_exp_print img {{ width: 100% !important; height: auto !important;',
+        '    -webkit-print-color-adjust: exact !important;',
+        '    print-color-adjust: exact !important; }}'  ,
+        '}}'
+      ].join('\\n');
+      document.head.appendChild(style);
+      function _cleanup() {{
+        var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+        if (w) w.remove(); if (s) s.remove();
+        window.removeEventListener('afterprint', _cleanup);
+      }}
+      window.addEventListener('afterprint', _cleanup);
+      window.print();
+    }}).catch(function(err) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      console.error('PDF export failed:', err);
+    }});
 
   }} else {{
     // PNG — render into an off-screen container at fixed width (1100px).
@@ -4489,37 +4520,71 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {{
+    // Render to PNG first, then print the image. Raster pixels preserve exact
+    // colors regardless of browser print-color-adjust settings — dark backgrounds
+    // stay intact rather than being stripped to white.
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_print_src';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
-    var _pdfWrap = document.createElement('div');
-    _pdfWrap.id = '_exp_print';
     if (_pdfTile) {{
       var _tc = _pdfTile.cloneNode(true);
-      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+        'width:100%;box-sizing:border-box;border-bottom:none;';
       _tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-      _pdfWrap.appendChild(_tc);
+      container.appendChild(_tc);
     }}
     var _pc = panelEl.cloneNode(true);
+    _pc.style.display = 'block';
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    _pdfWrap.appendChild(_pc);
-    document.body.appendChild(_pdfWrap);
-    var style = document.createElement('style');
-    style.id = '_exp_style';
-    style.textContent = [
-      '@media print {{',
-      '  body > *:not(#_exp_print) {{ display: none !important; }}',
-      '  #_exp_print {{ display: block !important; padding: 28px; }}',
-      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
-      '                   print-color-adjust: exact !important; }}'  ,
-      '}}'
-    ].join('\\n');
-    document.head.appendChild(style);
-    function _cleanup() {{
-      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
-      if (w) w.remove(); if (s) s.remove();
-      window.removeEventListener('afterprint', _cleanup);
-    }}
-    window.addEventListener('afterprint', _cleanup);
-    window.print();
+    container.appendChild(_pc);
+    document.body.appendChild(container);
+    var _scale = 2;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      var printDiv = document.createElement('div');
+      printDiv.id = '_exp_print';
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'width:100%;display:block;';
+      printDiv.appendChild(img);
+      document.body.appendChild(printDiv);
+      var style = document.createElement('style');
+      style.id = '_exp_style';
+      style.textContent = [
+        '@page {{ margin: 0; }}',
+        '@media print {{',
+        '  body > *:not(#_exp_print) {{ display: none !important; }}',
+        '  #_exp_print {{ display: block !important; padding: 0; }}',
+        '  #_exp_print img {{ width: 100% !important; height: auto !important;',
+        '    -webkit-print-color-adjust: exact !important;',
+        '    print-color-adjust: exact !important; }}'  ,
+        '}}'
+      ].join('\\n');
+      document.head.appendChild(style);
+      function _cleanup() {{
+        var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+        if (w) w.remove(); if (s) s.remove();
+        window.removeEventListener('afterprint', _cleanup);
+      }}
+      window.addEventListener('afterprint', _cleanup);
+      window.print();
+    }}).catch(function(err) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      console.error('PDF export failed:', err);
+    }});
   }} else {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
@@ -4861,37 +4926,71 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {{
+    // Render to PNG first, then print the image. Raster pixels preserve exact
+    // colors regardless of browser print-color-adjust settings — dark backgrounds
+    // stay intact rather than being stripped to white.
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_print_src';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
-    var _pdfWrap = document.createElement('div');
-    _pdfWrap.id = '_exp_print';
     if (_pdfTile) {{
       var _tc = _pdfTile.cloneNode(true);
-      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+        'width:100%;box-sizing:border-box;border-bottom:none;';
       _tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-      _pdfWrap.appendChild(_tc);
+      container.appendChild(_tc);
     }}
     var _pc = panelEl.cloneNode(true);
+    _pc.style.display = 'block';
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    _pdfWrap.appendChild(_pc);
-    document.body.appendChild(_pdfWrap);
-    var style = document.createElement('style');
-    style.id = '_exp_style';
-    style.textContent = [
-      '@media print {{',
-      '  body > *:not(#_exp_print) {{ display: none !important; }}',
-      '  #_exp_print {{ display: block !important; padding: 28px; }}',
-      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
-      '                   print-color-adjust: exact !important; }}',
-      '}}'
-    ].join('\\n');
-    document.head.appendChild(style);
-    function _cleanup() {{
-      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
-      if (w) w.remove(); if (s) s.remove();
-      window.removeEventListener('afterprint', _cleanup);
-    }}
-    window.addEventListener('afterprint', _cleanup);
-    window.print();
+    container.appendChild(_pc);
+    document.body.appendChild(container);
+    var _scale = 2;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      var printDiv = document.createElement('div');
+      printDiv.id = '_exp_print';
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'width:100%;display:block;';
+      printDiv.appendChild(img);
+      document.body.appendChild(printDiv);
+      var style = document.createElement('style');
+      style.id = '_exp_style';
+      style.textContent = [
+        '@page {{ margin: 0; }}',
+        '@media print {{',
+        '  body > *:not(#_exp_print) {{ display: none !important; }}',
+        '  #_exp_print {{ display: block !important; padding: 0; }}',
+        '  #_exp_print img {{ width: 100% !important; height: auto !important;',
+        '    -webkit-print-color-adjust: exact !important;',
+        '    print-color-adjust: exact !important; }}',
+        '}}'
+      ].join('\\n');
+      document.head.appendChild(style);
+      function _cleanup() {{
+        var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+        if (w) w.remove(); if (s) s.remove();
+        window.removeEventListener('afterprint', _cleanup);
+      }}
+      window.addEventListener('afterprint', _cleanup);
+      window.print();
+    }}).catch(function(err) {{
+      var src = document.getElementById('_exp_print_src'); if (src) src.remove();
+      console.error('PDF export failed:', err);
+    }});
   }} else {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
