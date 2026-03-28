@@ -1800,83 +1800,131 @@ html = f"""<!DOCTYPE html>
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  :root {{
-    --navy:   {NAVY};
-    --blue:   {BLUE};
-    --green:  {GREEN};
-    --red:    {RED};
-    --amber:  {AMBER};
-    --gray:   {GRAY};
-    --light:  {LIGHT};
+  /* ── Theme tokens ── */
+  body.theme-light {{
+    --bg:           #ffffff;
+    --bg-card:      #ffffff;
+    --bg-muted:     #f5f5f7;
+    --bg-subtle:    #f0f0f0;
+    --text:         #1d1d1f;
+    --text-secondary: #424245;
+    --text-muted:   #6e6e73;
+    --border:       #d2d2d7;
+    --border-subtle:#f0f0f0;
+    --accent:       #0071e3;
+    --nav-bg:       rgba(255,255,255,0.88);
   }}
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; background: #fff; color: #1d1d1f; font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }}
-  nav {{ position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #d2d2d7; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }}
-  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #1d1d1f; }}
-  .nav-date {{ font-size: 11px; color: #6e6e73; }}
-  .hero {{ padding: 56px 28px 48px; text-align: center; border-bottom: 1px solid #f0f0f0; }}
-  .eyebrow {{ font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: #6e6e73; margin-bottom: 16px; }}
-  .hero h1 {{ font-size: 26px; font-weight: 600; line-height: 1.35; color: #1d1d1f; max-width: 840px; margin: 0 auto 30px; letter-spacing: -0.01em; }}
+  body.theme-dark {{
+    --bg:           #0f172a;
+    --bg-card:      #1e293b;
+    --bg-muted:     #1e293b;
+    --bg-subtle:    #334155;
+    --text:         #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted:   #94a3b8;
+    --border:       #334155;
+    --border-subtle:#1e293b;
+    --accent:       #60a5fa;
+    --nav-bg:       rgba(15,23,42,0.88);
+  }}
+
+  /* ── Reset ── */
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+  /* ── Base ── */
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; transition: background 0.2s, color 0.2s; }}
+
+  /* ── Nav ── */
+  nav {{ position: sticky; top: 0; z-index: 100; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }}
+  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); }}
+  .nav-right {{ display: flex; align-items: center; gap: 14px; }}
+  .nav-date {{ font-size: 11px; color: var(--text-muted); }}
+  .theme-btn {{ background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 3px 9px; transition: background 0.15s, color 0.15s, border-color 0.15s; }}
+  .theme-btn:hover {{ background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }}
+
+  /* ── Hero ── */
+  .hero {{ padding: 56px 28px 48px; text-align: center; border-bottom: 1px solid var(--border-subtle); }}
+  .eyebrow {{ font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }}
+  .hero h1 {{ font-size: 26px; font-weight: 600; line-height: 1.35; color: var(--text); max-width: 840px; margin: 0 auto 30px; letter-spacing: -0.01em; }}
   .hero-stats {{ display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 18px; }}
-  .stat-num {{ font-size: 18px; font-weight: 600; color: #1d1d1f; margin-right: 4px; }}
-  .stat-label {{ font-size: 11px; color: #6e6e73; }}
-  .stat-sep {{ color: #d2d2d7; margin: 0 2px; }}
+  .stat-num {{ font-size: 18px; font-weight: 600; color: var(--text); margin-right: 4px; }}
+  .stat-label {{ font-size: 11px; color: var(--text-muted); }}
+  .stat-sep {{ color: var(--border); margin: 0 2px; }}
+
+  /* ── Tile grid ── */
   main {{ max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; }}
-  .grid-label {{ font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: #6e6e73; margin-bottom: 14px; }}
+  .grid-label {{ font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }}
   .tile-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 0; }}
-  .tile {{ background: #fff; border: 1px solid #d2d2d7; border-radius: 12px; padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; transition: box-shadow 0.15s ease, border-color 0.15s ease; min-height: 140px; }}
-  .tile:hover {{ box-shadow: 0 2px 12px rgba(0,0,0,0.07); border-color: #acacac; }}
-  .tile.active {{ border-color: #0071e3; box-shadow: 0 0 0 3px rgba(0,113,227,0.1); }}
-  .tile-num {{ font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #6e6e73; }}
-  .tile-claim {{ font-size: 13px; font-weight: 500; color: #1d1d1f; line-height: 1.45; flex: 1; }}
-  .tile-action {{ font-size: 12px; color: #424245; line-height: 1.4; padding-top: 7px; border-top: 1px solid #f0f0f0; margin-top: auto; }}
-  .tile-more {{ font-size: 11px; color: #0071e3; display: block; text-align: right; margin-top: 4px; }}
-  .detail-area {{ background: #f5f5f7; border-top: 1px solid #d2d2d7; margin-top: 20px; padding: 28px 24px 48px; }}
-  .detail-wrap {{ max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 16px; border: 1px solid #d2d2d7; padding: 40px 44px; position: relative; }}
-  .detail-close {{ position: absolute; top: 14px; right: 18px; background: none; border: none; font-size: 20px; color: #6e6e73; cursor: pointer; padding: 4px 10px; border-radius: 6px; line-height: 1; }}
-  .detail-close:hover {{ background: #f5f5f7; color: #1d1d1f; }}
+  .tile {{ background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.2s; min-height: 140px; }}
+  .tile:hover {{ box-shadow: 0 2px 12px rgba(0,0,0,0.10); border-color: var(--text-muted); }}
+  .tile.active {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,0.12); }}
+  .tile-num {{ font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }}
+  .tile-claim {{ font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.45; flex: 1; }}
+  .tile-action {{ font-size: 12px; color: var(--text-secondary); line-height: 1.4; padding-top: 7px; border-top: 1px solid var(--border-subtle); margin-top: auto; }}
+  .tile-more {{ font-size: 11px; color: var(--accent); display: block; text-align: right; margin-top: 4px; }}
+
+  /* ── Detail area ── */
+  .detail-area {{ background: var(--bg-muted); border-top: 1px solid var(--border); margin-top: 20px; padding: 28px 24px 48px; }}
+  .detail-wrap {{ max-width: 1100px; margin: 0 auto; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); padding: 40px 44px; position: relative; }}
+  .detail-close {{ position: absolute; top: 14px; right: 18px; background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; padding: 4px 10px; border-radius: 6px; line-height: 1; }}
+  .detail-close:hover {{ background: var(--bg-muted); color: var(--text); }}
   .detail-panel {{ display: none; }}
-  .detail-panel h2 {{ font-size: 20px; font-weight: 600; color: #1d1d1f; margin-bottom: 18px; line-height: 1.3; }}
-  .detail-panel h3 {{ font-size: 14px; font-weight: 600; color: #1d1d1f; margin: 24px 0 10px; text-transform: none; letter-spacing: 0; }}
+  .detail-panel h2 {{ font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 18px; line-height: 1.3; }}
+  .detail-panel h3 {{ font-size: 14px; font-weight: 600; color: var(--text); margin: 24px 0 10px; text-transform: none; letter-spacing: 0; }}
   .detail-panel h4 {{ font-size: 13px; font-weight: 600; margin: 16px 0 8px; }}
-  .detail-panel p {{ font-size: 13px; margin-bottom: 12px; color: #424245; }}
-  .callout {{ background: #f5f5f7; border-left: 3px solid #1d1d1f; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.55; margin: 0 0 20px; }}
-  .callout strong {{ font-weight: 600; color: #1d1d1f; }}
-  .callout em {{ color: #6e6e73; }}
-  .callout-inline {{ font-size: 12px; color: #6e6e73; background: #f5f5f7; border-left: 2px solid #d2d2d7; padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
+  .detail-panel p {{ font-size: 13px; margin-bottom: 12px; color: var(--text-secondary); }}
+
+  /* ── Callouts ── */
+  .callout {{ background: var(--bg-muted); border-left: 3px solid var(--text); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.55; margin: 0 0 20px; }}
+  .callout strong {{ font-weight: 600; color: var(--text); }}
+  .callout em {{ color: var(--text-muted); }}
+  .callout-inline {{ font-size: 12px; color: var(--text-muted); background: var(--bg-muted); border-left: 2px solid var(--border); padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
+
+  /* ── Tables ── */
   table.findings {{ width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0 20px; }}
-  table.findings th {{ text-align: left; padding: 7px 10px; border-bottom: 1px solid #d2d2d7; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #6e6e73; }}
-  table.findings td {{ padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; color: #424245; }}
+  table.findings th {{ text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }}
+  table.findings td {{ padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; color: var(--text-secondary); }}
   table.findings tr:last-child td {{ border-bottom: none; }}
-  table.findings tr:hover td {{ background: #f5f5f7; }}
+  table.findings tr:hover td {{ background: var(--bg-muted); }}
+
+  /* ── Tags (semantic status colors stay fixed) ── */
   .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; }}
   .tag-green {{ background: #e8f5e9; color: #1d8348; }}
   .tag-red {{ background: #fdecea; color: #c0392b; }}
-  .tag-gray {{ background: #f0f0f0; color: #6e6e73; }}
+  .tag-gray {{ background: var(--bg-subtle); color: var(--text-muted); }}
   .tag-blue {{ background: #e8f0fe; color: #1a73e8; }}
   .tag-amber {{ background: #fff8e1; color: #b45309; }}
+
+  /* ── Charts & examples ── */
   .chart-wrap {{ margin: 16px 0; }}
   .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 12px 0; }}
   .example-cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }}
-  .example-list {{ background: #f5f5f7; border-radius: 8px; padding: 14px 16px; }}
+  .example-list {{ background: var(--bg-muted); border-radius: 8px; padding: 14px 16px; }}
   .example-top h4 {{ color: #1d8348; }}
   .example-bot h4 {{ color: #c0392b; }}
   .example-list ul, .headline-list {{ padding-left: 16px; }}
-  .example-list li, .headline-list li {{ font-size: 12px; line-height: 1.5; margin-bottom: 5px; color: #424245; }}
-  p.caveat {{ font-size: 11px; color: #6e6e73; margin-top: 16px; line-height: 1.5; }}
+  .example-list li, .headline-list li {{ font-size: 12px; line-height: 1.5; margin-bottom: 5px; color: var(--text-secondary); }}
+  p.caveat {{ font-size: 11px; color: var(--text-muted); margin-top: 16px; line-height: 1.5; }}
   .section-label {{ display: none; }}
-  footer {{ padding: 40px 28px; text-align: center; color: #6e6e73; font-size: 11px; border-top: 1px solid #f0f0f0; background: #fff; margin-top: 0; letter-spacing: 0.01em; }}
-  footer a {{ color: #0071e3; text-decoration: none; }}
+
+  /* ── Footer ── */
+  footer {{ padding: 40px 28px; text-align: center; color: var(--text-muted); font-size: 11px; border-top: 1px solid var(--border-subtle); background: var(--bg); margin-top: 0; letter-spacing: 0.01em; }}
+  footer a {{ color: var(--accent); text-decoration: none; }}
   footer a:hover {{ text-decoration: underline; }}
+
+  /* ── Responsive ── */
   @media (max-width: 760px) {{ .tile-grid {{ grid-template-columns: 1fr 1fr; }} .hero h1 {{ font-size: 20px; }} .detail-wrap {{ padding: 24px 20px; }} }}
   @media (max-width: 480px) {{ .tile-grid {{ grid-template-columns: 1fr; }} }}
 </style>
 </head>
-<body>
+<body class="theme-{THEME}">
 
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <span class="nav-date">{REPORT_DATE}</span>
+  <div class="nav-right">
+    <span class="nav-date">{REPORT_DATE}</span>
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
+  </div>
 </nav>
 
 <div class="hero">
@@ -2207,6 +2255,25 @@ html = f"""<!DOCTYPE html>
 </main>
 
 <script>
+/* ── Theme toggle ── */
+(function () {{
+  var stored = localStorage.getItem('theme') || '{THEME}';
+  applyTheme(stored);
+}})();
+
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
+  localStorage.setItem('theme', t);
+}}
+
+function toggleTheme() {{
+  var next = document.body.classList.contains('theme-dark') ? 'light' : 'dark';
+  applyTheme(next);
+}}
+
+/* ── Detail panels ── */
 function showDetail(id, tile) {{
   document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
   tile.classList.add('active');
