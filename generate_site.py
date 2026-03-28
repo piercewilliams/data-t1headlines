@@ -2758,9 +2758,9 @@ playbook_html = f"""<!DOCTYPE html>
 </nav>
 <div class="container">
 
-<span class="eyebrow">Editorial Playbooks</span>
-<h1>Per-Platform Headline Guidance</h1>
-<p class="sub">Synthesized from Findings 1–8. One playbook per monthly Tarrow data run. Click any tile to expand the full guidance.</p>
+<span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+<h1>Editorial Playbooks</h1>
+<p class="sub">One playbook per monthly Tarrow data run. Click any tile to expand the full guidance.</p>
 
 <div class="run-header">
   <span class="run-label">{_pb_run_label}</span>
@@ -2814,12 +2814,6 @@ playbook_html = f"""<!DOCTYPE html>
 <!-- Detail panels (shown one at a time below the grid) -->
 
 <div id="pb-1" class="pb-detail" style="display:none">
-  <h3 class="rh">Top formula × topic combinations — Apple News</h3>
-  <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
-  <table>
-    <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-    <tbody>{_t_an_guide}</tbody>
-  </table>
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
@@ -2828,29 +2822,29 @@ playbook_html = f"""<!DOCTYPE html>
     <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is {AN_MEDIAN_HL_LEN:.0f} chars.</li>
     <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV}) — headline choice matters most here. Prioritize variant production on these topics first.</li>
   </ul>
+  <h3 class="rh">Top formula × topic combinations — Apple News</h3>
+  <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
+  <table>
+    <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+    <tbody>{_t_an_guide}</tbody>
+  </table>
 </div>
 
 <div id="pb-2" class="pb-detail" style="display:none">
-  <h3 class="rh">Featured rate by formula — Apple News</h3>
-  <table>
-    <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
-    <tbody>{_t2}</tbody>
-  </table>
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is {WTN_FEAT_LIFT:.1f}×, but organic views for non-Featured "What to know" articles trend lower ({WTN_ORGANIC_P_STR}, directional only).</li>
     <li><strong>Featured articles drive {FEAT_VIEW_LIFT_STR} views vs. non-Featured</strong> — treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
     <li><strong>Don't apply "What to know" broadly</strong> — the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
   </ul>
+  <h3 class="rh">Featured rate by formula — Apple News</h3>
+  <table>
+    <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
+    <tbody>{_t2}</tbody>
+  </table>
 </div>
 
 <div id="pb-3" class="pb-detail" style="display:none">
-  <h3 class="rh">Performance by channel — SmartNews</h3>
-  <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
-  <table>
-    <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody>{_t3}</tbody>
-  </table>
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× ROI respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
@@ -2858,15 +2852,15 @@ playbook_html = f"""<!DOCTYPE html>
     <li><strong>Sports underperforms</strong> ({sports_sn_idx:.2f}× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
     <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>
+  <h3 class="rh">Performance by channel — SmartNews</h3>
+  <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
+  <table>
+    <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
+    <tbody>{_t3}</tbody>
+  </table>
 </div>
 
 <div id="pb-4" class="pb-detail" style="display:none">
-  <h3 class="rh">Features by CTR lift — Push Notifications</h3>
-  <p class="detail-sub">Jan–Feb 2026 · N={N_NOTIF} notifications · BH-FDR corrected · {N_SIG_NOTIF_FEATURES} features significant after correction</p>
-  <table>
-    <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody>{_t4}</tbody>
-  </table>
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — {EXCL_LIFT} CTR lift. The word must be earned; overuse erodes the signal.</li>
@@ -2875,15 +2869,16 @@ playbook_html = f"""<!DOCTYPE html>
     <li><strong>Avoid question format:</strong> hurts CTR ({_r5_q['lift']:.2f}×), consistent with the Apple News finding.</li>
     <li><strong>Serial/escalating stories with a named anchor</strong> are the highest-CTR content type — structure updates as installments with possessive framing.</li>
   </ul>
+  <h3 class="rh">Features by CTR lift — Push Notifications</h3>
+  <p class="detail-sub">Jan–Feb 2026 · N={N_NOTIF} notifications · BH-FDR corrected · {N_SIG_NOTIF_FEATURES} features significant after correction</p>
+  <table>
+    <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
+    <tbody>{_t4}</tbody>
+  </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
 </div>
 
 <div id="pb-5" class="pb-detail" style="display:none">
-  <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
-  <table>
-    <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-    <tbody>{_t_hl_len}</tbody>
-  </table>
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>Longer tends to outperform shorter</strong> on Apple News — top quartile ({AN_LEN_Q4_CHARS_STR} chars) reaches {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom quartile ({AN_LEN_Q1_CHARS_STR} chars).</li>
@@ -2891,6 +2886,11 @@ playbook_html = f"""<!DOCTYPE html>
     <li><strong>Effect is directional, not confirmed</strong> — longer headlines may correlate with longer, higher-stakes stories. Don't pad headlines to hit a character count.</li>
     <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
   </ul>
+  <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
+  <table>
+    <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+    <tbody>{_t_hl_len}</tbody>
+  </table>
   <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
 </div>
 
