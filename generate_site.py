@@ -2711,7 +2711,6 @@ html = f"""<!DOCTYPE html>
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   /* ── Theme tokens ── */
   body.theme-light {{
@@ -3399,50 +3398,75 @@ function closeDetail() {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-// Captures the visible detail panel via html2canvas and downloads as PNG or PDF.
-// Requires html2canvas 1.4.1 and jsPDF 2.5.1 (loaded from CDN in <head>).
+// PNG: html2canvas at 3× scale, full scrollWidth/scrollHeight — high-res capture
+//      of the entire panel including content below the fold.
+// PDF: browser native print (window.print()) with a @media print clone that
+//      shows only the target panel. Correct colors, vector text, no distortion.
+//      User saves as PDF from the browser print dialog (File → Save as PDF).
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
   var title   = heading ? heading.textContent.trim() : (panelEl.id || 'export');
   var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
   var date    = new Date().toISOString().slice(0, 10);
-  var fname   = 'headline-analysis-' + slug + '-' + date;
 
-  html2canvas(panelEl, {{
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
-  }}).then(function(canvas) {{
-    if (format === 'png') {{
+  if (format === 'pdf') {{
+    // Clone panel; strip interactive controls before printing
+    var clone = panelEl.cloneNode(true);
+    clone.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    var wrap = document.createElement('div');
+    wrap.id = '_exp_print';
+    wrap.appendChild(clone);
+    document.body.appendChild(wrap);
+
+    var style = document.createElement('style');
+    style.id = '_exp_style';
+    style.textContent = [
+      '@media print {{',
+      '  body > *:not(#_exp_print) {{ display: none !important; }}',
+      '  #_exp_print {{ display: block !important; padding: 28px; }}',
+      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
+      '                   print-color-adjust: exact !important; }}'  ,
+      '}}'
+    ].join('\n');
+    document.head.appendChild(style);
+
+    function _cleanup() {{
+      var w = document.getElementById('_exp_print');
+      var s = document.getElementById('_exp_style');
+      if (w) w.remove();
+      if (s) s.remove();
+      window.removeEventListener('afterprint', _cleanup);
+    }}
+    window.addEventListener('afterprint', _cleanup);
+    window.print();
+
+  }} else {{
+    // PNG — 3× scale, full content dimensions (not just visible viewport)
+    html2canvas(panelEl, {{
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width:       panelEl.scrollWidth,
+      height:      panelEl.scrollHeight,
+      windowWidth: document.documentElement.scrollWidth,
+      backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+    }}).then(function(canvas) {{
       canvas.toBlob(function(blob) {{
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = fname + '.png';
+        a.download = 'headline-analysis-' + slug + '-' + date + '.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
-      }});
-    }} else {{
-      var jsPDF = window.jspdf && window.jspdf.jsPDF;
-      if (!jsPDF) {{ alert('PDF library not loaded — try PNG instead.'); return; }}
-      var w = canvas.width / 2, h = canvas.height / 2;
-      var pdf = new jsPDF({{
-        orientation: w > h ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [w, h],
-        hotfixes: ['px_scaling']
-      }});
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
-      pdf.save(fname + '.pdf');
-    }}
-  }}).catch(function(err) {{
-    console.error('Export failed:', err);
-    alert('Export failed — see browser console for details.');
-  }});
+      }}, 'image/png');
+    }}).catch(function(err) {{
+      console.error('PNG export failed:', err);
+      alert('PNG export failed — see browser console for details.');
+    }});
+  }}
 }}
 
 (function() {{
@@ -3623,7 +3647,6 @@ playbook_html = f"""<!DOCTYPE html>
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis · Playbooks</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
