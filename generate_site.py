@@ -1628,15 +1628,19 @@ _period_colors_8 = {
 }
 _period_order_8 = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
 
+# Only chart formulas with ≥15 articles per quarter — below that, noise swamps the trend.
+# Heres/WTK have n=4–9/quarter and produce misleading zigzags; they appear in the table below.
+_CHART_MIN_N = 15
+
 fig8 = go.Figure()
 
 if not df_periods.empty:
     for f, color in _period_colors_8.items():
         sub = df_periods[df_periods["formula"] == f].copy()
-        # Preserve period order
+        sub = sub[sub["n"] >= _CHART_MIN_N]          # drop quarters with too few articles
         sub["_order"] = sub["period"].map({p: i for i, p in enumerate(_period_order_8)})
         sub = sub.sort_values("_order")
-        if len(sub) == 0:
+        if len(sub) < 2:                              # need at least 2 points to draw a line
             continue
         label = FORMULA_LABELS.get(f, f)
         fig8.add_trace(go.Scatter(
@@ -1660,7 +1664,7 @@ fig8.add_hline(
 )
 
 fig8.update_layout(
-    **make_layout(THEME, height=420, margin=dict(l=20, r=160, t=50, b=60),
+    **make_layout(THEME, height=420, margin=dict(l=20, r=180, t=50, b=60),
                   title="Headline formula lift vs. unclassified baseline — Q1 2025 through Q1 2026"),
     xaxis=dict(
         title="",
@@ -1673,7 +1677,7 @@ fig8.update_layout(
         gridcolor=_T["grid"],
         zeroline=False,
         tickformat=".2f",
-        range=[0, 2.0],
+        range=[0.3, 1.6],   # zoom into the signal — no formula ever reaches 0 or 2
     ),
     legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
@@ -2190,8 +2194,8 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-longitudinal">
         <h2>Finding 8 · Trends Over Time</h2>
         <div class="callout">
-          <strong>Key shift:</strong> Number leads started below baseline ({NL_LIFT_EARLY:.2f}× in Q1 2025) and climbed to {NL_LIFT_LATE:.2f}× by Q1 2026 — the only formula to cross into above-baseline territory. Question-format headlines moved in the opposite direction: {Q_LIFT_EARLY:.2f}× in Q1 2025 → {Q_LIFT_LATE:.2f}× in Q1 2026, now well below baseline. The chart shows five quarterly data points per formula from Q1 2025 through Q1 2026.
-          <br><br><em>How to read "lift":</em> 1.0× = same as unclassified headlines. 1.5× = median 50% above baseline. Dashed line = baseline. Minimum 3 articles per formula per quarter required to appear.
+          <strong>Key shift:</strong> Number leads started below baseline ({NL_LIFT_EARLY:.2f}× in Q1 2025) and climbed steadily to {NL_LIFT_LATE:.2f}× by Q1 2026 — the only formula to cross into above-baseline territory. Possessive named entity held above 1.0× all year but softened. Question-format headlines declined from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}× and are now well below baseline.
+          <br><br><em>Chart shows the three highest-volume formulas</em> (≥15 articles/quarter). Here's/Here are and What to know are in the table below — their n=4–9/quarter is too small to distinguish trend from noise.
         </div>
         <div class="chart-wrap">{c8}</div>
         <h3>Lift by formula across periods</h3>
