@@ -3358,6 +3358,7 @@ html = f"""<!DOCTYPE html>
   .nav-links {{ display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }}
   .nav-links a {{ font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color 0.15s; }}
   .nav-links a:hover {{ color: var(--text); }}
+  .nav-links a.nav-active {{ color: var(--text); font-weight: 600; }}
   .nav-meta {{ display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 20px; border-left: 1px solid var(--border); }}
   .theme-btn {{ background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 3px 9px; transition: background 0.15s, color 0.15s, border-color 0.15s; }}
   .theme-btn:hover {{ background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }}
@@ -3495,6 +3496,7 @@ html = f"""<!DOCTYPE html>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
   <div class="nav-links">
+    <a href="./" class="nav-active">Current Analysis</a>
     <a href="playbook/">Editorial Playbooks</a>
     <a href="author-playbooks/">Author Playbooks</a>
     <a href="experiments/">Experiments</a>
@@ -4413,6 +4415,7 @@ playbook_html = f"""<!DOCTYPE html>
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
   .nav-links a {{ color:#94a3b8; text-decoration:none; font-size:12px; transition:color 0.15s; }}
   .nav-links a:hover {{ color:#f1f5f9; }}
+  .nav-links a.nav-active {{ color:#f1f5f9; font-weight:600; }}
   .container {{ max-width:920px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
               color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }}
@@ -4517,7 +4520,8 @@ playbook_html = f"""<!DOCTYPE html>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
   <div class="nav-links">
-    <a href="../">← Current analysis</a>
+    <a href="../">Current Analysis</a>
+    <a href="../playbook/" class="nav-active">Editorial Playbooks</a>
     <a href="../author-playbooks/">Author Playbooks</a>
     <a href="../experiments/">Experiments</a>
   </div>
@@ -4945,6 +4949,7 @@ author_pb_html = f"""<!DOCTYPE html>
   .nav-links {{ display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }}
   .nav-links a {{ font-size: 12px; color: #94a3b8; transition: color 0.15s; }}
   .nav-links a:hover {{ color: #f1f5f9; text-decoration: none; }}
+  .nav-links a.nav-active {{ color: #f1f5f9; font-weight: 600; }}
 
   /* ── Layout ── */
   .container {{ max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }}
@@ -5035,8 +5040,9 @@ author_pb_html = f"""<!DOCTYPE html>
 <nav>
   <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>
   <div class="nav-links">
-    <a href="../">\u2190 Current analysis</a>
+    <a href="../">Current Analysis</a>
     <a href="../playbook/">Editorial Playbooks</a>
+    <a href="../author-playbooks/" class="nav-active">Author Playbooks</a>
     <a href="../experiments/">Experiments</a>
   </div>
 </nav>
