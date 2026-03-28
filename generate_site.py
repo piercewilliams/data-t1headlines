@@ -47,6 +47,14 @@ GRAY   = "#64748b"
 LIGHT  = "#f8fafc"
 BORDER = "#e2e8f0"
 
+# Dark-mode neon overrides — applied to chart traces only when --theme dark
+if THEME == "dark":
+    BLUE  = "#60a5fa"   # electric blue
+    GREEN = "#4ade80"   # neon green
+    RED   = "#f87171"   # coral pink
+    AMBER = "#fb923c"   # vivid orange
+    GRAY  = "#94a3b8"   # light slate (readable on dark)
+
 # ── Theme system ──────────────────────────────────────────────────────────────
 THEME_LIGHT = dict(
     paper_bg   = "white",
@@ -1824,7 +1832,7 @@ html = f"""<!DOCTYPE html>
   .theme-btn:hover {{ background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }}
 
   /* ── Hero ── */
-  .hero {{ padding: 56px 28px 48px; text-align: center; border-bottom: 1px solid var(--border-subtle); }}
+  .hero {{ padding: 32px 28px 28px; text-align: center; border-bottom: 1px solid var(--border-subtle); }}
   .eyebrow {{ font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }}
   .hero h1 {{ font-size: 26px; font-weight: 600; line-height: 1.35; color: var(--text); max-width: 840px; margin: 0 auto 30px; letter-spacing: -0.01em; }}
   .hero-stats {{ display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 18px; }}
@@ -1910,7 +1918,6 @@ html = f"""<!DOCTYPE html>
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
-  <h1>{HERO_H1}</h1>
   <div class="hero-stats">
     <span><span class="stat-num">{N_AN:,}</span><span class="stat-label">Apple News articles</span></span>
     <span class="stat-sep">·</span>
