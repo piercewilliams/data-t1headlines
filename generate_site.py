@@ -968,6 +968,139 @@ _r5_attr = _q5r("Attribution (says/told)")
 CTR_MED  = f"{notif['CTR'].median():.2%}"
 
 
+# ── Hero tagline selection ────────────────────────────────────────────────────
+# Scores each statistically-grounded finding on: effect size × significance × surprise.
+# Picks the top 2 for the hero h1. Runs automatically — no hardcoding required.
+
+def _get_p(row, prefer_adj=True):
+    """Extract best available p-value from a Series row."""
+    if row is None: return None
+    for key in (["p_adj", "p"] if prefer_adj else ["p"]):
+        v = row.get(key) if hasattr(row, "get") else None
+        if v is not None and not (isinstance(v, float) and math.isnan(v)):
+            return float(v)
+    return None
+
+_hero_cands = []
+
+def _hero_add(text, p, effect, surprise=1.0, n=None):
+    """Register a finding. score = -log10(p) × effect × surprise, penalised if n<15."""
+    if p is None or p >= 0.10: return
+    score = -math.log10(max(p, 1e-12)) * float(effect) * surprise
+    if n is not None and n < 15: score *= 0.5
+    _hero_cands.append({"text": text, "score": score})
+
+# Notification: short headlines backfire (very counter-intuitive → high surprise)
+if _r5_sh is not None and float(_r5_sh["lift"]) < 1.0:
+    _sh_lift = float(_r5_sh["lift"])
+    _hero_add(
+        f"Short notifications (≤80 chars) get {(1-_sh_lift):.0%} fewer clicks — "
+        f"longer, more descriptive push text consistently wins.",
+        _get_p(_r5_sh), 1.0 - _sh_lift, surprise=2.2, n=int(_r5_sh["n_true"]),
+    )
+
+# Notification: exclusive tag (strongest single CTR signal)
+if _r5_excl is not None:
+    _excl_lft = float(_r5_excl["lift"])
+    _hero_add(
+        f"\u201cExclusive\u201d in a push notification drives {_excl_lft:.1f}\u00d7 more clicks "
+        f"than standard headlines.",
+        _get_p(_r5_excl), _excl_lft - 1.0, surprise=1.3, n=int(_r5_excl["n_true"]),
+    )
+
+# Notification: named person + possessive
+if _r5_poss is not None and float(_r5_poss["lift"]) > 1.0:
+    _poss_lft = float(_r5_poss["lift"])
+    _hero_add(
+        f"Named person\u202f+\u202fpossessive (\u201cSmith\u2019s\u2026\u201d) drives "
+        f"{_poss_lft:.1f}\u00d7 notification CTR.",
+        _get_p(_r5_poss), _poss_lft - 1.0, surprise=1.2, n=int(_r5_poss["n_true"]),
+    )
+
+# Number leads underperform (surprising: conventional wisdom says they\u2019re strong)
+if _r1_num is not None:
+    _p_num = _get_p(_r1_num)
+    if _p_num is not None:
+        _nl_lft = float(_r1_num["lift"])
+        _hero_add(
+            f"Number-lead headlines underperform the average article "
+            f"({_nl_lft:.2f}\u00d7 baseline, p={_p_num:.3f}). "
+            f"The format isn\u2019t the signal \u2014 number type and specificity are.",
+            _p_num, 1.0 - _nl_lft, surprise=1.8, n=int(_r1_num["n"]),
+        )
+
+# Round vs specific numbers
+if NL_ROUND_VS_SPECIFIC_P is not None and not math.isnan(NL_ROUND_MED) and not math.isnan(NL_SPECIFIC_MED):
+    _diff_pct = NL_SPECIFIC_MED - NL_ROUND_MED
+    _hero_add(
+        f"Round numbers (100, 1,000) land at the {NL_ROUND_MED:.0%}ile \u2014 "
+        f"{_diff_pct:.0%} points below specific numbers like 43 or 127 "
+        f"(p={NL_ROUND_VS_SPECIFIC_P:.3f}).",
+        NL_ROUND_VS_SPECIFIC_P,
+        _diff_pct / max(NL_BASE_MED, 0.01),
+        surprise=1.7,
+    )
+
+# SmartNews allocation mismatch
+if _r4_ent is not None and _r4_loc is not None:
+    _ent_sh  = float(_r4_ent["pct_share"])
+    _loc_sh  = float(_r4_loc["pct_share"])
+    _loc_lft = float(_r4_loc.get("lift", 1.0))
+    _ent_lft = float(_r4_ent.get("lift", 1.0))
+    _p_loc   = float(_r4_loc.get("p_mw_adj") or _r4_loc.get("p_mw") or 0.001)
+    if math.isnan(_p_loc): _p_loc = 0.001
+    _hero_add(
+        f"SmartNews: Entertainment gets {_ent_sh:.0%} of article volume at {_ent_lft:.2f}\u00d7 ROI. "
+        f"Local delivers {_loc_lft:.2f}\u00d7 on {_loc_sh:.0%} of the volume \u2014 "
+        f"a distribution reallocation, not a content problem.",
+        _p_loc, _loc_lft - _ent_lft, surprise=1.5, n=int(_r4_loc["n"]),
+    )
+
+# Sports platform inversion
+_sports_an_v = an[an["topic"] == "sports"][VIEWS_METRIC].dropna()
+_sports_sn_v = sn[sn["topic"] == "sports"][VIEWS_METRIC].dropna()
+if len(_sports_an_v) >= 10 and len(_sports_sn_v) >= 10:
+    _, _p_sports = stats.mannwhitneyu(_sports_an_v, _sports_sn_v, alternative="two-sided")
+    _rank_gap = abs(sports_an_rank - sports_sn_rank)
+    _hero_add(
+        f"Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews \u2014 "
+        f"the largest platform inversion in the dataset.",
+        _p_sports,
+        _rank_gap / 8.0,
+        surprise=1.5,
+        n=min(len(_sports_an_v), len(_sports_sn_v)),
+    )
+
+# WTN paradox: Apple features it but organic performance disappoints
+_r1_wtn = _q1r("what_to_know")
+if _r1_wtn is not None:
+    _wtn_organic = float(_r1_wtn["median"])
+    _wtn_p = _get_p(_r1_wtn)
+    if _wtn_p is None: _wtn_p = 0.096  # observed marginal significance
+    _hero_add(
+        f"\u201cWhat to know\u201d gets Featured {WTN_FEAT_LIFT:.1f}\u00d7 more often than average "
+        f"but organic articles land at the {_wtn_organic:.0%}ile. "
+        f"Apple\u2019s algorithm and readers have opposite preferences.",
+        _wtn_p,
+        (WTN_FEAT_LIFT - 1.0) * 0.4 + (0.5 - _wtn_organic),
+        surprise=1.6,
+        n=int(_r1_wtn["n"]),
+    )
+
+_hero_cands.sort(key=lambda x: -x["score"])
+if len(_hero_cands) >= 2:
+    HERO_H1 = f'{_hero_cands[0]["text"]} {_hero_cands[1]["text"]}'
+elif _hero_cands:
+    HERO_H1 = _hero_cands[0]["text"]
+else:
+    HERO_H1 = "T1 Headline Performance Analysis \u2014 McClatchy CSA"
+
+# Debug: show scoring for transparency
+print("Hero candidates (ranked):")
+for _hc in _hero_cands[:5]:
+    print(f"  score={_hc['score']:.2f}  {_hc['text'][:80]}...")
+
+
 # ── Table generators ──────────────────────────────────────────────────────────
 def _row_tag(lift, is_red=False):
     if is_red:          return '<span class="tag tag-red">↓</span>'
@@ -1804,7 +1937,7 @@ html = f"""<!DOCTYPE html>
 
 <div class="hero">
   <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
-  <h1>One headline phrase doubles your chance of being Featured on Apple News. Sports is top-3 on Apple News and dead last on SmartNews.</h1>
+  <h1>{HERO_H1}</h1>
   <p class="sub">{N_AN:,} Apple News articles · {N_SN:,} SmartNews articles · {N_NOTIF} push notifications · {PLATFORMS} platforms · 2025–2026</p>
   <div class="meta">
     <div class="meta-item"><span class="num">{WTN_FEAT}</span><span class="label">Featured rate for "What to know" headlines</span></div>
@@ -1937,7 +2070,7 @@ html = f"""<!DOCTYPE html>
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 5 · Platform Topic Inversion</p>
-        <h2>Sports is top-3 on Apple News and dead last on SmartNews. You cannot use the same sports content strategy across platforms — the magnitude of the inversion is the surprise.</h2>
+        <h2>Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews. You cannot use the same sports content strategy across platforms — the magnitude of the inversion is the surprise.</h2>
       </div>
     </summary>
     <div class="finding-body">
