@@ -1,29 +1,23 @@
 # T1 Headline Analysis — Monthly Analysis Playbook
 
+Scenario-specific guidance for when specific data conditions change. For the standard monthly update workflow, see [`README.md`](README.md). For Claude Code automation, see [`CLAUDE.md`](CLAUDE.md).
+
 ---
 
-## Every time new data arrives — do this first
+## Every time new data arrives — standard flow
 
-**Step 1 — Run ingest**
+**The fast path:** Open Claude Code in this directory, tell it the new file. It handles everything automatically (find file → run ingest → fix any column/sheet issues → commit). You push.
+
+**If running manually:**
 ```bash
-python3 ingest.py --data-2026 "New file.xlsx" --note "brief description of what changed"
-# If the 2025 file also changed:
-python3 ingest.py --data-2025 "new_2025.xlsx" --data-2026 "new_2026.xlsx"
+python3 ingest.py --data-2026 "New file.xlsx" --note "brief description"
+# Add --release YYYY-MM if processing a prior month's data late
+# Add --data-2025 "file.xlsx" if the historical baseline changed
 ```
 
-**Step 2 — Read the diff output**
+**After the build completes, read the build report and check these 5 things:**
 
-The terminal output will show:
-- Row count changes per sheet
-- Any columns that flipped from mostly-null to populated
-- Suggested analysis steps if structural changes were detected
-
-If it says "No structural changes detected" → skip to Step 4.
-If suggestions fired → note which scenarios, then go to those sections below.
-
-**Step 3 — Open the regenerated site and verify these 5 things**
-
-Open `docs/index.html` in a browser and check:
+Open `docs/index.html` in a browser:
 
 1. **Hero numbers** — do the three stat boxes still read sensibly?
    - "What to know" Featured rate should be near 62% unless editorial behavior changed
@@ -35,22 +29,17 @@ Open `docs/index.html` in a browser and check:
 
 3. **Platform separation (Finding 5)** — does Sports still lead Apple News? Does Local/Civic
    still lead SmartNews? These rankings can shift month-to-month. If they flip materially,
-   update the hero h1 headline before pushing.
+   note it — the hero headline auto-updates but a session to assess the shift may be warranted.
 
-4. **Variance chart (Finding 6)** — do the cv values look in the same ballpark? Extreme
+4. **Variance chart (Finding 6)** — do the IQR/median values look in the same ballpark? Extreme
    outliers (cv > 50 on Apple News) suggest a data anomaly, not a real finding.
 
 5. **Caveat row counts** — scan the grey caveat lines at the bottom of each finding.
-   Do the n= numbers match your expectation from the diff output?
+   Do the n= numbers match the build report?
 
-**Step 4 — If everything looks clean: push**
-```bash
-! git push origin main
-```
+**If build report shows scenario warnings** (new sheets, columns newly populated, row count jumps): follow the relevant scenario section below, then re-verify before pushing.
 
-**Step 5 — If suggestions fired: follow the scenario section below**
-
-Then return to Step 3 after any additional analysis to verify the site before pushing.
+**When everything looks clean:** push from GitHub Desktop.
 
 ---
 

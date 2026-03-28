@@ -93,6 +93,12 @@
   .past-list li:last-child { border-bottom:none; }
   .past-list a { color:#60a5fa; text-decoration:none; font-size:0.875rem; }
   .past-list a:hover { color:#93c5fd; }
+
+  /* ── Sortable tables ── */
+  table thead th { cursor: pointer; user-select: none; white-space: nowrap; }
+  table thead th:hover { color: #f1f5f9; }
+  .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }
+  table thead th[data-sort] .sort-icon { opacity: 1; color: #60a5fa; }
 </style>
 </head>
 <body>
@@ -312,6 +318,50 @@ function togglePb(tile, id) {
     _openTile = null; _openPanel = null;
   }
 }
+
+// ── Table sorting ──────────────────────────────────────────
+(function() {
+  function parseCell(text) {
+    var s = text.replace(/<[^>]+>/g, '').trim();
+    if (s === '—' || s === '') return -Infinity;
+    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return s.toLowerCase();
+  }
+  function sortBy(table, colIdx, asc) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort(function(a, b) {
+      var av = parseCell(a.cells[colIdx] ? a.cells[colIdx].textContent : '');
+      var bv = parseCell(b.cells[colIdx] ? b.cells[colIdx].textContent : '');
+      if (typeof av === 'number' && typeof bv === 'number') return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('table thead th').forEach(function(th) {
+      var icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.textContent = '↕';
+      th.appendChild(icon);
+      th.addEventListener('click', function() {
+        var table = th.closest('table');
+        var idx = Array.from(th.parentNode.children).indexOf(th);
+        var asc = th.getAttribute('data-sort') !== 'asc';
+        table.querySelectorAll('thead th').forEach(function(h) {
+          h.removeAttribute('data-sort');
+          var ic = h.querySelector('.sort-icon');
+          if (ic) ic.textContent = '↕';
+        });
+        th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+        th.querySelector('.sort-icon').textContent = asc ? '↑' : '↓';
+        sortBy(table, idx, asc);
+      });
+    });
+  });
+})();
 </script>
 </body>
 </html>
