@@ -1575,6 +1575,80 @@ if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
 _q1_power_rows = df_q1[(df_q1["formula"] != "untagged") & df_q1["req_n"].notna()]
 
 
+# ── Callout variables — pre-computed strings for HTML template ─────────────────
+# Featured vs. non-Featured total view lift (Finding 7)
+_feat_v  = an[an["is_featured"]]["Total Views"].dropna()
+_nfeat_v = an[~an["is_featured"]]["Total Views"].dropna()
+FEAT_VIEW_LIFT = (float(_feat_v.median() / _nfeat_v.median())
+                  if len(_feat_v) > 0 and len(_nfeat_v) > 0 and _nfeat_v.median() > 0
+                  else np.nan)
+FEAT_VIEW_LIFT_STR = f"{FEAT_VIEW_LIFT:.1f}×" if not np.isnan(FEAT_VIEW_LIFT) else "—"
+
+# WTN organic p-value (non-Featured WTN vs baseline; from Q1 analysis)
+WTN_N_NONFEAT     = int(_r1_wtn["n"]) if _r1_wtn is not None else 0
+_wtn_p_val        = _get_p(_r1_wtn) if _r1_wtn is not None else None
+WTN_ORGANIC_P_STR = _fmt_p(_wtn_p_val, adj=True) if _wtn_p_val is not None else "p≈0.10"
+
+# F1: Here's formula callout (Finding 1)
+F1_HERES_PCT = f"{_r1_h['median']:.0%}" if _r1_h is not None else "—"
+F1_HERES_N   = str(int(_r1_h["n"])) if _r1_h is not None else "—"
+F1_NUM_P_STR = _fmt_p(_get_p(_r1_num), adj=True) if _r1_num is not None else "—"
+F1_Q_P_STR   = _fmt_p(_get_p(_r1_q),   adj=True) if _r1_q   is not None else "—"
+F1_QL_P_STR  = _fmt_p(_get_p(_r1_ql),  adj=True) if _r1_ql  is not None else "—"
+
+# F1b: Number lead sweet-spot and worst-performing magnitude (Finding 1b)
+if not df_nl_size.empty:
+    _nl_best  = df_nl_size.loc[df_nl_size["median"].idxmax()]
+    _nl_worst = df_nl_size.loc[df_nl_size["median"].idxmin()]
+    NL_SWEET_SPOT_CAT = str(_nl_best["size_cat"])
+    NL_SWEET_SPOT_MED = float(_nl_best["median"])
+    NL_WORST_CAT      = str(_nl_worst["size_cat"])
+    NL_WORST_MED      = float(_nl_worst["median"])
+else:
+    NL_SWEET_SPOT_CAT = "11–20"; NL_SWEET_SPOT_MED = np.nan
+    NL_WORST_CAT      = "50+";   NL_WORST_MED      = np.nan
+
+NL_ROUND_SPECIFIC_PTS = (int(round((NL_SPECIFIC_MED - NL_ROUND_MED) * 100))
+                          if not (np.isnan(NL_SPECIFIC_MED) or np.isnan(NL_ROUND_MED)) else 0)
+NL_P_STR = _fmt_p(NL_ROUND_VS_SPECIFIC_P) if NL_ROUND_VS_SPECIFIC_P is not None else "—"
+NL_NOTE_FRAC = f"{NL_PARSED}/{NL_TOTAL}" if NL_TOTAL > 0 else "—"
+
+# F4: Notification feature callout strings (Finding 4)
+F4_EXCL_LIFT_STR  = f"{float(_r5_excl['lift']):.2f}×"  if _r5_excl is not None else "—"
+F4_EXCL_P_STR     = _fmt_p(_get_p(_r5_excl), adj=True) if _r5_excl is not None else "—"
+F4_POSS_LIFT_STR  = f"{float(_r5_poss['lift']):.2f}×"  if _r5_poss is not None else "—"
+F4_POSS_P_STR     = _fmt_p(_get_p(_r5_poss), adj=True) if _r5_poss is not None else "—"
+F4_SHORT_PCT_STR  = f"{(1-float(_r5_sh['lift'])):.0%}" if _r5_sh   is not None else "—"
+_q5_sig = df_q5.apply(
+    lambda r: float(r.get("p_adj") if pd.notna(r.get("p_adj", float("nan"))) else r["p"]) < 0.05,
+    axis=1) if not df_q5.empty else pd.Series([], dtype=bool)
+N_SIG_NOTIF_FEATURES = int(_q5_sig.sum())
+
+# F6: IQR/median values for business and lifestyle by name (Finding 6)
+_biz_row  = df_var[df_var["topic"] == "business"]
+_life_row = df_var[df_var["topic"] == "lifestyle"]
+F6_BIZ_CV   = f"{float(_biz_row['an_cv'].iloc[0]):.2f}"  if len(_biz_row)  > 0 else "1.55"
+F6_LIFE_CV  = f"{float(_life_row['an_cv'].iloc[0]):.2f}" if len(_life_row) > 0 else "1.55"
+
+# F9: Word count quartile stats for team finding
+if not df_wc_quartile.empty and WC_MATCHED_N >= 20:
+    try:
+        _wci = df_wc_quartile.set_index("wc_quartile")
+        WC_Q4_PCT   = float(_wci.loc["Q4 (long)", "med_pct"])  if "Q4 (long)" in _wci.index else np.nan
+        WC_Q4_WORDS = float(_wci.loc["Q4 (long)", "med_wc"])   if "Q4 (long)" in _wci.index else np.nan
+        WC_Q2_PCT   = float(_wci.loc["Q2", "med_pct"])         if "Q2" in _wci.index else np.nan
+        WC_Q2_WORDS = float(_wci.loc["Q2", "med_wc"])          if "Q2" in _wci.index else np.nan
+    except Exception:
+        WC_Q4_PCT = WC_Q4_WORDS = WC_Q2_PCT = WC_Q2_WORDS = np.nan
+else:
+    WC_Q4_PCT = WC_Q4_WORDS = WC_Q2_PCT = WC_Q2_WORDS = np.nan
+
+_F9_Q4_PCT_STR   = f"{WC_Q4_PCT:.0%}"       if pd.notna(WC_Q4_PCT)   else "18th percentile"
+_F9_Q4_WORDS_STR = f"{int(WC_Q4_WORDS):,}"  if pd.notna(WC_Q4_WORDS) else "1,200+"
+_F9_Q2_PCT_STR   = f"{WC_Q2_PCT:.0%}"       if pd.notna(WC_Q2_PCT)   else "48th percentile"
+_F9_Q2_WORDS_STR = f"{int(WC_Q2_WORDS):,}"  if pd.notna(WC_Q2_WORDS) else "~900"
+
+
 # ── Charts ────────────────────────────────────────────────────────────────────
 CHART_H = 400
 _T = get_theme(THEME)   # resolved once; use _T["grid"] / _T["baseline"] in chart code
@@ -1924,7 +1998,7 @@ if HAS_TRACKER and N_TRACKED > 0:
       </table>
       <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
       <div class="callout">
-        <strong>Unexpected:</strong> Articles in the longest quartile (1,200+ words) perform at the 18th percentile — worse than any other length group. The 900-word range (Q2) is the apparent sweet spot at 48th percentile. <em>Caveat: this is based on 120 tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
+        <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. <em>Caveat: this is based on {WC_MATCHED_N} tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
       </div>
       <table class="findings">
         <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -1953,10 +2027,10 @@ if NL_PARSED >= 10:
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Key finding:</strong> Round numbers (100, 50, 1,000) score at the 27th percentile — 14 points below specific numbers (41st). The difference is statistically significant (p=0.036). Numbers in the 11–20 range are the sweet spot (57th percentile). Numbers above 50 drag performance to the 25th percentile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
+        <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
       </div>
       <h3>Round vs. specific numbers</h3>
-      <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%} vs. specific numbers: median {NL_SPECIFIC_MED:.0%}. ({_nl_round_sig})</p>
+      <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
       <div class="two-col">
         <div>
           <p><strong>Top performers — specific numbers</strong></p>
@@ -1972,13 +2046,13 @@ if NL_PARSED >= 10:
         <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
         <tbody>{_t_nl_type}</tbody>
       </table>
-      <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles (183/190) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
+      <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles ({NL_NOTE_FRAC}) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
       <h3>By number magnitude</h3>
       <table class="findings">
         <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
         <tbody>{_t_nl_size}</tbody>
       </table>
-      <p class="callout-inline"><strong>Unexpected:</strong> The 11–20 range outperforms even single-digit numbers. Very large numbers (50+) are the weakest performers — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large round-ish numbers.</p>
+      <p class="callout-inline"><strong>Unexpected:</strong> The {NL_SWEET_SPOT_CAT} range outperforms even single-digit numbers ({NL_SWEET_SPOT_MED:.0%}ile). The {NL_WORST_CAT} range is the weakest ({NL_WORST_MED:.0%}ile) — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large numbers.</p>
     </div>
   </details>
 """
@@ -2140,15 +2214,15 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('formulas', this)">
       <span class="tile-num">1 · Apple News Formulas</span>
-      <p class="tile-claim">Number leads and questions significantly underperform. No formula reliably beats good writing.</p>
-      <p class="tile-action">→ Audit number-lead headlines for specificity. The format alone isn't the signal.</p>
+      <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it — but underperformance is statistically clear.</p>
+      <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     {"" if NL_PARSED < 10 else """
     <div class="tile" onclick="showDetail('numleads', this)">
       <span class="tile-num">1b · Number Leads Deep Dive</span>
-      <p class="tile-claim">Round numbers (100, 1,000) score 14 percentile points below specific numbers. Numbers 11–20 are the sweet spot.</p>
+      <p class="tile-claim">Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers. Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile).</p>
       <p class="tile-action">→ Use precise figures. Avoid leading with totals, round counts, or numbers above 50.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2156,7 +2230,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('featured', this)">
       <span class="tile-num">2 · Featured on Apple News</span>
-      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower (directional, p≈0.10).</p>
+      <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower ({WTN_ORGANIC_P_STR}, directional only).</p>
       <p class="tile-action">→ Use "What to know" when targeting Featured specifically. Don't apply it broadly.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2184,7 +2258,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('allocation', this)">
       <span class="tile-num">6 · Headline Variance by Topic</span>
-      <p class="tile-claim">Business and lifestyle have the most unpredictable outcomes (CV=1.55). This is where headline testing pays off most.</p>
+      <p class="tile-claim">Business and lifestyle have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV} respectively). This is where headline choice pays off most.</p>
       <p class="tile-action">→ Concentrate headline variant testing on business and lifestyle content.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -2206,8 +2280,8 @@ html = f"""<!DOCTYPE html>
     {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
     <div class="tile" onclick="showDetail('team', this)">
       <span class="tile-num">9 · Team Performance</span>
-      <p class="tile-claim">{N_TRACKED} articles matched across platforms. Long-form articles (1,200+ words) syndicate at the 18th percentile.</p>
-      <p class="tile-action">→ Target 800–950 words for syndication. Review team percentile rankings monthly.</p>
+      <p class="tile-claim">{N_TRACKED} articles matched across platforms. Long-form articles ({_F9_Q4_WORDS_STR}+ words) syndicate at the {_F9_Q4_PCT_STR} — the lowest of any length group.</p>
+      <p class="tile-action">→ Target the middle word-count range ({_F9_Q2_WORDS_STR} words, {_F9_Q2_PCT_STR}ile) for syndication. Review team percentile rankings monthly.</p>
       <span class="tile-more">Details ↓</span>
     </div>
     """}
@@ -2222,9 +2296,9 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-formulas">
         <h2>Finding 1 · Apple News Formulas</h2>
         <div class="callout">
-          <strong>Key finding:</strong> No formula consistently beats writing a good headline. "Here's/Here are" posts the highest median percentile (59th) but on only 17 articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline (p=0.003 and p&lt;0.001 respectively). The formula alone isn't the signal — how you execute it is.
+          <strong>Key finding:</strong> No formula shows statistically confirmed lift above baseline — but several significantly drag performance below it. "Here's / Here are" posts the highest median percentile ({F1_HERES_PCT}) on only n={F1_HERES_N} articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline ({F1_NUM_P_STR} and {F1_Q_P_STR} respectively, BH-adj). The formula alone isn't the signal — how you execute it is.
         </div>
-        <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×), question format ({_r1_q['lift']:.2f}×), and quoted ledes ({_r1_ql['lift']:.2f}×) — all with FDR-adjusted p&lt;0.001. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — show strong directional signal but lack statistical significance at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
+        <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×, {F1_NUM_P_STR}), question format ({_r1_q['lift']:.2f}×, {F1_Q_P_STR}), and quoted ledes ({_r1_ql['lift']:.2f}×, {F1_QL_P_STR}) — all BH-FDR adjusted. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — are directional but not statistically significant at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
         <p>These lifts are now expressed as percentile ratios: a lift of {_r1_h['lift']:.2f}× means the "Here's" group's median article falls in a {_r1_h['lift']:.2f}× higher monthly cohort percentile than untagged articles. Number leads fall to the {_r1_num['median']:.0%}ile of their monthly cohort, versus {baseline.median():.0%}ile for untagged articles.</p>
         <div class="chart-wrap">{c1}</div>
         <table class="findings">
@@ -2242,10 +2316,10 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-numleads">
         <h2>Finding 1b · Number Leads — Deep Dive</h2>
         <div class="callout">
-          <strong>Key finding:</strong> Round numbers (100, 50, 1,000) score at the 27th percentile — 14 points below specific numbers (41st). The difference is statistically significant (p=0.036). Numbers in the 11–20 range are the sweet spot (57th percentile). Numbers above 50 drag performance to the 25th percentile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
+          <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the sweet spot ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
         </div>
         <h3>Round vs. specific numbers</h3>
-        <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%} vs. specific numbers: median {NL_SPECIFIC_MED:.0%}. ({_nl_round_sig})</p>
+        <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
         <div class="two-col">
           <div>
             <p><strong>Top performers — specific numbers</strong></p>
@@ -2261,13 +2335,13 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
           <tbody>{_t_nl_type}</tbody>
         </table>
-        <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles (183/190) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
+        <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles ({NL_NOTE_FRAC}) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
         <h3>By number magnitude</h3>
         <table class="findings">
           <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
           <tbody>{_t_nl_size}</tbody>
         </table>
-        <p class="callout-inline"><strong>Unexpected:</strong> The 11–20 range outperforms even single-digit numbers. Very large numbers (50+) are the weakest performers — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large round-ish numbers.</p>
+        <p class="callout-inline"><strong>Unexpected:</strong> The {NL_SWEET_SPOT_CAT} range outperforms even single-digit numbers ({NL_SWEET_SPOT_MED:.0%}ile). The {NL_WORST_CAT} range is the weakest ({NL_WORST_MED:.0%}ile) — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large numbers.</p>
       </div><!-- /#detail-numleads -->
       """}
 
@@ -2275,7 +2349,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-featured">
         <h2>Finding 2 · Featured on Apple News</h2>
         <div class="callout">
-          <strong>Key tension:</strong> "What to know" gets featured by Apple at 1.81× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional (p≈0.10, n=16 non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until organic performance data strengthens.
+          <strong>Key tension:</strong> "What to know" gets featured by Apple at {WTN_FEAT_LIFT:.2f}× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional ({WTN_ORGANIC_P_STR}, n={WTN_N_NONFEAT} non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until the organic performance data strengthens.
         </div>
         <p>Among the {an["is_featured"].sum()} Featured articles in our dataset, "What to know" headlines are dramatically overrepresented: {_wtn_feat_n} of {_wtn_total} ({WTN_FEAT}) were Featured, versus {overall_feat_rate:.1%} overall. This is the strongest statistically significant formula signal in the dataset (χ²={_r2_wtn['chi2']:.1f}, {_fmt_p(_r2_wtn.get('p_chi_adj', _r2_wtn['p_chi']), adj=True)}).</p>
         <p>Question-format headlines are also Featured more often than expected ({_r2_q['featured_rate']:.0%}, {_r2_q['featured_lift']:.2f}× lift, {_fmt_p(_r2_q.get('p_chi_adj', _r2_q['p_chi']), adj=True)}) — but they significantly underperform other Featured articles once selected. Apple's editors favor questions; the format itself doesn't follow through on views.</p>
@@ -2296,7 +2370,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-smartnews">
         <h2>Finding 3 · SmartNews Allocation</h2>
         <div class="callout">
-          <strong>Most actionable finding in the dataset:</strong> Entertainment is 36% of SmartNews article volume (13,713 articles) at 1.14× ROI. Local is 1.85× ROI on 2.9% of volume. U.S. National is 1.81× on 2.4%. If you shifted just 500 Entertainment articles per month to Local or U.S. National framing, the expected percentile rank improvement is substantial — with no additional content production required.
+          <strong>Most actionable finding in the dataset:</strong> Entertainment is {float(_r4_ent['pct_share']):.0%} of SmartNews article volume ({int(_r4_ent['n']):,} articles) at {float(_r4_ent['lift']):.2f}× ROI. Local is {float(_r4_loc['lift']):.2f}× ROI on {float(_r4_loc['pct_share']):.1%} of volume. U.S. National is {float(_r4_us['lift']):.2f}× on {float(_r4_us['pct_share']):.1%} of volume. The channel allocation is inverted: the highest-ROI channels are starved while the lowest-ROI channel dominates volume. No new content required — better channel framing captures the gains.
         </div>
         <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
         <div class="chart-wrap">{c3}</div>
@@ -2312,9 +2386,9 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-notifications">
         <h2>Finding 4 · Push Notifications</h2>
         <div class="callout">
-          <strong>Two signals dominate:</strong> "Exclusive" tag (2.49× CTR lift, p&lt;0.001) and named person + possessive construction (1.86×, p&lt;0.001). Both are independent — combining them likely compounds. The counter-intuitive result: short notifications (≤80 chars) get 39% fewer clicks. Longer, more descriptive notification text outperforms across the board.
+          <strong>Two signals dominate:</strong> "Exclusive" tag ({F4_EXCL_LIFT_STR} CTR lift, {F4_EXCL_P_STR}) and named person + possessive construction ({F4_POSS_LIFT_STR}, {F4_POSS_P_STR}). The counter-intuitive result: short notifications (≤80 chars) get {F4_SHORT_PCT_STR} fewer clicks. Longer, more descriptive notification text outperforms across the board.
         </div>
-        <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), four features show statistically significant positive effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+        <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), {N_SIG_NOTIF_FEATURES} features show statistically significant effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
         <div class="chart-wrap">{c4}</div>
         <table class="findings">
           <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
@@ -2334,8 +2408,8 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
         </div>
-        <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: the same sports content sits in the top quartile of one platform and the bottom quartile of another. The inversion is directionally consistent across the full year of 2025 data.</p>
-        <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms, not topical overlap.</p>
+        <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. The inversion is directionally consistent across the full year of 2025 data.</p>
+        <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
         <div class="chart-wrap">{c5}</div>
         <h3>Sports subtopic performance by platform</h3>
         <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
@@ -2360,11 +2434,11 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-allocation">
         <h2>Finding 6 · Headline Variance by Topic</h2>
         <div class="callout">
-          <strong>Action:</strong> Concentrate variant production on high-variance topics: business and lifestyle (both CV=1.55 on Apple News) — where a top-quartile headline outperforms the bottom quartile by the widest margin. Crime and sports are more consistent mid-performers — less room to move with headline optimization alone.
+          <strong>Action:</strong> Concentrate variant production on high-variance topics — business (IQR/median = {F6_BIZ_CV}) and lifestyle ({F6_LIFE_CV}) on Apple News — where the gap between a top-quartile and bottom-quartile headline is widest. Crime and sports are more consistent mid-performers with less room to move.
         </div>
         <p>The chart shows IQR ÷ median of percentile_within_cohort for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
         <div class="chart-wrap">{c6}</div>
-        <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank. A value of 1.55 means the gap between a 25th-percentile and 75th-percentile article in that topic is 1.55× the median — a wide, high-stakes range where headline choice has real leverage. Values close to 0.7 (sports, weather) mean outcomes cluster tightly regardless of headline.</p>
+        <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank — a scale-free measure of outcome spread. A higher value means the gap between a 25th-percentile and 75th-percentile article is wider relative to the median: more variance, more room for headline choice to make a difference. Lower values (sports, weather) mean outcomes cluster tightly — less leverage from headline optimization alone.</p>
         <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
         <div class="example-cols">
           <div class="example-list example-top"><h4>Top quartile crime headlines</h4><ul>{crime_top_h}</ul></div>
@@ -2390,7 +2464,7 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
           <tbody>{_t_hl_len}</tbody>
         </table>
-        <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure. Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is substantially explained by channel-placement bimodality (Finding 3).</p>
+        <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure (not CV, which is std/mean). Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is consistent with channel-placement bimodality (Finding 3) — articles land either in the high-ROI Local channel or the lower-ROI Top feed, producing a wide spread.</p>
       </div><!-- /#detail-allocation -->
 
       <!-- DETAIL: ENGAGEMENT -->
@@ -2410,7 +2484,7 @@ html = f"""<!DOCTYPE html>
             <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
           </tbody>
         </table>
-        <p>Featured articles illustrate this split directly: 6.74× median view lift, but {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Subscribers read for less time on average ({sub_at_med:.0f}s) than non-subscribers ({nsub_at_med:.0f}s) — a behavioral difference, not a quality problem.</p>
+        <p>Featured articles illustrate this split directly: {FEAT_VIEW_LIFT_STR} median view lift, but only {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Apple's editorial promotion drives discovery; readers who arrive via Featured spend slightly less time than readers who actively sought the article. Separately, subscribers average {sub_at_med:.0f}s active time vs. {nsub_at_med:.0f}s for non-subscribers — likely a usage behavior difference (subscribers browse more, read less per article) rather than a content quality gap.</p>
         <p class="caveat">Apple News 2025–2026 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s; {at_high_n} have &gt;300s — not filtered, ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Spearman ρ is the preferred test for independence given skewed views distribution.</p>
       </div><!-- /#detail-engagement -->
 
@@ -2457,7 +2531,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
         <div class="callout">
-          <strong>Unexpected:</strong> Articles in the longest quartile (1,200+ words) perform at the 18th percentile — worse than any other length group. The 900-word range (Q2) is the apparent sweet spot at 48th percentile. <em>Caveat: this is based on 120 tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
+          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. <em>Caveat: this is based on {WC_MATCHED_N} tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
         </div>
         <table class="findings">
           <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -2609,10 +2683,10 @@ playbook_html = f"""<!DOCTYPE html>
   <strong>Apple News rules of thumb</strong>
   <ul>
     <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
-    <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the 11–20 range; avoid round numbers (round leads underperform specific leads).</li>
+    <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the {NL_SWEET_SPOT_CAT} range; avoid round numbers ({NL_ROUND_SPECIFIC_PTS} percentile-point penalty vs. specific numbers).</li>
     <li><strong>Avoid question format</strong> for organic performance — underperforms {_r1_q['lift']:.2f}× baseline. Reserve for Featured targeting only if "What to know" is unavailable.</li>
     <li><strong>Longer headlines outperform shorter ones</strong> — median length is {AN_MEDIAN_HL_LEN:.0f} chars; don't truncate to fit a format preference.</li>
-    <li><strong>Business and lifestyle</strong> have the widest outcome variance — headline choice matters most here. Concentrate variant production on these topics first.</li>
+    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV}) — headline choice matters most here. Concentrate variant production on these topics first.</li>
   </ul>
 </div>
 
@@ -2628,7 +2702,7 @@ playbook_html = f"""<!DOCTYPE html>
 <div class="callout-inline">
   <strong>SmartNews rules of thumb</strong>
   <ul>
-    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× ROI. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× ROI respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
     <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
     <li><strong>Sports underperforms SmartNews</strong> ({sports_sn_idx:.2f}× platform median) — don't rely on sports content for SmartNews reach; the same story with a local/civic frame does better.</li>
     <li><strong>Median headline length</strong> on SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars — see the length analysis in Finding 6 for platform-specific guidance.</li>
