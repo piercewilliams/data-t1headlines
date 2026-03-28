@@ -30,11 +30,17 @@ parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
 parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx")
 parser.add_argument("--tracker",   default="Tracker Template.xlsx")
 parser.add_argument("--theme",     default="light", choices=["light", "dark"])
+parser.add_argument("--release",   default=None,
+                    help="Data release slug YYYY-MM (defaults to current month). "
+                         "Pass explicitly when ingesting data from a prior month.")
+parser.add_argument("--skip-main-archive", action="store_true",
+                    help="Skip archiving docs/index.html (used when ingest.py handles archiving).")
 _args = parser.parse_args()
-DATA_2025 = _args.data_2025
-DATA_2026 = _args.data_2026
-TRACKER   = _args.tracker
-THEME     = _args.theme
+DATA_2025   = _args.data_2025
+DATA_2026   = _args.data_2026
+TRACKER     = _args.tracker
+THEME       = _args.theme
+SKIP_ARCHIVE = _args.skip_main_archive
 
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
@@ -289,6 +295,30 @@ def normalize(df, views_col, date_col=None, group_col=None):
 VIEWS_METRIC = "percentile_within_cohort"
 
 
+# ── Sheet discovery — warn about unrecognized sheets in new exports ───────────
+_KNOWN_SHEETS_2025 = {"Apple News", "SmartNews", "Yahoo", "MSN"}
+_KNOWN_SHEETS_2026 = {"Apple News", "Apple News Notifications", "SmartNews", "Yahoo", "MSN",
+                      "MSN Video", "MSN video", "Yahoo Video", "Yahoo video",
+                      "MSN (minumum 10k PV)", "Notifications summary"}
+
+def _check_new_sheets(path, known_sheets):
+    """Warn if the Excel file contains sheets the pipeline doesn't analyze."""
+    try:
+        import openpyxl as _openpyxl
+        _wb = _openpyxl.load_workbook(path, read_only=True, data_only=True)
+        _actual = set(_wb.sheetnames)
+        _wb.close()
+        _new = _actual - known_sheets
+        if _new:
+            _rigor_warn("sheet_discovery",
+                        f"{Path(path).name}: sheets not yet in pipeline — {sorted(_new)}. "
+                        "Add to generate_site.py if data is worth analyzing.")
+    except Exception:
+        pass  # openpyxl unavailable or file unreadable; non-fatal
+
+_check_new_sheets(DATA_2025, _KNOWN_SHEETS_2025)
+_check_new_sheets(DATA_2026, _KNOWN_SHEETS_2026)
+
 # ── Load data ─────────────────────────────────────────────────────────────────
 print(f"Loading data…  2025={DATA_2025}  2026={DATA_2026}")
 
@@ -326,6 +356,23 @@ notif = notif.dropna(subset=["CTR"]).copy()
 # MSN and Yahoo from 2025
 msn   = pd.read_excel(DATA_2025, sheet_name="MSN")
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
+
+# ── Column validation — friendly errors instead of KeyError crashes ───────────
+def _require_col(df, col, sheet_label):
+    if col not in df.columns:
+        raise SystemExit(
+            f"\n✗  Missing column '{col}' in {sheet_label}.\n"
+            f"   Available: {sorted(df.columns.tolist())}\n"
+            "   Update the column name in generate_site.py or check the Tarrow export."
+        )
+
+for _col in ["Article", "Date Published", "Total Views", "Featured by Apple"]:
+    _require_col(an_2025, _col, "Apple News 2025")
+    _require_col(an_2026, _col, "Apple News 2026")
+for _col in ["title", "article_view"]:
+    _require_col(sn, _col, "SmartNews 2025")
+_require_col(notif, "CTR", "Apple News Notifications 2026")
+_require_col(notif, "Notification Text", "Apple News Notifications 2026")
 
 # ── Feature engineering ───────────────────────────────────────────────────────
 an["is_featured"] = an["Featured by Apple"].fillna("No") == "Yes"
@@ -1757,7 +1804,7 @@ SPORTS_P_STR = _fmt_p(_p_sports, adj=False) if _p_sports is not None else None
 WC_P_STR = _fmt_p(WC_Q4_VS_Q2_P, adj=False) if not np.isnan(WC_Q4_VS_Q2_P) else None
 
 # Data-run slug for archive system
-REPORT_DATE_SLUG = datetime.now().strftime("%Y-%m")
+REPORT_DATE_SLUG = _args.release or datetime.now().strftime("%Y-%m")
 
 
 # ── Charts ────────────────────────────────────────────────────────────────────
@@ -2193,7 +2240,8 @@ _main_path     = Path("docs/index.html")
 _main_arch_dir = Path("docs/archive")
 
 # Archive the existing main page if it's from a different run slug
-if _main_path.exists():
+# (skipped when ingest.py is in charge of archiving via --skip-main-archive)
+if not SKIP_ARCHIVE and _main_path.exists():
     _main_existing = _main_path.read_text(encoding="utf-8")
     _main_m        = _re.search(r'<meta name="data-run" content="([^"]+)"', _main_existing)
     _main_old_slug = _main_m.group(1) if _main_m else None
@@ -2360,6 +2408,12 @@ html = f"""<!DOCTYPE html>
   /* ── Responsive ── */
   @media (max-width: 760px) {{ .tile-grid {{ grid-template-columns: 1fr 1fr; }} .hero h1 {{ font-size: 20px; }} .detail-wrap {{ padding: 24px 20px; }} }}
   @media (max-width: 480px) {{ .tile-grid {{ grid-template-columns: 1fr; }} }}
+
+  /* ── Sortable tables ── */
+  table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+  table thead th:hover {{ color: var(--text-primary, #f1f5f9); }}
+  .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #60a5fa; }}
 </style>
 </head>
 <body class="theme-{THEME}">
@@ -2763,6 +2817,51 @@ function closeDetail() {{
   document.getElementById('detail-area').style.display = 'none';
   document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
 }}
+
+// ── Table sorting ──────────────────────────────────────────
+(function() {{
+  function parseCell(text) {{
+    var s = text.replace(/<[^>]+>/g, '').trim();
+    // Try to extract a leading number (handles ×, %, ~, p<, [, —)
+    if (s === '—' || s === '') return -Infinity;
+    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return s.toLowerCase();
+  }}
+  function sortBy(table, colIdx, asc) {{
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort(function(a, b) {{
+      var av = parseCell(a.cells[colIdx] ? a.cells[colIdx].textContent : '');
+      var bv = parseCell(b.cells[colIdx] ? b.cells[colIdx].textContent : '');
+      if (typeof av === 'number' && typeof bv === 'number') return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    }});
+    rows.forEach(function(r) {{ tbody.appendChild(r); }});
+  }}
+  document.addEventListener('DOMContentLoaded', function() {{
+    document.querySelectorAll('table thead th').forEach(function(th) {{
+      var icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.textContent = '\u2195';
+      th.appendChild(icon);
+      th.addEventListener('click', function() {{
+        var table = th.closest('table');
+        var idx = Array.from(th.parentNode.children).indexOf(th);
+        var asc = th.getAttribute('data-sort') !== 'asc';
+        table.querySelectorAll('thead th').forEach(function(h) {{
+          h.removeAttribute('data-sort');
+          var ic = h.querySelector('.sort-icon');
+          if (ic) ic.textContent = '\u2195';
+        }});
+        th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+        th.querySelector('.sort-icon').textContent = asc ? '\u2191' : '\u2193';
+        sortBy(table, idx, asc);
+      }});
+    }});
+  }});
+}})();
 </script>
 
 {_main_past_runs_html}
@@ -2996,6 +3095,12 @@ playbook_html = f"""<!DOCTYPE html>
   .past-list li:last-child {{ border-bottom:none; }}
   .past-list a {{ color:#60a5fa; text-decoration:none; font-size:0.875rem; }}
   .past-list a:hover {{ color:#93c5fd; }}
+
+  /* ── Sortable tables ── */
+  table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+  table thead th:hover {{ color: #f1f5f9; }}
+  .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #60a5fa; }}
 </style>
 </head>
 <body>
@@ -3137,6 +3242,50 @@ function togglePb(tile, id) {{
     _openTile = null; _openPanel = null;
   }}
 }}
+
+// ── Table sorting ──────────────────────────────────────────
+(function() {{
+  function parseCell(text) {{
+    var s = text.replace(/<[^>]+>/g, '').trim();
+    if (s === '—' || s === '') return -Infinity;
+    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return s.toLowerCase();
+  }}
+  function sortBy(table, colIdx, asc) {{
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort(function(a, b) {{
+      var av = parseCell(a.cells[colIdx] ? a.cells[colIdx].textContent : '');
+      var bv = parseCell(b.cells[colIdx] ? b.cells[colIdx].textContent : '');
+      if (typeof av === 'number' && typeof bv === 'number') return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    }});
+    rows.forEach(function(r) {{ tbody.appendChild(r); }});
+  }}
+  document.addEventListener('DOMContentLoaded', function() {{
+    document.querySelectorAll('table thead th').forEach(function(th) {{
+      var icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.textContent = '\u2195';
+      th.appendChild(icon);
+      th.addEventListener('click', function() {{
+        var table = th.closest('table');
+        var idx = Array.from(th.parentNode.children).indexOf(th);
+        var asc = th.getAttribute('data-sort') !== 'asc';
+        table.querySelectorAll('thead th').forEach(function(h) {{
+          h.removeAttribute('data-sort');
+          var ic = h.querySelector('.sort-icon');
+          if (ic) ic.textContent = '\u2195';
+        }});
+        th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+        th.querySelector('.sort-icon').textContent = asc ? '\u2191' : '\u2193';
+        sortBy(table, idx, asc);
+      }});
+    }});
+  }});
+}})();
 </script>
 </body>
 </html>"""
@@ -3146,11 +3295,52 @@ playbook_out.parent.mkdir(exist_ok=True)
 playbook_out.write_text(playbook_html, encoding="utf-8")
 print(f"Playbooks written to {playbook_out}  ({len(playbook_html):,} chars)")
 
+# ── Build report ─────────────────────────────────────────────────────────────
+_conf_counts = {"High confidence": 0, "Moderate": 0, "Directional": 0}
+for _, _, _t in _pb_tile_defs:
+    for _label in _conf_counts:
+        if _label in _t:
+            _conf_counts[_label] += 1
+            break
+
+_build_meta = {
+    "release":        REPORT_DATE_SLUG,
+    "generated":      datetime.now().isoformat(timespec="seconds"),
+    "data_2025":      str(DATA_2025),
+    "data_2026":      str(DATA_2026),
+    "rows": {
+        "apple_news": int(N_AN),
+        "smartnews":  int(N_SN),
+        "notifications": int(N_NOTIF),
+    },
+    "findings": {
+        "high_confidence": _conf_counts["High confidence"],
+        "moderate":        _conf_counts["Moderate"],
+        "directional":     _conf_counts["Directional"],
+    },
+    "rigor_warnings": _RIGOR_WARNINGS,
+    "hero": HERO_H1[:120] if HERO_H1 else "",
+}
+
+# Save meta.json alongside the current archive slot (enables Option B delta later)
+_meta_slot = _main_arch_dir / REPORT_DATE_SLUG
+_meta_slot.mkdir(parents=True, exist_ok=True)
+(_meta_slot / "meta.json").write_text(
+    __import__("json").dumps(_build_meta, indent=2), encoding="utf-8"
+)
+
 # ── Rigor warnings summary ────────────────────────────────────────────────────
+print(f"\n{'─'*60}")
+print(f"  BUILD REPORT  ·  {REPORT_DATE_SLUG}")
+print(f"{'─'*60}")
+print(f"  Apple News rows : {N_AN:,}    SmartNews : {N_SN:,}    Notifications : {N_NOTIF:,}")
+print(f"  Playbook tiles  : {_conf_counts['High confidence']}× High  "
+      f"{_conf_counts['Moderate']}× Moderate  {_conf_counts['Directional']}× Directional")
 if _RIGOR_WARNINGS:
-    print(f"\n⚠  RIGOR WARNINGS ({len(_RIGOR_WARNINGS)}) — these sections have descriptive tables "
-          "without significance tests. Add Mann-Whitney U before citing in reports:")
+    print(f"\n  ⚠  {len(_RIGOR_WARNINGS)} rigor warning(s) — sections without significance tests:")
     for _w in _RIGOR_WARNINGS:
-        print(f"   • {_w}")
+        print(f"     • {_w}")
 else:
-    print("✓  No rigor warnings — all major comparisons have significance tests.")
+    print("  ✓  All major comparisons have significance tests.")
+print(f"  meta.json → {_meta_slot}/meta.json")
+print(f"{'─'*60}\n")

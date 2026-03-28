@@ -371,13 +371,16 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest new T1 data and archive current site")
     parser.add_argument("--data-2025", default=DEFAULT_2025)
     parser.add_argument("--data-2026", default=DEFAULT_2026)
+    parser.add_argument("--release",   default=None,
+                        help="Release slug YYYY-MM (defaults to current month). "
+                             "Pass explicitly when ingesting data from a prior month.")
     parser.add_argument("--note", default="")
     parser.add_argument("--no-commit", action="store_true")
     args = parser.parse_args()
 
     now = datetime.now()
-    period = now.strftime("%Y-%m")
-    period_label = now.strftime("%B %Y")
+    period = args.release or now.strftime("%Y-%m")
+    period_label = datetime.strptime(period, "%Y-%m").strftime("%B %Y")
     generated_date = now.strftime("%Y-%m-%d")
 
     # 1. Profile new data + diff against previous run
@@ -386,40 +389,57 @@ def main():
     prev_profile, prev_period = _load_prev_profile()
     _print_diff(prev_profile, prev_period, new_profile)
 
-    # 2. Snapshot current site
+    # 2. Snapshot current site — archive the EXISTING page under its own slug,
+    #    not the incoming period slug (avoids mis-labeling March analysis as April)
     current_site = Path("docs/index.html")
-    archive_dir = Path("docs/archive") / period
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
+    old_slug = None
     hero_headline = ""
+
     if current_site.exists():
         content = current_site.read_text(encoding="utf-8")
+        # Read data-run from existing file to get the correct archive label
+        slug_match = re.search(r'<meta name="data-run" content="([^"]+)"', content)
+        old_slug = slug_match.group(1) if slug_match else period
         hero_match = re.search(r'class="hero".*?<h1>(.*?)</h1>', content, re.DOTALL)
         if hero_match:
             hero_headline = re.sub(r"<[^>]+>", "", hero_match.group(1)).strip()
+
+        archive_dir = Path("docs/archive") / old_slug
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        old_label = datetime.strptime(old_slug, "%Y-%m").strftime("%B %Y") if re.match(r"\d{4}-\d{2}", old_slug) else old_slug
         banner = (
             f'<div style="background:#b45309;color:#fff;padding:0.75rem 1.5rem;'
             f'text-align:center;font-size:0.85rem;font-family:system-ui,sans-serif;">'
-            f'Archived snapshot — {period_label}. '
+            f'Archived snapshot — {old_label}. '
             f'<a href="../../index.html" style="color:#fde68a;text-decoration:underline;">'
             f'View current analysis →</a></div>'
         )
         content = content.replace("<body>", f"<body>\n{banner}", 1)
         (archive_dir / "index.html").write_text(content, encoding="utf-8")
-        print(f"✓ Archived → docs/archive/{period}/index.html")
+        print(f"✓ Archived {old_label} → docs/archive/{old_slug}/index.html")
+
+        # Save data profile alongside snapshot for future diffs and Option B delta
+        (archive_dir / "data_profile.json").write_text(
+            json.dumps(new_profile, indent=2), encoding="utf-8"
+        )
     else:
         print("⚠  No existing docs/index.html to archive")
-
-    # Save profile alongside snapshot for future diffs
-    (archive_dir / "data_profile.json").write_text(
-        json.dumps(new_profile, indent=2), encoding="utf-8"
-    )
+        archive_dir = Path("docs/archive") / period
+        archive_dir.mkdir(parents=True, exist_ok=True)
 
     # 3. Update archive index
-    _update_archive_index(period, period_label, generated_date, hero_headline, args)
+    _update_archive_index(old_slug or period, period_label, generated_date, hero_headline, args)
 
-    # 4. Regenerate site
-    cmd = ["python3", "generate_site.py", "--data-2025", args.data_2025, "--data-2026", args.data_2026]
+    # 4. Regenerate site — pass --release so the new page carries the correct slug,
+    #    and --skip-main-archive so generate_site.py doesn't double-archive
+    cmd = [
+        "python3", "generate_site.py",
+        "--data-2025", args.data_2025,
+        "--data-2026", args.data_2026,
+        "--release",   period,
+        "--skip-main-archive",
+    ]
     print(f"Running: {' '.join(cmd)}")
     result = subprocess.run(cmd)
     if result.returncode != 0:
@@ -431,7 +451,8 @@ def main():
         note_suffix = f" — {args.note}" if args.note else ""
         msg = (
             f"Monthly ingest {period_label}{note_suffix}\n\n"
-            f"Archive: docs/archive/{period}/\n"
+            f"Release: {period}\n"
+            f"Archive: docs/archive/{old_slug or period}/\n"
             f"Data 2025: {args.data_2025}\n"
             f"Data 2026: {args.data_2026}\n"
             f"Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
