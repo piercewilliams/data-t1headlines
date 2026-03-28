@@ -4095,6 +4095,14 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     return;
   }}
 
+  // Re-apply the current theme to all Plotly charts before cloning.
+  // Charts inside closed panels are skipped when _rethemeCharts normally runs
+  // (Plotly.relayout throws on display:none elements). Now that this panel is
+  // open, force a re-theme so the clone captures correct dark/light colors.
+  if (typeof _rethemeCharts === 'function') {{
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
+  }}
+
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
@@ -4733,6 +4741,14 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     return;
   }}
 
+  // Re-apply the current theme to all Plotly charts before cloning.
+  // Charts inside closed panels are skipped when _rethemeCharts normally runs
+  // (Plotly.relayout throws on display:none elements). Now that this panel is
+  // open, force a re-theme so the clone captures correct dark/light colors.
+  if (typeof _rethemeCharts === 'function') {{
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
+  }}
+
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
@@ -5134,6 +5150,14 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   if (typeof domtoimage === 'undefined') {{
     _showResult3('Export unavailable: rendering library not loaded', true);
     return;
+  }}
+
+  // Re-apply the current theme to all Plotly charts before cloning.
+  // Charts inside closed panels are skipped when _rethemeCharts normally runs
+  // (Plotly.relayout throws on display:none elements). Now that this panel is
+  // open, force a re-theme so the clone captures correct dark/light colors.
+  if (typeof _rethemeCharts === 'function') {{
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
   }}
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
