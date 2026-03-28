@@ -739,6 +739,31 @@ df_hl_len = pd.DataFrame(hl_len_rows)
 AN_MEDIAN_HL_LEN = float(an["_hl_len"].median())
 SN_MEDIAN_HL_LEN = float(sn["_hl_len"].median())
 
+# Significance tests: Q4 (longest) vs Q1 (shortest) on each platform
+_hl_an_q1_v = an[an["_hl_bucket"] == "Short (Q1)"][VIEWS_METRIC].dropna()
+_hl_an_q4_v = an[an["_hl_bucket"] == "Very long (Q4)"][VIEWS_METRIC].dropna()
+_hl_sn_q1_v = sn[sn["_hl_bucket"] == "Short (Q1)"][VIEWS_METRIC].dropna()
+_hl_sn_q4_v = sn[sn["_hl_bucket"] == "Very long (Q4)"][VIEWS_METRIC].dropna()
+_hl_raw_p, _hl_lbls = [], []
+for _v4, _v1, _lbl in [(_hl_an_q4_v, _hl_an_q1_v, "an"), (_hl_sn_q4_v, _hl_sn_q1_v, "sn")]:
+    if len(_v4) >= 10 and len(_v1) >= 10:
+        _, _hp = stats.mannwhitneyu(_v4, _v1, alternative="two-sided")
+        _hl_raw_p.append(_hp)
+    else:
+        _hl_raw_p.append(np.nan)
+    _hl_lbls.append(_lbl)
+_hl_valid = [p for p in _hl_raw_p if not np.isnan(p)]
+_hl_adj   = bh_correct(_hl_valid) if _hl_valid else []
+_hl_adj_i = 0
+_hl_adj_map = {}
+for _lbl, _rp in zip(_hl_lbls, _hl_raw_p):
+    if not np.isnan(_rp):
+        _hl_adj_map[_lbl] = _hl_adj[_hl_adj_i]; _hl_adj_i += 1
+    else:
+        _hl_adj_map[_lbl] = np.nan
+HL_AN_Q4Q1_P = _hl_adj_map.get("an", np.nan)
+HL_SN_Q4Q1_P = _hl_adj_map.get("sn", np.nan)
+
 
 # ── Top/bottom headline examples ──────────────────────────────────────────────
 def top_bottom_html(df, text_col, views_col, topic, n=6):
@@ -975,7 +1000,8 @@ df_sn_guide = (pd.DataFrame(_sn_guide_rows).sort_values("lift", ascending=False)
 
 
 df_wc_quartile = pd.DataFrame()
-WC_MATCHED_N = 0
+WC_MATCHED_N   = 0
+WC_Q4_VS_Q2_P  = np.nan
 
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
@@ -1100,9 +1126,17 @@ if HAS_TRACKER:
                 .reset_index())
             WC_Q1_MED = wc_data["word_count"].quantile(0.25)
             WC_Q4_MED = wc_data["word_count"].quantile(0.75)
+            # Mann-Whitney: Q4 (longest) vs Q2 (apparent sweet spot)
+            _wc_q2_v = wc_data[wc_data["wc_quartile"] == "Q2"]["percentile"].dropna()
+            _wc_q4_v = wc_data[wc_data["wc_quartile"] == "Q4 (long)"]["percentile"].dropna()
+            if len(_wc_q2_v) >= 5 and len(_wc_q4_v) >= 5:
+                _, WC_Q4_VS_Q2_P = stats.mannwhitneyu(_wc_q4_v, _wc_q2_v, alternative="two-sided")
+            else:
+                WC_Q4_VS_Q2_P = np.nan
         else:
             WC_Q1_MED = np.nan
             WC_Q4_MED = np.nan
+            WC_Q4_VS_Q2_P = np.nan
 
 
 # ── Key stats ─────────────────────────────────────────────────────────────────
@@ -1278,6 +1312,7 @@ if _r4_ent is not None and _r4_loc is not None:
 # Sports platform inversion
 _sports_an_v = an[an["topic"] == "sports"][VIEWS_METRIC].dropna()
 _sports_sn_v = sn[sn["topic"] == "sports"][VIEWS_METRIC].dropna()
+_p_sports = None
 if len(_sports_an_v) >= 10 and len(_sports_sn_v) >= 10:
     _, _p_sports = stats.mannwhitneyu(_sports_an_v, _sports_sn_v, alternative="two-sided")
     _rank_gap = abs(sports_an_rank - sports_sn_rank)
@@ -1666,6 +1701,15 @@ AN_LEN_Q1_STR       = f"{AN_LEN_Q1_PCT:.0%}"     if pd.notna(AN_LEN_Q1_PCT)   el
 AN_LEN_Q4_STR       = f"{AN_LEN_Q4_PCT:.0%}"     if pd.notna(AN_LEN_Q4_PCT)   else "—"
 AN_LEN_Q4_CHARS_STR = f"~{int(AN_LEN_Q4_CHARS)}" if pd.notna(AN_LEN_Q4_CHARS) else "~93"
 AN_LEN_Q1_CHARS_STR = f"~{int(AN_LEN_Q1_CHARS)}" if pd.notna(AN_LEN_Q1_CHARS) else "~55"
+HL_AN_P_STR  = _fmt_p(HL_AN_Q4Q1_P, adj=True) if not np.isnan(HL_AN_Q4Q1_P) else None
+HL_SN_P_STR  = _fmt_p(HL_SN_Q4Q1_P, adj=True) if not np.isnan(HL_SN_Q4Q1_P) else None
+# Confidence level for length finding: significant on AN → Moderate; not → Directional
+HL_CONF_LABEL = "Moderate" if (HL_AN_P_STR and "*" in HL_AN_P_STR) else "Directional"
+HL_CONF_CLASS = "conf-mod" if HL_CONF_LABEL == "Moderate" else "conf-dir"
+# Sports p-value string (single unadjusted test — report raw)
+SPORTS_P_STR = _fmt_p(_p_sports, adj=False) if _p_sports is not None else None
+# Word count p-value string
+WC_P_STR = _fmt_p(WC_Q4_VS_Q2_P, adj=False) if not np.isnan(WC_Q4_VS_Q2_P) else None
 
 # Data-run slug for archive system
 REPORT_DATE_SLUG = datetime.now().strftime("%Y-%m")
@@ -2020,7 +2064,7 @@ if HAS_TRACKER and N_TRACKED > 0:
       </table>
       <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
       <div class="callout">
-        <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. <em>Caveat: this is based on {WC_MATCHED_N} tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
+        <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
       </div>
       <table class="findings">
         <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -2435,7 +2479,7 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
         </div>
-        <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. The inversion is directionally consistent across the full year of 2025 data.</p>
+        <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. {"The inversion is statistically significant (Mann-Whitney U, " + SPORTS_P_STR + ") across the full year of 2025 data." if SPORTS_P_STR else "The inversion holds across the full year of 2025 data."}</p>
         <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
         <div class="chart-wrap">{c5}</div>
         <h3>Sports subtopic performance by platform</h3>
@@ -2485,7 +2529,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t_biz_sub}</tbody>
         </table>
         <h3>Headline length vs. performance</h3>
-        <p>Headline character count split into quartiles — median Apple News headline is {AN_MEDIAN_HL_LEN:.0f} chars; SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars. Does length correlate with percentile rank?</p>
+        <p>Headline character count split into quartiles — median Apple News headline is {AN_MEDIAN_HL_LEN:.0f} chars; SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars. {"Longer Apple News headlines outperform shorter ones: Q4 vs. Q1 Mann-Whitney U " + HL_AN_P_STR + " (BH-FDR). The same test on SmartNews: " + (HL_SN_P_STR or "insufficient data") + "." if HL_AN_P_STR else "The pattern is directional — no significant Q4 vs. Q1 difference detected at this sample."}</p>
         <div class="chart-wrap">{c_hl}</div>
         <table class="findings">
           <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
@@ -2558,7 +2602,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
         <div class="callout">
-          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. <em>Caveat: this is based on {WC_MATCHED_N} tracker-matched articles, mostly SmartNews. Treat as directional — the pattern is consistent within SmartNews individually but is not statistically confirmed at this sample size.</em>
+          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the apparent sweet spot at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
         </div>
         <table class="findings">
           <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
@@ -2871,9 +2915,9 @@ playbook_html = f"""<!DOCTYPE html>
   </div>
 
   <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge conf-dir">Directional</span>
+    <span class="conf-badge {HL_CONF_CLASS}">{HL_CONF_LABEL}</span>
     <span class="tile-label">Apple News · Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). Effect is directional, not statistically established.</p>
+    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional — Q4 vs. Q1 difference not statistically confirmed."}</p>
     <p class="tile-action">→ Don't truncate. The \u226480 char rule applies to push notifications only — not to article headlines.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>
@@ -2950,9 +2994,9 @@ playbook_html = f"""<!DOCTYPE html>
 <div id="pb-5" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Longer tends to outperform shorter</strong> on Apple News — top quartile ({AN_LEN_Q4_CHARS_STR} chars) reaches {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom quartile ({AN_LEN_Q1_CHARS_STR} chars).</li>
+    <li><strong>Longer outperforms shorter on Apple News</strong> — top quartile ({AN_LEN_Q4_CHARS_STR} chars) reaches {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional — difference not statistically confirmed at this sample."}</li>
     <li><strong>The \u226480-char rule applies to notifications only</strong> — don't apply it to article headlines. The data runs in the opposite direction.</li>
-    <li><strong>Effect is directional, not confirmed</strong> — longer headlines may correlate with longer, higher-stakes stories. Don't pad headlines to hit a character count.</li>
+    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong> — confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
     <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
   </ul>
   <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
@@ -2960,7 +3004,7 @@ playbook_html = f"""<!DOCTYPE html>
     <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
     <tbody>{_t_hl_len}</tbody>
   </table>
-  <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
+  {"<p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News " + HL_AN_P_STR + "; SmartNews " + (HL_SN_P_STR or "—") + " (BH-FDR). Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>" if HL_AN_P_STR else "<p class='caveat'>Q4 vs. Q1 difference not statistically significant. Treat as directional orientation. Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>"}
 </div>
 
 {_inline_sections_html}

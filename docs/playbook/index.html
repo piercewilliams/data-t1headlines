@@ -149,9 +149,9 @@
   </div>
 
   <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge conf-dir">Directional</span>
+    <span class="conf-badge conf-mod">Moderate</span>
     <span class="tile-label">Apple News · Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Effect is directional, not statistically established.</p>
+    <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</p>
     <p class="tile-action">→ Don't truncate. The ≤80 char rule applies to push notifications only — not to article headlines.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
@@ -264,9 +264,9 @@
 <div id="pb-5" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Longer tends to outperform shorter</strong> on Apple News — top quartile (~93 chars) reaches 62% median %ile vs. 47% for bottom quartile (~74 chars).</li>
+    <li><strong>Longer outperforms shorter on Apple News</strong> — top quartile (~93 chars) reaches 62% median %ile vs. 47% for bottom quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</li>
     <li><strong>The ≤80-char rule applies to notifications only</strong> — don't apply it to article headlines. The data runs in the opposite direction.</li>
-    <li><strong>Effect is directional, not confirmed</strong> — longer headlines may correlate with longer, higher-stakes stories. Don't pad headlines to hit a character count.</li>
+    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong> — confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
     <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
   </ul>
   <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
@@ -278,7 +278,7 @@
 <tr><td>Very long (Q4)</td><td>93 chars</td><td>1,035</td><td>62%</td><td>9,120</td><td>56%</td></tr>
 </tbody>
   </table>
-  <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
+  <p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News p<sub>adj</sub>&lt;0.001 ***; SmartNews p<sub>adj</sub>&lt;0.001 *** (BH-FDR). Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>
 </div>
 
 
