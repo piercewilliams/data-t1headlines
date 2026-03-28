@@ -4343,7 +4343,12 @@ function _rethemeCharts(isDark) {{
         var upd = {{}};
         if (trace.marker && trace.marker.color !== undefined) {{
           var mc = _remapTraceColor(trace.marker.color, isDark);
-          if (JSON.stringify(mc) !== JSON.stringify(trace.marker.color)) upd['marker.color'] = mc;
+          if (JSON.stringify(mc) !== JSON.stringify(trace.marker.color)) {{
+            // Plotly.restyle interprets the outer array as one-value-per-trace.
+            // A per-bar color array must be double-wrapped so restyle sets the
+            // whole array as the value for this single trace, not one element per bar.
+            upd['marker.color'] = Array.isArray(mc) ? [mc] : mc;
+          }}
         }}
         if (trace.line && trace.line.color) {{
           var lc = _swapColor(trace.line.color, isDark);
