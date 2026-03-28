@@ -3859,14 +3859,12 @@ function closeDetail() {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-// PDF: browser native print — correct colors, vector text, no distortion.
-//      User saves as PDF from browser print dialog (File → Save as PDF).
-// PNG: html2canvas at 3× scale into an off-screen fixed-width container.
-//      Container includes the tile summary (finding + takeaway) above the
-//      detail panel so the export is self-contained without the user having
-//      to annotate context. No windowWidth/width/height overrides — avoids
-//      the text-reflow garbling that happens when the canvas viewport
-//      diverges from the element's actual rendered layout.
+// PNG: dom-to-image-more into an off-screen fixed-position container (1100px wide).
+//      Container prepends the tile summary (finding + takeaway) for context.
+//      No transform/scale overrides — those distort text in SVG foreignObject.
+// PDF: renders the same container to PNG first, then prints it as an image.
+//      Printing a raster <img> preserves exact pixel colors; background stripping
+//      does not apply, so dark-mode panels print correctly.
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
@@ -3881,7 +3879,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -3896,10 +3894,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -3940,7 +3935,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
 
     // Prepend the tile summary (finding number + claim + action) as context
@@ -3966,10 +3961,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     // dom-to-image-more: serializes DOM → SVG foreignObject → PNG.
     // Text is rendered by the browser's own engine — no character-measurement
     // heuristics, so system fonts (SF Pro / -apple-system) render correctly.
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png');
       if (c) c.remove();
       var a = document.createElement('a');
@@ -4511,7 +4503,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -4526,10 +4518,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -4566,7 +4555,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var tileEl = _findTileForPanel(panelEl);
     if (tileEl) {{
@@ -4580,10 +4569,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       var a = document.createElement('a');
       a.href = dataUrl;
@@ -4901,7 +4887,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {{
@@ -4916,10 +4902,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -4956,7 +4939,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var tileEl = _findTileForPanel(panelEl);
     if (tileEl) {{
@@ -4970,10 +4953,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{
-      scale: 2,
-      bgcolor: bg
-    }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       var a = document.createElement('a');
       a.href = dataUrl;
