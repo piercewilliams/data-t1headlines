@@ -427,7 +427,14 @@ function togglePb(tile, id) {
     if (toggle) toggle.textContent = 'Details ↑';
     panel.style.display = 'block';
     _openTile = tile; _openPanel = panel;
-    setTimeout(function() { panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50);
+    // Re-apply theme to newly-visible charts—closed panels are skipped at
+    // page-load theme time because Plotly.relayout throws on display:none elements.
+    setTimeout(function() {
+      if (typeof _rethemeCharts === 'function') {
+        _rethemeCharts(document.body.classList.contains('theme-dark'));
+      }
+      panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }, 80);
   } else {
     tile.classList.remove('open');
     if (toggle) toggle.textContent = 'Details ↓';
