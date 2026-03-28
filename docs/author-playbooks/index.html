@@ -165,7 +165,7 @@
     <span class="conf-badge conf-dir">Directional</span>
     <span class="tile-label">Lauren Schuster</span>
     <p class="tile-claim">Yahoo shows a 32-pt advantage over SmartNews (44%ile vs. 12%ile). Directional—worth routing more output to Yahoo to test.</p>
-    <p class="tile-action">→ Route the next 5+ articles through Yahoo first and track whether the percentile gap persists. no tracked formula is 90% of current output.</p>
+    <p class="tile-action">→ Route the next 5+ articles through Yahoo first and track whether the percentile gap persists. No tracked formula is 90% of current output.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
   </div>
@@ -470,7 +470,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
   var container = document.createElement('div');
   container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;visibility:hidden;' +
+  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
     'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
   var tileEl = _findTileForPanel(panelEl);
@@ -499,7 +499,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
       domtoimage.toPng(container, {
         width:  w,
         height: h,
-        style:  { visibility: 'visible' },
+        style:  { opacity: '1' },
         bgcolor: bg
       }).then(function(dataUrl) {
         _cleanupContainer3(containerId);
