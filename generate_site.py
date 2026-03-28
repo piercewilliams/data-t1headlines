@@ -181,6 +181,30 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #       body.theme-light table.findings { background: #ffffff; }
 #       body.theme-dark  table.findings { background: #1e293b; }
 #   This makes table theming unambiguous regardless of surrounding panel context.
+#
+# LIFT/STATUS COLORS — always use .lift-high/.lift-pos/.lift-neg CSS classes:
+#   NEVER use inline style="color:#60a5fa" for lift values or status indicators.
+#   Those hardcoded hex values are dark-mode-only and break in light mode. The
+#   .lift-* classes are defined with body.theme-light overrides in the main CSS block.
+#   For semantic status colors (tags) that intentionally stay fixed, use .tag-* classes.
+#
+# ACCENT COLOR — always use var(--accent), never hardcode #60a5fa or #0071e3:
+#   --accent resolves to #0071e3 (light) or #3b82f6 (dark). Sort icon highlights,
+#   active borders, link colors — all must use var(--accent) so they adapt to theme.
+#   Hardcoded blues silently stop adapting when the user switches modes.
+#
+# JS IN PYTHON F-STRINGS — escape all literal newlines inside JS string literals:
+#   Inside a Python f-string, '\n' is a literal newline. If that appears inside a
+#   JS string literal (e.g. [].join('\n')), it creates a JS syntax error that
+#   silently kills the entire <script> block and breaks all interactivity on the page.
+#   Always write '\\n' to produce a literal \n in the JS output. The post-build
+#   _validate_js() check catches this automatically every run.
+#
+# PNG EXPORT — never set windowWidth or width/height on html2canvas:
+#   Setting windowWidth: document.documentElement.scrollWidth forces html2canvas to
+#   render in a wider viewport than the window, causing text to reflow and
+#   inter-word spacing to collapse (garbled text). Use a fixed-width off-screen
+#   container (position:fixed; left:-9999px; width:1100px) and capture that instead.
 
 def safe_range(
     values: "Iterable[float]",
@@ -2133,8 +2157,8 @@ def _guide_table(df, max_rows=20):
     for _, r in df.head(max_rows).iterrows():
         lift_val = r['lift']
         if pd.notna(lift_val):
-            color = "#4ade80" if lift_val >= 1.5 else ("#60a5fa" if lift_val >= 1.0 else "#f87171")
-            lift_str = f'<span style="color:{color};font-weight:600">{lift_val:.2f}×</span>'
+            cls = "lift-high" if lift_val >= 1.5 else ("lift-pos" if lift_val >= 1.0 else "lift-neg")
+            lift_str = f'<span class="{cls}">{lift_val:.2f}×</span>'
         else:
             lift_str = "—"
         html_out += (f"<tr><td>{r['formula']}</td><td>{r['topic']}</td>"
@@ -2925,7 +2949,7 @@ html = f"""<!DOCTYPE html>
   .tile-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 0; }}
   .tile {{ background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.2s; min-height: 140px; }}
   .tile:hover {{ box-shadow: 0 2px 12px rgba(0,0,0,0.10); border-color: var(--text-muted); }}
-  .tile.active {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,0.12); }}
+  .tile.active {{ border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }}
   .tile-num {{ font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }}
   .tile-claim {{ font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.45; flex: 1; }}
   .tile-action {{ font-size: 12px; color: var(--text-secondary); line-height: 1.4; padding-top: 7px; border-top: 1px solid var(--border-subtle); margin-top: auto; }}
@@ -2983,6 +3007,14 @@ html = f"""<!DOCTYPE html>
   .tag-blue {{ background: #e8f0fe; color: #1a73e8; }}
   .tag-amber {{ background: #fff8e1; color: #b45309; }}
 
+  /* ── Lift value colors (theme-aware; used by _guide_table and any lift spans) ── */
+  .lift-high {{ color: #4ade80; font-weight: 600; }}
+  .lift-pos  {{ color: var(--accent); font-weight: 600; }}
+  .lift-neg  {{ color: #f87171; font-weight: 600; }}
+  body.theme-light .lift-high {{ color: #16a34a; }}
+  body.theme-light .lift-pos  {{ color: var(--accent); }}
+  body.theme-light .lift-neg  {{ color: #dc2626; }}
+
   /* ── Charts & examples ── */
   .chart-wrap {{ margin: 16px 0; }}
   .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 12px 0; }}
@@ -3013,7 +3045,7 @@ html = f"""<!DOCTYPE html>
   table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
   table thead th:hover {{ color: var(--text-primary, #f1f5f9); }}
   .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
-  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #60a5fa; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: var(--accent); }}
 
   /* ── Export button ── */
   .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
@@ -3988,7 +4020,7 @@ playbook_html = f"""<!DOCTYPE html>
   table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
   table thead th:hover {{ color: #f1f5f9; }}
   .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
-  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #60a5fa; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: var(--accent); }}
 
   /* ── Export button (hardcoded dark — playbook page is always dark) ── */
   .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
@@ -4360,6 +4392,42 @@ _meta_slot.mkdir(parents=True, exist_ok=True)
     json.dumps(_build_meta, indent=2), encoding="utf-8"
 )
 
+# ── Post-build JS syntax validation ──────────────────────────────────────────
+# Catches f-string \n-in-JS bugs (e.g. join('\n') instead of join('\\n'))
+# and any other syntax errors introduced by future edits before the site ships.
+# Requires node.js on PATH; skips gracefully if unavailable.
+def _validate_js(html_path: str, label: str) -> list[str]:
+    """Extract custom <script> blocks and syntax-check with node --check."""
+    import subprocess, tempfile, os, re as _re
+    errors: list[str] = []
+    try:
+        content = Path(html_path).read_text(encoding="utf-8")
+        scripts = _re.findall(r"<script>(.*?)</script>", content, _re.DOTALL)
+        for s in scripts:
+            # Only check our custom scripts (Plotly inline scripts don't need this)
+            if not any(kw in s for kw in ("showDetail", "togglePb", "_exportPanel",
+                                          "_rethemeCharts", "applyTheme")):
+                continue
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
+                                             delete=False, encoding="utf-8") as tf:
+                tf.write(s)
+                tf_path = tf.name
+            result = subprocess.run(["node", "--check", tf_path],
+                                    capture_output=True, text=True)
+            os.unlink(tf_path)
+            if result.returncode != 0:
+                # Trim to first error line for readability
+                first_line = result.stderr.strip().splitlines()[0] if result.stderr else "unknown error"
+                errors.append(f"[js_syntax:{label}] {first_line}")
+    except FileNotFoundError:
+        pass  # node not on PATH — skip silently
+    except Exception as exc:
+        errors.append(f"[js_syntax:{label}] check failed: {exc}")
+    return errors
+
+_js_errors = (_validate_js(str(out), "index") +
+              _validate_js(str(playbook_out), "playbook"))
+
 # ── Rigor warnings summary ────────────────────────────────────────────────────
 print(f"\n{'─'*60}")
 print(f"  BUILD REPORT  ·  {REPORT_DATE_SLUG}")
@@ -4380,6 +4448,12 @@ elif HAS_PINGOUIN and Q1_KW_P is not None and Q1_KW_P >= 0.05:
     print("  Q1 Dunn post-hoc: skipped (Kruskal-Wallis not significant)")
 if Q2_LOGIT_SUMMARY:
     print(f"  Q2 {Q2_LOGIT_SUMMARY}")
+if _js_errors:
+    print(f"\n  ✗  {len(_js_errors)} JS SYNTAX ERROR(S) — site JS is broken, fix before pushing:")
+    for _e in _js_errors:
+        print(f"     • {_e}")
+else:
+    print("  ✓  JS syntax valid (index + playbook).")
 if _RIGOR_WARNINGS:
     print(f"\n  ⚠  {len(_RIGOR_WARNINGS)} rigor warning(s) — sections without significance tests:")
     for _w in _RIGOR_WARNINGS:
