@@ -88,6 +88,44 @@ def tag_subtopic(text, topic):
     return None
 
 
+def classify_number_lead(text):
+    """Classify the lead number in a number_lead headline by type and roundness."""
+    t = str(text).strip()
+    # Extract the leading token
+    m = re.match(r"^(\$[\d,]+(?:\.\d+)?(?:[BMK]|bn|m|k)?\b|[\d,]+(?:\.\d+)?(?:st|nd|rd|th|%|[BMK]|bn|m|k)?\b)", t, re.IGNORECASE)
+    if not m:
+        return None
+    raw = m.group(1)
+    # Parse numeric value
+    num_str = re.sub(r"[,$BMKbmk%]", "", raw.lower().rstrip("stndrdhth"))
+    try:
+        val = float(num_str)
+    except ValueError:
+        return None
+
+    # Classify type
+    if raw.startswith("$") or re.search(r"[BMK]$|bn$|million|billion", raw, re.I):
+        ntype = "dollar_amount"
+    elif raw.lower().endswith(("st","nd","rd","th")):
+        ntype = "ordinal"
+    elif "%" in raw:
+        ntype = "percentage"
+    elif 2000 <= val <= 2030:
+        ntype = "year"
+    else:
+        ntype = "count_list"
+
+    # Round vs specific
+    if val <= 10:
+        roundness = "specific"
+    elif val % 1000 == 0 or val % 100 == 0 or (val % 10 == 0 and val <= 100):
+        roundness = "round"
+    else:
+        roundness = "specific"
+
+    return dict(raw=raw, value=val, ntype=ntype, roundness=roundness)
+
+
 # ── Statistical helpers ───────────────────────────────────────────────────────
 def bh_correct(pvals):
     n = len(pvals)
@@ -578,6 +616,67 @@ def top_bottom_html(df, text_col, views_col, topic, n=6):
 crime_top_h, crime_bot_h   = top_bottom_html(an, "Article", VIEWS_METRIC, "crime")
 biz_top_h,   biz_bot_h     = top_bottom_html(an, "Article", VIEWS_METRIC, "business")
 
+# ── Number leads deep dive ────────────────────────────────────────────────────
+numleads = nf[nf["formula"] == "number_lead"].copy()
+numleads["_nlp"] = numleads["Article"].apply(classify_number_lead)
+numleads = numleads[numleads["_nlp"].notna()].copy()
+numleads["nl_type"]      = numleads["_nlp"].apply(lambda x: x["ntype"])
+numleads["nl_roundness"] = numleads["_nlp"].apply(lambda x: x["roundness"])
+numleads["nl_value"]     = numleads["_nlp"].apply(lambda x: x["value"])
+
+NL_TOTAL        = len(nf[nf["formula"] == "number_lead"])
+NL_PARSED       = len(numleads)
+
+nl_round    = numleads[numleads["nl_roundness"] == "round"][VIEWS_METRIC]
+nl_specific = numleads[numleads["nl_roundness"] == "specific"][VIEWS_METRIC]
+nl_base_all = nf[nf["formula"] != "number_lead"][VIEWS_METRIC]
+
+NL_ROUND_MED    = nl_round.median()    if len(nl_round)    >= 3 else np.nan
+NL_SPECIFIC_MED = nl_specific.median() if len(nl_specific) >= 3 else np.nan
+NL_BASE_MED     = nl_base_all.median()
+
+# Mann-Whitney: specific vs round
+if len(nl_round) >= 5 and len(nl_specific) >= 5:
+    _nl_u = stats.mannwhitneyu(nl_specific, nl_round, alternative="two-sided")
+    NL_ROUND_VS_SPECIFIC_P = _nl_u.pvalue
+    NL_ROUND_VS_SPECIFIC_RB = rank_biserial(_nl_u.statistic, len(nl_specific), len(nl_round))
+else:
+    NL_ROUND_VS_SPECIFIC_P  = None
+    NL_ROUND_VS_SPECIFIC_RB = None
+
+# Number type breakdown
+NL_TYPE_LABELS = {
+    "count_list":   "Count / list (e.g. '3 tips')",
+    "dollar_amount":"Dollar amount (e.g. '$500M')",
+    "year":         "Year (e.g. '2024')",
+    "ordinal":      "Ordinal (e.g. '1st')",
+    "percentage":   "Percentage (e.g. '40%')",
+}
+nl_type_rows = []
+for ntype, nlabel in NL_TYPE_LABELS.items():
+    grp = numleads[numleads["nl_type"] == ntype][VIEWS_METRIC]
+    if len(grp) >= 3:
+        nl_type_rows.append(dict(ntype=ntype, label=nlabel, n=len(grp),
+                                  median=grp.median(),
+                                  lift=grp.median()/NL_BASE_MED if NL_BASE_MED > 0 else np.nan))
+df_nl_type = pd.DataFrame(nl_type_rows).sort_values("median", ascending=False) if nl_type_rows else pd.DataFrame()
+
+# Small number (1-10) vs larger number effect
+numleads["nl_size_cat"] = numleads["nl_value"].apply(
+    lambda v: "1–5" if v <= 5 else ("6–10" if v <= 10 else ("11–20" if v <= 20 else ("21–50" if v <= 50 else "50+"))))
+nl_size_rows = []
+for cat in ["1–5","6–10","11–20","21–50","50+"]:
+    grp = numleads[numleads["nl_size_cat"] == cat][VIEWS_METRIC]
+    if len(grp) >= 3:
+        nl_size_rows.append(dict(size_cat=cat, n=len(grp),
+                                  median=grp.median(),
+                                  lift=grp.median()/NL_BASE_MED if NL_BASE_MED > 0 else np.nan))
+df_nl_size = pd.DataFrame(nl_size_rows) if nl_size_rows else pd.DataFrame()
+
+# Top 5 example headlines per roundness type
+nl_round_ex   = numleads[numleads["nl_roundness"]=="round"].nlargest(5, VIEWS_METRIC)["Article"].tolist()
+nl_specific_ex= numleads[numleads["nl_roundness"]=="specific"].nlargest(5, VIEWS_METRIC)["Article"].tolist()
+
 
 # ── Keyword overlap ───────────────────────────────────────────────────────────
 STOPWORDS = {
@@ -656,6 +755,9 @@ else:
     YOY_CHANGING_DELTA   = 0.0
 
 
+df_wc_quartile = pd.DataFrame()
+WC_MATCHED_N = 0
+
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
 HAS_TRACKER  = False
@@ -690,10 +792,10 @@ if HAS_TRACKER:
     an_work["_hn"]  = an_work["Article"].apply(_hn)
     # URL join
     an_url_j = (an_work[an_work["_url"] != ""]
-                .merge(tracker_df[["_url","t_author","t_vertical"]], on="_url", how="inner"))
+                .merge(tracker_df[["_url","t_author","t_vertical","Word Count"]], on="_url", how="inner"))
     # Headline join (fallback for articles where URL format differs)
     an_hn_j  = (an_work[an_work["_hn"].str.len() > 10]
-                .merge(tracker_df[["_hn","t_author","t_vertical"]], on="_hn", how="inner"))
+                .merge(tracker_df[["_hn","t_author","t_vertical","Word Count"]], on="_hn", how="inner"))
     an_joined = pd.concat([an_url_j, an_hn_j]).drop_duplicates(subset=["Article ID"])
     for _, r in an_joined.iterrows():
         rows.append(dict(
@@ -706,6 +808,7 @@ if HAS_TRACKER:
             views=r["Total Views"],
             percentile=r[VIEWS_METRIC],
             featured=r.get("is_featured", False),
+            word_count=r.get("Word Count", np.nan),
         ))
 
     # ── 2. SmartNews 2026: URL join ───────────────────────────────────────────
@@ -713,7 +816,7 @@ if HAS_TRACKER:
     sn26_work["_url"] = sn26_work["url"].fillna("").str.strip().str.lower()
     sn26_work["percentile"] = sn26_work["article_view"].rank(pct=True)
     sn26_j = (sn26_work[sn26_work["_url"] != ""]
-              .merge(tracker_df[["_url","t_author","t_vertical"]], on="_url", how="inner"))
+              .merge(tracker_df[["_url","t_author","t_vertical","Word Count"]], on="_url", how="inner"))
     for _, r in sn26_j.iterrows():
         rows.append(dict(
             platform="SmartNews",
@@ -725,6 +828,7 @@ if HAS_TRACKER:
             views=r["article_view"],
             percentile=r["percentile"],
             featured=False,
+            word_count=r.get("Word Count", np.nan),
         ))
 
     # ── 3. Yahoo 2026: headline join ──────────────────────────────────────────
@@ -732,7 +836,7 @@ if HAS_TRACKER:
     yahoo26_work["_hn"] = yahoo26_work["Content Title"].apply(_hn)
     yahoo26_work["percentile"] = yahoo26_work["Content Views"].rank(pct=True)
     yahoo26_j = (yahoo26_work[yahoo26_work["_hn"].str.len() > 10]
-                 .merge(tracker_df[["_hn","t_author","t_vertical"]], on="_hn", how="inner"))
+                 .merge(tracker_df[["_hn","t_author","t_vertical","Word Count"]], on="_hn", how="inner"))
     for _, r in yahoo26_j.iterrows():
         rows.append(dict(
             platform="Yahoo",
@@ -744,6 +848,7 @@ if HAS_TRACKER:
             views=r["Content Views"],
             percentile=r["percentile"],
             featured=False,
+            word_count=r.get("Word Count", np.nan),
         ))
 
     team_combined = pd.DataFrame(rows)
@@ -762,6 +867,23 @@ if HAS_TRACKER:
         team_top = (team_combined.sort_values("percentile", ascending=False)
                     [["headline","platform","brand","author","pub_date","views","percentile","featured"]]
                     .head(20))
+
+        # Word count correlation (only for matched articles with word count data)
+        wc_data = team_combined[team_combined["word_count"].notna() & (team_combined["word_count"] > 0)].copy()
+        WC_MATCHED_N = len(wc_data)
+        if WC_MATCHED_N >= 20:
+            wc_data["wc_quartile"] = pd.qcut(wc_data["word_count"], 4,
+                                              labels=["Q1 (short)","Q2","Q3","Q4 (long)"])
+            df_wc_quartile = (wc_data.groupby("wc_quartile", observed=True)
+                .agg(n=("word_count","count"),
+                     med_wc=("word_count","median"),
+                     med_pct=("percentile","median"))
+                .reset_index())
+            WC_Q1_MED = wc_data["word_count"].quantile(0.25)
+            WC_Q4_MED = wc_data["word_count"].quantile(0.75)
+        else:
+            WC_Q1_MED = np.nan
+            WC_Q4_MED = np.nan
 
 
 # ── Key stats ─────────────────────────────────────────────────────────────────
@@ -852,6 +974,30 @@ def _row_tag(lift, is_red=False):
     if lift >= 1.5:     return '<span class="tag tag-green">★</span>'
     if lift < 0.8:      return '<span class="tag tag-red">↓</span>'
     return ""
+
+def _wc_table():
+    if df_wc_quartile.empty: return "<tr><td colspan='4'>Insufficient data (need ≥20 matched articles with word count).</td></tr>"
+    out = ""
+    for _, r in df_wc_quartile.iterrows():
+        out += (f"<tr><td>{r['wc_quartile']}</td><td>{int(r['n'])}</td>"
+                f"<td>{int(r['med_wc'])}</td><td>{r['med_pct']:.0%}</td></tr>\n")
+    return out
+
+def _nl_type_table():
+    if df_nl_type.empty: return "<tr><td colspan='4'>Insufficient data.</td></tr>"
+    out = ""
+    for _, r in df_nl_type.iterrows():
+        out += (f"<tr><td>{r['label']}</td><td>{int(r['n'])}</td>"
+                f"<td>{r['median']:.0%}</td><td>{r['lift']:.2f}×</td></tr>\n")
+    return out
+
+def _nl_size_table():
+    if df_nl_size.empty: return "<tr><td colspan='4'>Insufficient data.</td></tr>"
+    out = ""
+    for _, r in df_nl_size.iterrows():
+        out += (f"<tr><td>{r['size_cat']}</td><td>{int(r['n'])}</td>"
+                f"<td>{r['median']:.0%}</td><td>{r['lift']:.2f}×</td></tr>\n")
+    return out
 
 def _q1_table():
     rows = df_q1[df_q1["formula"] != "untagged"].sort_values("lift", ascending=False)
@@ -986,6 +1132,9 @@ _t5 = _sports_subtopic_table()
 _t_yoy = _yoy_table()
 _t_auth = _author_table()
 _t_team = _team_top_table()
+_t_nl_type = _nl_type_table()
+_t_nl_size = _nl_size_table()
+_t_wc = _wc_table()
 
 _excl_sensitivity_html = ""
 if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
@@ -1233,32 +1382,79 @@ FORMULA_DISPLAY = {
     "possessive_named_entity": "Possessive named entity",
 }
 
+# ── Fig 8: Longitudinal — monthly formula trend ────────────────────────────────
 fig8 = go.Figure()
+_long_colors = {
+    "heres_formula":           BLUE,
+    "what_to_know":            GREEN,
+    "number_lead":             AMBER,
+    "question":                RED,
+    "possessive_named_entity": NAVY,
+}
+
 if not df_long.empty:
-    for f in _LONG_FORMULAS:
-        sub = df_long[df_long["formula"] == f].sort_values("month")
-        if len(sub) < 2: continue
-        fig8.add_trace(go.Scatter(
-            x=sub["month"].tolist(),
-            y=sub["med_pct"].tolist(),
-            mode="lines+markers",
-            name=FORMULA_DISPLAY.get(f, f),
-            line=dict(color=FORMULA_COLORS.get(f, GRAY), width=2.5),
-            marker=dict(size=7),
-            hovertemplate="<b>" + FORMULA_DISPLAY.get(f, f) + "</b><br>%{x}<br>Median percentile: %{y:.0%}<extra></extra>",
-        ))
+    df_long_sorted = df_long.sort_values("month")
+    # Split at year boundary
+    df_long_2025 = df_long_sorted[df_long_sorted["month"] < "2026"].copy()
+    df_long_2026 = df_long_sorted[df_long_sorted["month"] >= "2026"].copy()
+
+    for f, color in _long_colors.items():
+        label = FORMULA_LABELS.get(f, f)
+        d25 = df_long_2025[df_long_2025["formula"] == f].sort_values("month")
+        d26 = df_long_2026[df_long_2026["formula"] == f].sort_values("month")
+
+        if len(d25) == 0 and len(d26) == 0:
+            continue
+
+        # 2025 trace — solid line
+        if len(d25) > 0:
+            fig8.add_trace(go.Scatter(
+                x=d25["month"], y=d25["med_pct"],
+                mode="lines+markers",
+                name=label,
+                line=dict(color=color, width=2.5),
+                marker=dict(size=7, color=color),
+                legendgroup=f,
+                hovertemplate="%{x}: %{y:.0%} (%{customdata} articles)<extra>" + label + "</extra>",
+                customdata=d25["n"],
+            ))
+
+        # 2026 trace — dotted thicker line; connect from last 2025 point
+        if len(d26) > 0:
+            # Include last 2025 point as bridge if it exists
+            bridge_rows = d25.tail(1) if len(d25) > 0 else pd.DataFrame()
+            d26_ext = pd.concat([bridge_rows, d26]).sort_values("month")
+            fig8.add_trace(go.Scatter(
+                x=d26_ext["month"], y=d26_ext["med_pct"],
+                mode="lines+markers",
+                name=label + " (2026)",
+                line=dict(color=color, width=3.5, dash="dot"),
+                marker=dict(size=9, color=color, symbol="circle-open"),
+                legendgroup=f,
+                showlegend=False,
+                hovertemplate="%{x}: %{y:.0%} (%{customdata} articles)<extra>" + label + " 2026</extra>",
+                customdata=d26_ext["n"],
+            ))
+
+    # Shade 2026 region
+    _first_2026 = df_long_sorted[df_long_sorted["month"] >= "2026"]["month"].min() if not df_long_2026.empty else None
+    if _first_2026:
+        fig8.add_vrect(
+            x0=_first_2026, x1=df_long_sorted["month"].max(),
+            fillcolor="rgba(37,99,235,0.06)", line_width=0,
+            annotation_text="2026 (dotted)", annotation_position="top left",
+            annotation_font_size=10, annotation_font_color=BLUE,
+        )
 
 fig8.update_layout(
-    **{k: v for k, v in PLOTLY_LAYOUT.items() if k not in ("height", "margin")},
-    title=dict(text="Formula performance trend — monthly percentile rank, Jan 2025–Feb 2026",
-               font=dict(size=13, color=NAVY), x=0),
+    title=dict(text="Formula performance trend — monthly percentile rank", font=dict(size=15, color=NAVY), x=0.01, xanchor="left"),
     xaxis=dict(title="", gridcolor=BORDER, tickangle=-30),
-    yaxis=dict(title="Percentile vs. same-month articles", gridcolor=BORDER,
-               tickformat=".0%", range=[0, 1]),
-    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5,
-                font=dict(size=11)),
-    height=480,
-    margin=dict(l=20, r=40, t=50, b=100),
+    yaxis=dict(title="Percentile vs. same-month articles", tickformat=".0%", range=[0,1]),
+    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5, font=dict(size=11)),
+    height=500,
+    margin=dict(l=20, r=40, t=50, b=110),
+    plot_bgcolor=LIGHT, paper_bgcolor="white",
+    font=dict(color=NAVY),
 )
 
 
@@ -1301,6 +1497,57 @@ if HAS_TRACKER and N_TRACKED > 0:
       <table class="findings">
         <thead><tr><th>Article</th><th>Platform — Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
         <tbody>{_t_team}</tbody>
+      </table>
+      <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
+      <table class="findings">
+        <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
+        <tbody>{_t_wc}</tbody>
+      </table>
+    </div>
+  </details>
+"""
+
+_finding_numleads_html = ""
+if NL_PARSED >= 10:
+    _nl_round_sig = (f"Mann-Whitney p={NL_ROUND_VS_SPECIFIC_P:.3f}, rb={NL_ROUND_VS_SPECIFIC_RB:.2f}"
+                     if NL_ROUND_VS_SPECIFIC_P is not None else "insufficient sample for test")
+    _nl_round_examples = "".join(f"<li>{html_module.escape(str(h))}</li>" for h in nl_round_ex)
+    _nl_specific_examples = "".join(f"<li>{html_module.escape(str(h))}</li>" for h in nl_specific_ex)
+    _finding_numleads_html = f"""
+  <!-- NUMBER LEADS DEEP DIVE -->
+  <details id="numleads" class="finding-card">
+    <summary class="finding-header">
+      <span class="finding-chevron">▶</span>
+      <div class="finding-summary">
+        <p class="section-label">Finding 1b · Number Leads — Deep Dive</p>
+        <h2>Specific numbers outperform round numbers. Count/list formats lead; years and dollar amounts lag.</h2>
+      </div>
+    </summary>
+    <div class="finding-body">
+      <div class="callout">
+        <strong>Context:</strong> {NL_PARSED} of {NL_TOTAL} number-lead headlines parsed. Baseline = all non-number-lead Apple News articles (n={len(nl_base_all):,}).
+      </div>
+      <h3>Round vs. specific numbers</h3>
+      <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%} vs. specific numbers: median {NL_SPECIFIC_MED:.0%}. ({_nl_round_sig})</p>
+      <div class="two-col">
+        <div>
+          <p><strong>Top performers — specific numbers</strong></p>
+          <ul class="headline-list">{_nl_specific_examples}</ul>
+        </div>
+        <div>
+          <p><strong>Top performers — round numbers</strong></p>
+          <ul class="headline-list">{_nl_round_examples}</ul>
+        </div>
+      </div>
+      <h3>By number type</h3>
+      <table class="findings">
+        <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+        <tbody>{_t_nl_type}</tbody>
+      </table>
+      <h3>By number magnitude</h3>
+      <table class="findings">
+        <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+        <tbody>{_t_nl_size}</tbody>
       </table>
     </div>
   </details>
@@ -1540,6 +1787,7 @@ html = f"""<!DOCTYPE html>
     <a href="#allocation">Allocation</a>
     <a href="#engagement">Engagement</a>
     <a href="#trends">Trends</a>
+    {"<a href='#numleads'>Number leads</a>" if NL_PARSED >= 10 else ""}
     {"<a href='#team'>Team</a>" if HAS_TRACKER and N_TRACKED > 0 else ""}
   </div>
   <span class="spacer"></span>
@@ -1791,6 +2039,8 @@ html = f"""<!DOCTYPE html>
       <p class="caveat">Longitudinal chart: only formula-months with n≥3 articles plotted. YoY comparison: 2025 Jan–Feb vs. all of 2026 (Jan–Feb only). Percentile ranks are computed within each year separately — cross-year percentile comparisons are directional. 2026 data through {REPORT_DATE}.</p>
     </div>
   </details>
+
+  {_finding_numleads_html}
 
   {_finding9_html}
 
