@@ -2072,7 +2072,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
         _top_arts = _adf.nlargest(min(10, _n), "percentile")
         _top_rows = []
         for _, _tr in _top_arts.iterrows():
-            _hl    = html_module.escape(str(_tr.get("headline",""))[:90])
+            _hl    = html_module.escape(str(_tr.get("headline","")))
             _views = int(_tr.get("views", 0))
             _pct   = float(_tr.get("percentile", 0))
             _top_rows.append(
@@ -2643,11 +2643,11 @@ def _team_top_table():
     if team_top.empty: return "<tr><td colspan='6'>No matched articles.</td></tr>"
     html_out = ""
     for _, r in team_top.iterrows():
-        title = html_module.escape(str(r['headline'])[:80])
+        title = html_module.escape(str(r['headline']))
         feat_str = "Yes" if r.get('featured') else "No"
         views_val = r.get('views', 0)
         views_str = f"{int(views_val):,}" if pd.notna(views_val) else "—"
-        html_out += (f"<tr><td>{title}</td>"
+        html_out += (f"<tr><td style='white-space:normal;max-width:360px'>{title}</td>"
                      f"<td>{html_module.escape(str(r.get('platform','')))} / {html_module.escape(str(r.get('brand','')))}</td>"
                      f"<td>{html_module.escape(str(r.get('author','')))}</td>"
                      f"<td>{r['percentile']:.0%}</td>"
