@@ -2636,7 +2636,7 @@ fig1.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
 fig1.update_layout(
     **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig1_text), t=50, b=40),
                   title="Percentile-within-cohort lift vs. baseline by formula (non-Featured articles only)"),
-    xaxis=dict(title="Median percentile rank relative to untagged baseline (1.0 = same as baseline)",
+    xaxis=dict(title="Median cohort percentile relative to untagged baseline (1.0 = same as baseline)",
                gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig1_x, margin=0.25)),
     yaxis=dict(title=""),
     showlegend=False,
@@ -2694,7 +2694,7 @@ fig3 = go.Figure(go.Bar(
 fig3.update_layout(
     **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig3_text), t=50, b=40),
                   title="Median percentile rank by SmartNews channel (with article volume)"),
-    xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=_T["grid"],
+    xaxis=dict(title="Median cohort percentile (same outlet × month; 0=lowest, 1=highest)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
     showlegend=False,
@@ -2945,7 +2945,7 @@ fig_hl.update_layout(
     **make_layout(THEME, height=360, margin=dict(l=20, r=auto_right_margin(_fig_hl_text), t=50, b=80),
                   title="Headline length (character count quartile) vs. median percentile rank"),
     barmode="group",
-    xaxis=dict(title="Median percentile_within_cohort", gridcolor=_T["grid"],
+    xaxis=dict(title="Median cohort percentile (same outlet × month)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
@@ -2983,12 +2983,12 @@ if HAS_TRACKER and N_TRACKED > 0:
       </div>
       <h3>Author performance by platform (sorted by median percentile)</h3>
       <table class="findings">
-        <thead><tr><th>Author</th><th>Platform</th><th>n articles</th><th>Median percentile</th></tr></thead>
+        <thead><tr><th>Author</th><th>Platform</th><th>n articles</th><th>Cohort %ile</th></tr></thead>
         <tbody>{_t_auth}</tbody>
       </table>
       <h3>Top 20 articles by percentile rank</h3>
       <table class="findings">
-        <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+        <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Cohort %ile</th><th>Views</th><th>Featured</th></tr></thead>
         <tbody>{_t_team}</tbody>
       </table>
       <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
@@ -2996,7 +2996,7 @@ if HAS_TRACKER and N_TRACKED > 0:
         <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR} — worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range in this sample at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles, mostly SmartNews — too small for reliable significance testing. Treat as directional."}
       </div>
       <table class="findings">
-        <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
+        <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Cohort %ile</th></tr></thead>
         <tbody>{_t_wc}</tbody>
       </table>
       <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
@@ -3038,13 +3038,13 @@ if NL_PARSED >= 10:
       </div>
       <h3>By number type</h3>
       <table class="findings">
-        <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+        <thead><tr><th>Number type</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
         <tbody>{_t_nl_type}</tbody>
       </table>
       <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles ({NL_NOTE_FRAC}) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
       <h3>By number magnitude</h3>
       <table class="findings">
-        <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+        <thead><tr><th>Number range</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
         <tbody>{_t_nl_size}</tbody>
       </table>
       <p class="callout-inline"><strong>Unexpected:</strong> The {NL_SWEET_SPOT_CAT} range outperforms even single-digit numbers ({NL_SWEET_SPOT_MED:.0%}ile). The {NL_WORST_CAT} range is the weakest ({NL_WORST_MED:.0%}ile) — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large numbers.</p>
@@ -3408,6 +3408,7 @@ html = f"""<!DOCTYPE html>
       <!-- DETAIL: FORMULAS -->
       <div class="detail-panel" id="detail-formulas">
         <h2>Finding 1 · Apple News Formulas</h2>
+        <p class="callout-inline"><strong>How to read cohort %ile:</strong> Every percentile value on this site is a <em>cohort percentile</em> — views rank among articles from the same outlet published in the same calendar month. An article at the 80th cohort %ile outperformed 80% of that outlet's same-month articles in views. Raw views aren't comparable across months (January articles always accumulate more by year-end), so cohort percentile is the primary metric throughout.</p>
         <div class="callout">
           <strong>Key finding:</strong> No formula shows statistically confirmed lift above baseline — but several significantly drag performance below it. "Here's / Here are" posts the highest median percentile ({F1_HERES_PCT}) on only n={F1_HERES_N} articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline ({F1_NUM_P_STR} and {F1_Q_P_STR} respectively, BH-adj). The formula alone isn't the signal — how you execute it is.
         </div>
@@ -3418,10 +3419,10 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Formula</th><th>n</th><th>Median %ile</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
           <tbody>{_t1}</tbody>
         </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> "lift" is the formula's median percentile divided by the untagged baseline (46th percentile). Lift &lt;1.0 means the formula underperforms. BH-adj p corrects for testing 6 formulas simultaneously.</p>
+        <p class="callout-inline"><strong>Read this table as:</strong> "lift" is the formula's median cohort percentile divided by the untagged baseline median cohort percentile. Lift &lt;1.0 = underperforms baseline. BH-adj p corrects for testing 6 formulas simultaneously.</p>
         <h3>Untagged baseline characterisation</h3>
         <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>.</p>
-        <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: percentile_within_cohort — percentile rank within same publication month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
+        <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: cohort percentile — views rank within same outlet × calendar month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
       </div><!-- /#detail-formulas -->
 
       {"" if NL_PARSED < 10 else f"""
@@ -3445,13 +3446,13 @@ html = f"""<!DOCTYPE html>
         </div>
         <h3>By number type</h3>
         <table class="findings">
-          <thead><tr><th>Number type</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+          <thead><tr><th>Number type</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
           <tbody>{_t_nl_type}</tbody>
         </table>
         <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles ({NL_NOTE_FRAC}) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
         <h3>By number magnitude</h3>
         <table class="findings">
-          <thead><tr><th>Number range</th><th>n</th><th>Median percentile</th><th>Lift vs. baseline</th></tr></thead>
+          <thead><tr><th>Number range</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
           <tbody>{_t_nl_size}</tbody>
         </table>
         <p class="callout-inline"><strong>Unexpected:</strong> The {NL_SWEET_SPOT_CAT} range outperforms even single-digit numbers ({NL_SWEET_SPOT_MED:.0%}ile). The {NL_WORST_CAT} range is the weakest ({NL_WORST_MED:.0%}ile) — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large numbers.</p>
@@ -3549,7 +3550,7 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Action:</strong> Concentrate variant production on high-variance topics — business (IQR/median = {F6_BIZ_CV}) and lifestyle ({F6_LIFE_CV}) on Apple News — where the gap between a top-quartile and bottom-quartile headline is widest. Crime and sports are more consistent mid-performers with less room to move.
         </div>
-        <p>The chart shows IQR ÷ median of percentile_within_cohort for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
+        <p>The chart shows IQR ÷ median cohort percentile for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
         <div class="chart-wrap">{c6}</div>
         <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank — a scale-free measure of outcome spread. A higher value means the gap between a 25th-percentile and 75th-percentile article is wider relative to the median: more variance, more room for headline choice to make a difference. Lower values (sports, weather) mean outcomes cluster tightly — less leverage from headline optimization alone.</p>
         <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
@@ -3622,7 +3623,7 @@ html = f"""<!DOCTYPE html>
           </tr></thead>
           <tbody>{_t_periods}</tbody>
         </table>
-        <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median percentile_within_cohort ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
+        <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median cohort percentile ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
@@ -3636,28 +3637,28 @@ html = f"""<!DOCTYPE html>
         <h3>Are variants performing as well as originals?</h3>
         <p>{"The tracker distinguishes original articles (Parent-P) from generated variants (Child-C). " + (f"Originals syndicate at the <strong>{PARENT_MED_PCT:.0%}ile</strong>; variants at <strong>{CHILD_MED_PCT:.0%}ile</strong> — a {abs(PARENT_MED_PCT - CHILD_MED_PCT):.0%}-point gap. " + ("Originals outperform variants in this sample. " if PARENT_MED_PCT > CHILD_MED_PCT else "Variants are holding up in this sample. ") + (_fmt_p(CT_P) + " (Mann-Whitney, unadjusted). " if not np.isnan(CT_P) else "Sample too small for significance test. ") + "Directional — but this is exactly the signal the variant allocation model needs to track over time as match rates grow." if not (np.isnan(PARENT_MED_PCT) or np.isnan(CHILD_MED_PCT)) else "Parent/Child data available but sample too small to compare.") if not df_content_type.empty else "Content type breakdown not available in tracker."}</p>
         <table class="findings">
-          <thead><tr><th>Content type</th><th>n matched</th><th>Median percentile</th></tr></thead>
+          <thead><tr><th>Content type</th><th>n matched</th><th>Cohort %ile</th></tr></thead>
           <tbody>{_t_content_type}</tbody>
         </table>
 
         <h3>What formula types is the team actually writing?</h3>
         <p>Tracked headlines were classified using the same formula detector as Finding 1. <strong>{_ft_untagged_share:.0%} are untagged</strong> (no detectable formula); the most common tagged formula is <strong>{_ft_top_formula.replace("_"," ")} ({_ft_top_formula_pct:.0%} of articles)</strong>. Cross-reference with Finding 1: number leads and question-format headlines significantly underperform the Apple News baseline. If those formula types dominate here, there is a gap to close.</p>
         <table class="findings">
-          <thead><tr><th>Formula type</th><th>n articles</th><th>Share of team output</th><th>Median percentile (this sample)</th></tr></thead>
+          <thead><tr><th>Formula type</th><th>n articles</th><th>Share of team output</th><th>Cohort %ile</th></tr></thead>
           <tbody>{_t_formula_team}</tbody>
         </table>
 
         <h3>Author formula profiles</h3>
         <p>Each author's dominant formula (by article count), their overall median percentile across platforms, and how that formula performs in their own work. Use this to identify whether individual writers are aligned with the highest-performing formats.</p>
         <table class="findings">
-          <thead><tr><th>Author</th><th>Total matched</th><th>Median percentile</th><th>Dominant formula (performance)</th></tr></thead>
+          <thead><tr><th>Author</th><th>Total matched</th><th>Cohort %ile</th><th>Dominant formula (performance)</th></tr></thead>
           <tbody>{_t_author_profiles}</tbody>
         </table>
 
         <h3>Vertical routing: which team content types perform where</h3>
         <p>Cells with n&lt;3 are suppressed. Use this to inform which content verticals to prioritize per platform.</p>
         <table class="findings">
-          <thead><tr><th>Vertical</th><th>Platform</th><th>n</th><th>Median percentile</th></tr></thead>
+          <thead><tr><th>Vertical</th><th>Platform</th><th>n</th><th>Cohort %ile</th></tr></thead>
           <tbody>{_t_vert_plat}</tbody>
         </table>
 
@@ -3666,13 +3667,13 @@ html = f"""<!DOCTYPE html>
           <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR}; worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles; too small for reliable significance testing. Treat as directional."}
         </div>
         <table class="findings">
-          <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
+          <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Cohort %ile</th></tr></thead>
           <tbody>{_t_wc}</tbody>
         </table>
 
         <h3>Top 20 articles by percentile rank</h3>
         <table class="findings">
-          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Cohort %ile</th><th>Views</th><th>Featured</th></tr></thead>
           <tbody>{_t_team}</tbody>
         </table>
         <p class="caveat">Percentile ranks are platform-relative (SmartNews vs. SmartNews, etc.). Word count is from the tracker. Match rate is low for Apple News (URL format mismatch); SmartNews is the most reliable cohort.</p>
