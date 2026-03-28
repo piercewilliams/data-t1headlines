@@ -732,10 +732,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
-  // Wait 2 frames for Plotly to finish its async redraws before cloning,
-  // so the clone captures the correctly-themed chart SVGs.
-  requestAnimationFrame(function() {{
-    requestAnimationFrame(function() {{
+  // Wait 100 ms for Plotly to finish all async redraws before cloning.
+  // Two rAFs (~32 ms) is not enough — Plotly batches relayout/restyle through
+  // its own internal rAF queue, so our rAFs can fire before Plotly's do.
+  // A 100 ms timeout guarantees all chart SVGs are redrawn in the correct theme
+  // before cloneNode captures them.
+  setTimeout(function() {{
       var container = document.createElement('div');
       container.id = containerId;
       // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
@@ -830,8 +832,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       }});
     }});
   }});
-    }});
-  }});
+  }}, 100);
 }}"""
 
 
