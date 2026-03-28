@@ -166,6 +166,13 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   runtime color updates when the user toggles to light mode. NEVER change the
 #   --theme default back to "light" — white backgrounds will reappear in dark mode.
 #
+# TABLES — tbody td must always have white-space:nowrap:
+#   Tables sit inside .table-wrap (overflow-x:auto), so wide content scrolls
+#   horizontally. Never use word-break or overflow-wrap on td — short words and
+#   feature names split mid-word when the column is narrower than the text.
+#   Exception: headline/body-text cells that intentionally wrap should get an
+#   inline style="white-space:normal;max-width:360px" override on that td only.
+#
 # TABLES — do NOT add overflow/scroll CSS to individual tables:
 #   The JS DOMContentLoaded listener auto-wraps every <table> in a .table-wrap div,
 #   which owns the overflow-x:auto scroll, border-radius, and box-shadow.
@@ -1727,6 +1734,225 @@ if HAS_TRACKER:
                     .sort_values(["vertical","med_pct"], ascending=[True,False]))
 
 
+# ── Per-author analysis for Author Playbooks page ────────────────────────────
+_AUTHOR_MIN_N = 5   # minimum matched articles to include an author
+# List of (author, n, med_pct, tile_html, detail_html) — filled below if tracker loaded
+_author_playbook_defs: list[tuple[str, int, float, str, str]] = []
+
+_FORMULA_LABELS: dict[str, str] = {
+    "number_lead":            "number lead",
+    "what_to_know":           '"What to know"',
+    "heres_hereare":          '"Here\'s / Here are"',
+    "question_format":        "question format",
+    "possessive_named_entity":"possessive named entity",
+    "quoted_lede":            "quoted lede",
+    "untagged":               "no tracked formula",
+}
+
+if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
+    _team_med_pct = float(team_combined["percentile"].median())
+
+    # Team-wide formula medians for benchmarking each author against
+    _team_formula_meds: dict[str, float] = {}
+    if not df_formula_team.empty and "formula" in df_formula_team.columns:
+        for _, _tfr in df_formula_team.iterrows():
+            _team_formula_meds[str(_tfr["formula"])] = float(_tfr["med_pct"])
+
+    # Authors with enough articles, ranked best first
+    _ranked_authors = (df_author_profiles.copy()
+                       .query("n_total >= @_AUTHOR_MIN_N")
+                       .sort_values("med_pct_overall", ascending=False)
+                       .reset_index(drop=True))
+
+    for _ai, _arow in _ranked_authors.iterrows():
+        _auth     = str(_arow["author"])
+        _adf      = team_combined[team_combined["author"] == _auth].copy()
+        _n        = len(_adf)
+        if _n < _AUTHOR_MIN_N:
+            continue
+        _med        = float(_adf["percentile"].median())
+        _rank       = int(_ai) + 1
+        _total_auth = len(_ranked_authors)
+
+        # Coverage badge (sample-size based, not p-value)
+        if _n >= 20:
+            _badge_cls, _badge_lbl = "conf-high", f"{_n} ARTICLES"
+        elif _n >= 10:
+            _badge_cls, _badge_lbl = "conf-mod",  f"{_n} ARTICLES"
+        else:
+            _badge_cls, _badge_lbl = "conf-dir",  f"{_n} ARTICLES"
+
+        # ── Formula breakdown ──────────────────────────────────────
+        _af = (_adf.groupby("formula")
+               .agg(n=("percentile","count"), med_pct=("percentile","median"))
+               .reset_index().sort_values("n", ascending=False))
+        _af["share"] = _af["n"] / max(_af["n"].sum(), 1)
+        _dom_row      = _af.iloc[0] if not _af.empty else None
+        _dom_formula  = str(_dom_row["formula"]) if _dom_row is not None else "untagged"
+        _dom_pct      = float(_dom_row["share"])   if _dom_row is not None else 0.0
+        _dom_med      = float(_dom_row["med_pct"]) if _dom_row is not None else _med
+        _dom_label    = _FORMULA_LABELS.get(_dom_formula, _dom_formula.replace("_"," "))
+        _dom_vs_self  = _dom_med - _med   # positive = formula outperforms this author's own average
+
+        # Best tagged formula (excluding untagged) for coaching suggestion
+        _af_tagged   = _af[_af["formula"] != "untagged"]
+        _best_f_row  = (_af_tagged.sort_values("med_pct", ascending=False).iloc[0]
+                        if len(_af_tagged) >= 1 else None)
+
+        # ── Platform breakdown ─────────────────────────────────────
+        _ap = (_adf.groupby("platform")
+               .agg(n=("percentile","count"), med_pct=("percentile","median"))
+               .reset_index().sort_values("med_pct", ascending=False))
+        _best_p_row  = _ap.iloc[0] if not _ap.empty else None
+        _best_plat   = str(_best_p_row["platform"])    if _best_p_row is not None else "—"
+        _best_plat_m = float(_best_p_row["med_pct"])   if _best_p_row is not None else _med
+
+        # ── Tile claim + action ────────────────────────────────────
+        # Performance tier
+        _pct_rank = 1.0 - (_rank - 1) / max(_total_auth - 1, 1)
+        if _pct_rank >= 0.75:
+            _tier = "top quartile on the team"
+        elif _med >= _team_med_pct:
+            _tier = "above team median"
+        elif _pct_rank >= 0.25:
+            _tier = "below team median"
+        else:
+            _tier = "bottom quartile on the team"
+
+        if _dom_formula == "untagged":
+            _formula_sentence = (f"{_dom_pct:.0%} of articles use no tracked formula—"
+                                 "adding one would create a clearer performance signal")
+        elif _dom_vs_self >= 0.05:
+            _formula_sentence = (f"{_dom_label} ({_dom_pct:.0%} of articles) "
+                                 "is this author's strongest format")
+        elif _dom_vs_self <= -0.05:
+            _formula_sentence = (f"{_dom_label} ({_dom_pct:.0%} of articles) "
+                                 "is dragging the median down")
+        else:
+            _formula_sentence = (f"{_dom_label} makes up {_dom_pct:.0%} of articles "
+                                 "with a neutral effect on percentile rank")
+
+        _claim = (f"Ranks {_rank} of {_total_auth} matched authors "
+                  f"({_med:.0%} median percentile, {_tier}). "
+                  f"{_formula_sentence[0].upper()}{_formula_sentence[1:]}.")
+
+        if (_best_f_row is not None
+                and str(_best_f_row["formula"]) != _dom_formula
+                and float(_best_f_row["med_pct"]) > _dom_med + 0.05):
+            _best_f_label = _FORMULA_LABELS.get(str(_best_f_row["formula"]),
+                                                 str(_best_f_row["formula"]).replace("_"," "))
+            _action = (f"Best results from {_best_f_label} "
+                       f"({float(_best_f_row['med_pct']):.0%}ile), not the most-used format. "
+                       f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile).")
+        else:
+            _action = (f"Lean into {_dom_label} where it's working. "
+                       f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile).")
+
+        # ── Build detail HTML tables ───────────────────────────────
+        _formula_rows = []
+        for _, _fr in _af.iterrows():
+            _f_lbl    = _FORMULA_LABELS.get(str(_fr["formula"]), str(_fr["formula"]).replace("_"," "))
+            _t_med_f  = _team_formula_meds.get(str(_fr["formula"]), _team_med_pct)
+            _lift_f   = float(_fr["med_pct"]) / _t_med_f if _t_med_f > 0 else 1.0
+            _lf_cls   = "lift-high" if _lift_f >= 1.2 else ("lift-pos" if _lift_f >= 0.9 else "lift-neg")
+            _formula_rows.append(
+                f'<tr><td>{_f_lbl}</td><td>{int(_fr["n"])}</td>'
+                f'<td>{float(_fr["share"]):.0%}</td>'
+                f'<td>{float(_fr["med_pct"]):.0%}</td>'
+                f'<td><span class="{_lf_cls}">{_lift_f:.2f}\u00d7</span></td></tr>'
+            )
+        _formula_tbody = "\n".join(_formula_rows) or "<tr><td colspan='5'>No formula data</td></tr>"
+
+        _plat_rows = []
+        for _, _pr in _ap.iterrows():
+            _lift_p = float(_pr["med_pct"]) / _team_med_pct if _team_med_pct > 0 else 1.0
+            _lp_cls = "lift-high" if _lift_p >= 1.2 else ("lift-pos" if _lift_p >= 0.9 else "lift-neg")
+            _plat_rows.append(
+                f'<tr><td>{_pr["platform"]}</td><td>{int(_pr["n"])}</td>'
+                f'<td>{float(_pr["med_pct"]):.0%}</td>'
+                f'<td><span class="{_lp_cls}">{_lift_p:.2f}\u00d7</span></td></tr>'
+            )
+        _plat_tbody = "\n".join(_plat_rows) or "<tr><td colspan='4'>No platform data</td></tr>"
+
+        _top_arts = _adf.nlargest(min(10, _n), "percentile")
+        _top_rows = []
+        for _, _tr in _top_arts.iterrows():
+            _hl    = html_module.escape(str(_tr.get("headline",""))[:90])
+            _views = int(_tr.get("views", 0))
+            _pct   = float(_tr.get("percentile", 0))
+            _top_rows.append(
+                f'<tr><td style="max-width:360px;white-space:normal">{_hl}</td>'
+                f'<td>{_tr.get("platform","")}</td>'
+                f'<td>{_views:,}</td><td>{_pct:.0%}</td></tr>'
+            )
+        _top_tbody = "\n".join(_top_rows) or "<tr><td colspan='4'>No articles</td></tr>"
+
+        # Optional: parent vs. variant split
+        _ct_section_html = ""
+        if "content_type" in _adf.columns:
+            _ct_sub = _adf[_adf["content_type"].fillna("") != ""]
+            _p_v = _ct_sub[_ct_sub["content_type"] == "Parent-P"]["percentile"].dropna()
+            _c_v = _ct_sub[_ct_sub["content_type"] == "Child-C"]["percentile"].dropna()
+            if len(_p_v) > 0 and len(_c_v) > 0:
+                _ct_section_html = (
+                    f'\n  <h3 class="rh">Original vs. variant performance</h3>'
+                    f'\n  <p class="detail-sub">{len(_p_v)} originals (Parent-P) · {len(_c_v)} generated variants (Child-C)</p>'
+                    f'\n  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>'
+                    f'\n  <tbody>'
+                    f'\n    <tr><td>Original (Parent-P)</td><td>{len(_p_v)}</td><td>{float(_p_v.median()):.0%}</td></tr>'
+                    f'\n    <tr><td>Variant (Child-C)</td><td>{len(_c_v)}</td><td>{float(_c_v.median()):.0%}</td></tr>'
+                    f'\n  </tbody></table>'
+                )
+
+        _delta_pts  = abs(_med - _team_med_pct) * 100
+        _above_below = "above" if _med >= _team_med_pct else "below"
+        _n_plats     = len(_ap)
+
+        # ── Assemble tile + detail HTML ────────────────────────────
+        _ap_id = f"ap-{_ai}"
+
+        _safe_auth   = html_module.escape(_auth)
+        _safe_claim  = html_module.escape(_claim)
+        _safe_action = html_module.escape(_action)
+
+        _tile_html = (
+            f'  <div class="pb-tile" onclick="togglePb(this,\'{_ap_id}\')">\n'
+            f'    <span class="conf-badge {_badge_cls}">{_badge_lbl}</span>\n'
+            f'    <span class="tile-label">{_safe_auth}</span>\n'
+            f'    <p class="tile-claim">{_safe_claim}</p>\n'
+            f'    <p class="tile-action">\u2192 {_safe_action}</p>\n'
+            f'    <span class="tile-toggle">Details \u2193</span>\n'
+            f'  </div>'
+        )
+
+        _detail_html = (
+            f'<div id="{_ap_id}" class="pb-detail" style="display:none">\n'
+            f'  <h3 class="rh">Performance overview</h3>\n'
+            f'  <p class="detail-sub">{_n} matched articles across {_n_plats} platform(s) \u00b7 '
+            f'{_med:.0%} median percentile \u00b7 {_delta_pts:.1f} pts {_above_below} team median '
+            f'({_team_med_pct:.0%})</p>\n'
+            f'\n  <h3 class="rh">Formula profile</h3>\n'
+            f'  <p class="detail-sub">Lift vs. team-wide median for each formula. '
+            f'&gt;1.0\u00d7 = outperforms team benchmark for that format.</p>\n'
+            f'  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th>'
+            f'<th>Median %ile</th><th>Lift vs. team</th></tr></thead>\n'
+            f'  <tbody>{_formula_tbody}</tbody></table>\n'
+            f'\n  <h3 class="rh">Platform distribution</h3>\n'
+            f'  <p class="detail-sub">Lift vs. overall team median ({_team_med_pct:.0%}).</p>\n'
+            f'  <table><thead><tr><th>Platform</th><th>n</th>'
+            f'<th>Median %ile</th><th>Lift vs. team</th></tr></thead>\n'
+            f'  <tbody>{_plat_tbody}</tbody></table>\n'
+            f'{_ct_section_html}\n'
+            f'  <h3 class="rh">Top {len(_top_arts)} articles by percentile rank</h3>\n'
+            f'  <p class="detail-sub">Highest-performing matched articles for {_safe_auth}.</p>\n'
+            f'  <table><thead><tr><th>Headline</th><th>Platform</th>'
+            f'<th>Views</th><th>%ile</th></tr></thead>\n'
+            f'  <tbody>{_top_tbody}</tbody></table>\n'
+            f'</div>'
+        )
+
+        _author_playbook_defs.append((_auth, _n, _med, _tile_html, _detail_html))
+
 # ── Key stats ─────────────────────────────────────────────────────────────────
 N_AN        = len(an)
 N_SN        = len(sn)
@@ -2987,8 +3213,7 @@ html = f"""<!DOCTYPE html>
   table.findings th {{ text-align:left; padding:6px 10px;
                        font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
                        letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
-  table.findings td {{ padding:6px 10px; vertical-align:top;
-                       word-break:break-word; overflow-wrap:break-word; }}
+  table.findings td {{ padding:6px 10px; vertical-align:middle; white-space:nowrap; }}
   table.findings tr:last-child td {{ border-bottom:none; }}
   /* Light theme table colours */
   body.theme-light table.findings {{ background:#ffffff; }}
@@ -3072,7 +3297,8 @@ html = f"""<!DOCTYPE html>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
   <div class="nav-links">
-    <a href="playbook/">Playbooks</a>
+    <a href="playbook/">Editorial Playbooks</a>
+    <a href="author-playbooks/">Author Playbooks</a>
     <a href="experiments/">Experiments</a>
   </div>
   <div class="nav-meta">
@@ -3931,7 +4157,7 @@ playbook_html = f"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
-<title>T1 Headline Analysis · Playbooks</title>
+<title>T1 Headline Analysis · Editorial Playbooks</title>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
@@ -3989,8 +4215,8 @@ playbook_html = f"""<!DOCTYPE html>
   th {{ text-align:left; padding:6px 10px; background:#0a1120; color:#94a3b8;
         font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
         letter-spacing:0.08em; border-bottom:1px solid #334155; }}
-  td {{ padding:6px 10px; border-bottom:1px solid #1e293b; vertical-align:top; color:#cbd5e1;
-        word-break:break-word; overflow-wrap:break-word; }}
+  td {{ padding:6px 10px; border-bottom:1px solid #1e293b; vertical-align:middle; color:#cbd5e1;
+        white-space:nowrap; }}
   tr:last-child td {{ border-bottom:none; }}
   .rules {{ padding-left:18px; margin:0.5rem 0 1rem; font-size:0.875rem;
             line-height:1.85; color:#cbd5e1; }}
@@ -4052,6 +4278,7 @@ playbook_html = f"""<!DOCTYPE html>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
   <div class="nav-links">
     <a href="../">← Current analysis</a>
+    <a href="../author-playbooks/">Author Playbooks</a>
     <a href="../experiments/">Experiments</a>
   </div>
 </nav>
@@ -4373,6 +4600,374 @@ playbook_html = playbook_html.replace(" \u2014 ", "\u2014")
 playbook_out.write_text(playbook_html, encoding="utf-8")
 print(f"Playbooks written to {playbook_out}  ({len(playbook_html):,} chars)")
 
+# ── Author Playbooks HTML ──────────────────────────────────────────────────────
+_ap_tiles_html   = "\n\n".join(t for _, _, _, t, _ in _author_playbook_defs)
+_ap_details_html = "\n\n".join(d for _, _, _, _, d in _author_playbook_defs)
+_ap_n_authors    = len(_author_playbook_defs)
+_ap_n_articles   = sum(n for _, n, _, _, _ in _author_playbook_defs)
+
+if _ap_n_authors == 0:
+    _ap_body = """
+<div class="container">
+  <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+  <h1>Author Playbooks</h1>
+  <p class="sub">No tracker data loaded this run. Place <code>Tracker Template.xlsx</code>
+  in the repo root and re-run <code>ingest.py</code> to generate per-author guidance.</p>
+</div>"""
+else:
+    _ap_body = f"""
+<div class="container">
+  <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+  <h1>Author Playbooks</h1>
+  <p class="sub">Data-driven guidance per author based on matched syndication performance.
+  {_ap_n_articles} articles across {_ap_n_authors} authors.
+  Updated each cycle. Coverage badges reflect matched article count &mdash;
+  treat as directional coaching signal, not statistical significance.
+  Sorted by median percentile rank, highest first.</p>
+  <div class="run-header">
+    <span class="run-label">{_pb_run_label}</span>
+    <span class="run-meta">T1 syndication data &middot; {REPORT_DATE}</span>
+  </div>
+
+  <div class="tile-grid">
+{_ap_tiles_html}
+  </div>
+
+{_ap_details_html}
+</div>"""
+
+author_pb_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="data-run" content="{REPORT_DATE_SLUG}">
+<title>T1 Headline Analysis \u00b7 Author Playbooks</title>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
+<style>
+  /* ── Reset ── */
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+         background: #0f172a; color: #e2e8f0; font-size: 14px; line-height: 1.6;
+         -webkit-font-smoothing: antialiased; }}
+  a {{ color: #60a5fa; text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
+  code {{ font-family: "SF Mono", Menlo, monospace; font-size: 0.85em;
+          background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; }}
+
+  /* ── Nav ── */
+  nav {{ position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid #334155; height: 44px;
+        display: flex; align-items: center; padding: 0 28px; gap: 0; }}
+  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+            text-transform: uppercase; color: #f1f5f9; flex-shrink: 0; }}
+  .nav-links {{ display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }}
+  .nav-links a {{ font-size: 12px; color: #94a3b8; transition: color 0.15s; }}
+  .nav-links a:hover {{ color: #f1f5f9; text-decoration: none; }}
+
+  /* ── Layout ── */
+  .container {{ max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }}
+  .eyebrow {{ display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+              text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; }}
+  h1 {{ font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em;
+        margin-bottom: 0.6rem; }}
+  .sub {{ font-size: 0.85rem; color: #94a3b8; max-width: 800px; margin-bottom: 1.5rem;
+          line-height: 1.6; }}
+  .run-header {{ display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem;
+                 padding: 0.6rem 1rem; background: rgba(255,255,255,0.04);
+                 border: 1px solid #334155; border-radius: 8px; }}
+  .run-label {{ font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+                text-transform: uppercase; color: #64748b; }}
+  .run-meta  {{ font-size: 0.78rem; color: #64748b; }}
+
+  /* ── Tile grid ── */
+  .tile-grid {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 1rem; }}
+  @media (max-width: 720px)  {{ .tile-grid {{ grid-template-columns: 1fr; }} }}
+  @media (max-width: 1000px) and (min-width: 721px) {{ .tile-grid {{ grid-template-columns: repeat(2,1fr); }} }}
+
+  /* ── Tiles ── */
+  .pb-tile {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+              padding: 1.1rem 1.25rem; cursor: pointer;
+              transition: border-color 0.15s, box-shadow 0.15s; user-select: none; }}
+  .pb-tile:hover {{ border-color: #475569; box-shadow: 0 0 0 1px #475569 inset; }}
+  .pb-tile.open  {{ border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6 inset; }}
+  .conf-badge {{ display: inline-block; font-size: 9px; font-weight: 700;
+                 text-transform: uppercase; letter-spacing: 0.07em;
+                 padding: 2px 6px; border-radius: 3px; margin-bottom: 8px; }}
+  .conf-high {{ background: rgba(22,163,74,0.2);   color: #4ade80; }}
+  .conf-mod  {{ background: rgba(37,99,235,0.2);    color: #60a5fa; }}
+  .conf-dir  {{ background: rgba(100,116,139,0.15); color: #94a3b8; }}
+  .tile-label  {{ display: block; font-size: 0.88rem; font-weight: 700; color: #f1f5f9;
+                  letter-spacing: 0.01em; margin-bottom: 0.5rem; }}
+  .tile-claim  {{ font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.5rem; line-height: 1.55; }}
+  .tile-action {{ font-size: 0.8rem; color: #60a5fa; font-weight: 500;
+                  margin-bottom: 0.5rem; line-height: 1.45; }}
+  .tile-toggle {{ font-size: 0.7rem; color: #64748b; display: block; margin-top: 0.5rem; }}
+
+  /* ── Detail panels ── */
+  .pb-detail {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+                padding: 1.5rem 1.75rem; margin-bottom: 1rem; }}
+  .pb-detail h3.rh {{ font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+                      text-transform: uppercase; color: #64748b; margin: 1.4rem 0 0.5rem; }}
+  .pb-detail h3.rh:first-child {{ margin-top: 0; }}
+  .pb-detail .detail-sub {{ font-size: 0.8rem; color: #64748b; margin-bottom: 0.6rem; }}
+  .pb-detail p {{ font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.55; }}
+
+  /* ── Tables ── */
+  .table-wrap {{ overflow-x: auto; border-radius: 8px; border: 1px solid #334155;
+                 box-shadow: 0 1px 4px rgba(0,0,0,0.3); margin: 0.5rem 0 1.25rem; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 0.8rem; }}
+  thead th {{ background: #0f172a; color: #94a3b8; font-size: 0.68rem;
+              font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+              padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #334155; }}
+  tbody tr:nth-child(odd)  {{ background: rgba(255,255,255,0.02); }}
+  tbody tr:nth-child(even) {{ background: transparent; }}
+  tbody tr:hover {{ background: rgba(255,255,255,0.05); }}
+  tbody td {{ padding: 8px 12px; color: #e2e8f0; border-bottom: 1px solid rgba(51,65,85,0.5); white-space: nowrap; }}
+  tbody tr:last-child td {{ border-bottom: none; }}
+  table thead th {{ cursor: pointer; user-select: none; }}
+  .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #3b82f6; }}
+
+  /* ── Lift colors ── */
+  .lift-high {{ color: #4ade80; font-weight: 600; }}
+  .lift-pos  {{ color: #60a5fa; font-weight: 600; }}
+  .lift-neg  {{ color: #f87171; font-weight: 600; }}
+
+  /* ── Export button ── */
+  .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
+  .export-btn {{ font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+                 border: 1px solid #334155; background: #0f172a; color: #94a3b8;
+                 font-family: inherit; transition: background 0.15s; }}
+  .export-btn:hover {{ background: #1e293b; color: #e2e8f0; }}
+  .export-dropdown {{ display: none; position: absolute; right: 0; top: calc(100% + 3px);
+                      min-width: 130px; border-radius: 8px; z-index: 200;
+                      border: 1px solid #334155; background: #0f172a;
+                      box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; }}
+  .export-dropdown button {{ display: block; width: 100%; text-align: left; padding: 8px 14px;
+                              font-size: 0.75rem; font-family: inherit; cursor: pointer;
+                              border: none; background: transparent; color: #e2e8f0; }}
+  .export-dropdown button:hover {{ background: #1e293b; }}
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>
+  <div class="nav-links">
+    <a href="../">\u2190 Current analysis</a>
+    <a href="../playbook/">Editorial Playbooks</a>
+    <a href="../experiments/">Experiments</a>
+  </div>
+</nav>
+{_ap_body}
+<script>
+var _openTile = null, _openPanel = null;
+
+function togglePb(tile, id) {{
+  var panel  = document.getElementById(id);
+  var toggle = tile.querySelector('.tile-toggle');
+  var isOpen = tile.classList.contains('open');
+  if (_openTile && _openTile !== tile) {{
+    _openTile.classList.remove('open');
+    var prevToggle = _openTile.querySelector('.tile-toggle');
+    if (prevToggle) prevToggle.textContent = 'Details \u2193';
+    if (_openPanel) _openPanel.style.display = 'none';
+  }}
+  if (!isOpen) {{
+    tile.classList.add('open');
+    if (toggle) toggle.textContent = 'Details \u2191';
+    panel.style.display = 'block';
+    _openTile = tile; _openPanel = panel;
+    setTimeout(function() {{ panel.scrollIntoView({{behavior:'smooth',block:'nearest'}}); }}, 50);
+  }} else {{
+    tile.classList.remove('open');
+    if (toggle) toggle.textContent = 'Details \u2193';
+    panel.style.display = 'none';
+    _openTile = null; _openPanel = null;
+  }}
+}}
+
+// ── Table sorting ──────────────────────────────────────────
+(function() {{
+  function parseCell(text) {{
+    var s = text.replace(/<[^>]+>/g, '').trim();
+    if (s === '\u2014' || s === '') return -Infinity;
+    var m = s.match(/^[~\u2264<\u2265>]?\\s*([\\d,.]+)/);
+    if (m) return parseFloat(m[1].replace(/,/g, ''));
+    return s.toLowerCase();
+  }}
+  function sortBy(table, colIdx, asc) {{
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort(function(a, b) {{
+      var av = parseCell(a.cells[colIdx] ? a.cells[colIdx].innerHTML : '');
+      var bv = parseCell(b.cells[colIdx] ? b.cells[colIdx].innerHTML : '');
+      if (typeof av === 'number' && typeof bv === 'number') return asc ? av - bv : bv - av;
+      return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    }});
+    rows.forEach(function(r) {{ tbody.appendChild(r); }});
+  }}
+  document.addEventListener('DOMContentLoaded', function() {{
+    document.querySelectorAll('table').forEach(function(t) {{
+      if (t.parentNode && !t.parentNode.classList.contains('table-wrap')) {{
+        var w = document.createElement('div');
+        w.className = 'table-wrap';
+        t.parentNode.insertBefore(w, t);
+        w.appendChild(t);
+      }}
+    }});
+    document.querySelectorAll('table thead th').forEach(function(th) {{
+      var icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.textContent = '\u2195';
+      th.appendChild(icon);
+      th.addEventListener('click', function() {{
+        var table  = th.closest('table');
+        var idx    = Array.from(th.parentNode.children).indexOf(th);
+        var asc    = th.getAttribute('data-sort') !== 'asc';
+        table.querySelectorAll('thead th').forEach(function(h) {{
+          h.removeAttribute('data-sort');
+          var ic = h.querySelector('.sort-icon');
+          if (ic) ic.textContent = '\u2195';
+        }});
+        th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+        th.querySelector('.sort-icon').textContent = asc ? '\u2191' : '\u2193';
+        sortBy(table, idx, asc);
+      }});
+    }});
+  }});
+}})();
+
+// ── Export (PNG / PDF) ──────────────────────────────────────────────────────
+function _findTileForPanel(panelEl) {{
+  var pid = panelEl.id || '';
+  var tileEl = null;
+  document.querySelectorAll('.pb-tile').forEach(function(t) {{
+    if ((t.getAttribute('onclick') || '').indexOf(pid) >= 0) tileEl = t;
+  }});
+  return tileEl;
+}}
+
+function _exportPanel(panelEl, format, dropdownEl) {{
+  if (dropdownEl) dropdownEl.style.display = 'none';
+  var heading = panelEl.querySelector('h3.rh, h2');
+  var titleEl = panelEl.previousElementSibling;
+  var title   = (titleEl && titleEl.querySelector('.tile-label'))
+                  ? titleEl.querySelector('.tile-label').textContent.trim()
+                  : (heading ? heading.textContent.trim() : (panelEl.id || 'export'));
+  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date    = new Date().toISOString().slice(0, 10);
+
+  if (format === 'pdf') {{
+    var _pdfTile = _findTileForPanel(panelEl);
+    var _pdfWrap = document.createElement('div');
+    _pdfWrap.id = '_exp_print';
+    if (_pdfTile) {{
+      var _tc = _pdfTile.cloneNode(true);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      _pdfWrap.appendChild(_tc);
+    }}
+    var _pc = panelEl.cloneNode(true);
+    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    _pdfWrap.appendChild(_pc);
+    document.body.appendChild(_pdfWrap);
+    var style = document.createElement('style');
+    style.id = '_exp_style';
+    style.textContent = [
+      '@media print {{',
+      '  body > *:not(#_exp_print) {{ display: none !important; }}',
+      '  #_exp_print {{ display: block !important; padding: 28px; }}',
+      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
+      '                   print-color-adjust: exact !important; }}',
+      '}}'
+    ].join('\\n');
+    document.head.appendChild(style);
+    function _cleanup() {{
+      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+      if (w) w.remove(); if (s) s.remove();
+      window.removeEventListener('afterprint', _cleanup);
+    }}
+    window.addEventListener('afterprint', _cleanup);
+    window.print();
+  }} else {{
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_png';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
+    var tileEl = _findTileForPanel(panelEl);
+    if (tileEl) {{
+      var tc = tileEl.cloneNode(true);
+      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;width:100%;box-sizing:border-box;border-bottom:none;';
+      tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(tc);
+    }}
+    var pc = panelEl.cloneNode(true);
+    pc.style.display = 'block';
+    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    container.appendChild(pc);
+    document.body.appendChild(container);
+    var _scale = 3;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      var a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'author-playbook-' + slug + '-' + date + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }}).catch(function(err) {{
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      console.error('PNG export failed:', err);
+    }});
+  }}
+}}
+
+(function() {{
+  document.addEventListener('DOMContentLoaded', function() {{
+    document.querySelectorAll('.pb-detail').forEach(function(panel) {{
+      var wrap = document.createElement('div');
+      wrap.className = 'export-btn-wrap';
+      var btn = document.createElement('button');
+      btn.className = 'export-btn'; btn.title = 'Export this author profile';
+      btn.textContent = '\u2193 Export';
+      var dd = document.createElement('div'); dd.className = 'export-dropdown';
+      var pngBtn = document.createElement('button'); pngBtn.textContent = 'PNG image';
+      var pdfBtn = document.createElement('button'); pdfBtn.textContent = 'PDF document';
+      pngBtn.addEventListener('click', function(e) {{ e.stopPropagation(); _exportPanel(panel, 'png', dd); }});
+      pdfBtn.addEventListener('click', function(e) {{ e.stopPropagation(); _exportPanel(panel, 'pdf', dd); }});
+      btn.addEventListener('click', function(e) {{
+        e.stopPropagation();
+        dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+      }});
+      document.addEventListener('click', function() {{ dd.style.display = 'none'; }});
+      dd.appendChild(pngBtn); dd.appendChild(pdfBtn);
+      wrap.appendChild(btn); wrap.appendChild(dd);
+      panel.insertBefore(wrap, panel.firstChild);
+    }});
+  }});
+}})();
+</script>
+</body>
+</html>"""
+
+author_pb_out = Path("docs/author-playbooks/index.html")
+author_pb_out.parent.mkdir(exist_ok=True)
+author_pb_html = author_pb_html.replace(" \u2014 ", "\u2014")
+author_pb_out.write_text(author_pb_html, encoding="utf-8")
+print(f"Author Playbooks written to {author_pb_out}  ({len(author_pb_html):,} chars)")
+
 # ── Build report ─────────────────────────────────────────────────────────────
 _conf_counts = {"High confidence": 0, "Moderate": 0, "Directional": 0}
 for _, _, _t in _pb_tile_defs:
@@ -4421,7 +5016,7 @@ def _validate_js(html_path: str, label: str) -> list[str]:
         for s in scripts:
             # Only check our custom scripts (Plotly inline scripts don't need this)
             if not any(kw in s for kw in ("showDetail", "togglePb", "_exportPanel",
-                                          "_rethemeCharts", "applyTheme")):
+                                          "_rethemeCharts", "applyTheme", "_findTileForPanel")):
                 continue
             with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
                                              delete=False, encoding="utf-8") as tf:
@@ -4441,7 +5036,8 @@ def _validate_js(html_path: str, label: str) -> list[str]:
     return errors
 
 _js_errors = (_validate_js(str(out), "index") +
-              _validate_js(str(playbook_out), "playbook"))
+              _validate_js(str(playbook_out), "playbook") +
+              _validate_js(str(author_pb_out), "author-playbooks"))
 
 # ── Rigor warnings summary ────────────────────────────────────────────────────
 print(f"\n{'─'*60}")
@@ -4468,7 +5064,7 @@ if _js_errors:
     for _e in _js_errors:
         print(f"     • {_e}")
 else:
-    print("  ✓  JS syntax valid (index + playbook).")
+    print("  ✓  JS syntax valid (index + playbook + author-playbooks).")
 if _RIGOR_WARNINGS:
     print(f"\n  ⚠  {len(_RIGOR_WARNINGS)} rigor warning(s) — sections without significance tests:")
     for _w in _RIGOR_WARNINGS:
