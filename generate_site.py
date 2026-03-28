@@ -4111,32 +4111,37 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
-  var container = document.createElement('div');
-  container.id = containerId;
-  // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
-  // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
-  // inlines opacity:1 on every child. The style:{{opacity:'1'}} override then makes the
-  // root visible too. visibility:hidden would be inherited by all children via
-  // getComputedStyle, causing blank output even after the root override.
-  // No overflow:hidden — let content expand freely so scrollHeight is accurate.
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
-    'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
-  var tileEl = _findTileForPanel(panelEl);
-  if (tileEl) {{
-    var tc = tileEl.cloneNode(true);
-    tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-      'width:100%;box-sizing:border-box;border-bottom:none;';
-    tc.querySelectorAll('.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    container.appendChild(tc);
-  }}
-  var pc = panelEl.cloneNode(true);
-  pc.style.display = 'block';
-  pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-  container.appendChild(pc);
-  document.body.appendChild(container);
+  // Wait 2 frames for Plotly to finish its async redraws before cloning,
+  // so the clone captures the correctly-themed chart SVGs.
+  requestAnimationFrame(function() {{
+    requestAnimationFrame(function() {{
+      var container = document.createElement('div');
+      container.id = containerId;
+      // opacity:0 hides without affecting layout. Critically, opacity is NOT inherited —
+      // getComputedStyle(child).opacity returns the child's own value (1), so domtoimage
+      // inlines opacity:1 on every child. The style:{{opacity:'1'}} override then makes the
+      // root visible too. visibility:hidden would be inherited by all children via
+      // getComputedStyle, causing blank output even after the root override.
+      // No overflow:hidden — let content expand freely so scrollHeight is accurate.
+      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
+        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
-  // Double rAF ensures layout is committed before we measure dimensions.
+      var tileEl = _findTileForPanel(panelEl);
+      if (tileEl) {{
+        var tc = tileEl.cloneNode(true);
+        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+          'width:100%;box-sizing:border-box;border-bottom:none;';
+        tc.querySelectorAll('.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+        container.appendChild(tc);
+      }}
+      var pc = panelEl.cloneNode(true);
+      pc.style.display = 'block';
+      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(pc);
+      document.body.appendChild(container);
+
+  // Second double rAF ensures layout is committed before we measure dimensions.
   requestAnimationFrame(function() {{
     requestAnimationFrame(function() {{
       var w = container.offsetWidth || 1100;
@@ -4203,6 +4208,8 @@ function _exportPanel(panelEl, format, dropdownEl) {{
         _showResult('Export failed: ' + msg, true);
         console.error('[Export] domtoimage error:', err);
       }});
+    }});
+  }});
     }});
   }});
 }}
@@ -4763,24 +4770,27 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
-  var container = document.createElement('div');
-  container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
-    'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
-  var tileEl = _findTileForPanel(panelEl);
-  if (tileEl) {{
-    var tc = tileEl.cloneNode(true);
-    tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-      'width:100%;box-sizing:border-box;border-bottom:none;';
-    tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    container.appendChild(tc);
-  }}
-  var pc = panelEl.cloneNode(true);
-  pc.style.display = 'block';
-  pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-  container.appendChild(pc);
-  document.body.appendChild(container);
+  requestAnimationFrame(function() {{
+    requestAnimationFrame(function() {{
+      var container = document.createElement('div');
+      container.id = containerId;
+      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
+        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
+
+      var tileEl = _findTileForPanel(panelEl);
+      if (tileEl) {{
+        var tc = tileEl.cloneNode(true);
+        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+          'width:100%;box-sizing:border-box;border-bottom:none;';
+        tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+        container.appendChild(tc);
+      }}
+      var pc = panelEl.cloneNode(true);
+      pc.style.display = 'block';
+      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(pc);
+      document.body.appendChild(container);
 
   requestAnimationFrame(function() {{
     requestAnimationFrame(function() {{
@@ -4847,6 +4857,8 @@ function _exportPanel(panelEl, format, dropdownEl) {{
         _showResult2('Export failed: ' + msg, true);
         console.error('[Export] domtoimage error:', err);
       }});
+    }});
+  }});
     }});
   }});
 }}
@@ -5179,24 +5191,27 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
-  var container = document.createElement('div');
-  container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
-    'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
-  var tileEl = _findTileForPanel(panelEl);
-  if (tileEl) {{
-    var tc = tileEl.cloneNode(true);
-    tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-      'width:100%;box-sizing:border-box;border-bottom:none;';
-    tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    container.appendChild(tc);
-  }}
-  var pc = panelEl.cloneNode(true);
-  pc.style.display = 'block';
-  pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-  container.appendChild(pc);
-  document.body.appendChild(container);
+  requestAnimationFrame(function() {{
+    requestAnimationFrame(function() {{
+      var container = document.createElement('div');
+      container.id = containerId;
+      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
+        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
+
+      var tileEl = _findTileForPanel(panelEl);
+      if (tileEl) {{
+        var tc = tileEl.cloneNode(true);
+        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+          'width:100%;box-sizing:border-box;border-bottom:none;';
+        tc.querySelectorAll('.tile-toggle,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+        container.appendChild(tc);
+      }}
+      var pc = panelEl.cloneNode(true);
+      pc.style.display = 'block';
+      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(pc);
+      document.body.appendChild(container);
 
   requestAnimationFrame(function() {{
     requestAnimationFrame(function() {{
@@ -5263,6 +5278,8 @@ function _exportPanel(panelEl, format, dropdownEl) {{
         _showResult3('Export failed: ' + msg, true);
         console.error('[Export] domtoimage error:', err);
       }});
+    }});
+  }});
     }});
   }});
 }}

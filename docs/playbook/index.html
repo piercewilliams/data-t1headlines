@@ -449,24 +449,27 @@ function _exportPanel(panelEl, format, dropdownEl) {
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
-  var container = document.createElement('div');
-  container.id = containerId;
-  container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
-    'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
 
-  var tileEl = _findTileForPanel(panelEl);
-  if (tileEl) {
-    var tc = tileEl.cloneNode(true);
-    tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
-      'width:100%;box-sizing:border-box;border-bottom:none;';
-    tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
-    container.appendChild(tc);
-  }
-  var pc = panelEl.cloneNode(true);
-  pc.style.display = 'block';
-  pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
-  container.appendChild(pc);
-  document.body.appendChild(container);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      var container = document.createElement('div');
+      container.id = containerId;
+      container.style.cssText = 'position:absolute;left:0;top:0;width:1100px;opacity:0;' +
+        'pointer-events:none;background:' + bg + ';box-sizing:border-box;font-family:inherit;';
+
+      var tileEl = _findTileForPanel(panelEl);
+      if (tileEl) {
+        var tc = tileEl.cloneNode(true);
+        tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+          'width:100%;box-sizing:border-box;border-bottom:none;';
+        tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
+        container.appendChild(tc);
+      }
+      var pc = panelEl.cloneNode(true);
+      pc.style.display = 'block';
+      pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+      container.appendChild(pc);
+      document.body.appendChild(container);
 
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
@@ -533,6 +536,8 @@ function _exportPanel(panelEl, format, dropdownEl) {
         _showResult2('Export failed: ' + msg, true);
         console.error('[Export] domtoimage error:', err);
       });
+    });
+  });
     });
   });
 }
