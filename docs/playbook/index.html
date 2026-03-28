@@ -102,7 +102,7 @@
   table thead th { cursor: pointer; user-select: none; white-space: nowrap; }
   table thead th:hover { color: #f1f5f9; }
   .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }
-  table thead th[data-sort] .sort-icon { opacity: 1; color: #60a5fa; }
+  table thead th[data-sort] .sort-icon { opacity: 1; color: var(--accent); }
 
   /* ── Export button (hardcoded dark—playbook page is always dark) ── */
   .export-btn-wrap { float: right; position: relative; margin: 0 0 10px 16px; }
@@ -198,20 +198,20 @@
   <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
   <table>
     <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-    <tbody><tr><td>Here's / Here are</td><td>Sports</td><td>5</td><td>63%</td><td><span style="color:#60a5fa;font-weight:600">1.35×</span></td></tr>
-<tr><td>Number lead</td><td>Local/Civic</td><td>6</td><td>57%</td><td><span style="color:#60a5fa;font-weight:600">1.22×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Local/Civic</td><td>6</td><td>54%</td><td><span style="color:#60a5fa;font-weight:600">1.15×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Sports</td><td>9</td><td>52%</td><td><span style="color:#60a5fa;font-weight:600">1.11×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Crime</td><td>12</td><td>50%</td><td><span style="color:#60a5fa;font-weight:600">1.08×</span></td></tr>
-<tr><td>Question</td><td>Sports</td><td>10</td><td>48%</td><td><span style="color:#60a5fa;font-weight:600">1.02×</span></td></tr>
-<tr><td>Number lead</td><td>Crime</td><td>27</td><td>45%</td><td><span style="color:#f87171;font-weight:600">0.96×</span></td></tr>
-<tr><td>Question</td><td>Weather</td><td>10</td><td>36%</td><td><span style="color:#f87171;font-weight:600">0.76×</span></td></tr>
-<tr><td>Question</td><td>Politics</td><td>19</td><td>33%</td><td><span style="color:#f87171;font-weight:600">0.70×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Politics</td><td>8</td><td>31%</td><td><span style="color:#f87171;font-weight:600">0.68×</span></td></tr>
-<tr><td>Question</td><td>Business</td><td>6</td><td>27%</td><td><span style="color:#f87171;font-weight:600">0.58×</span></td></tr>
-<tr><td>Number lead</td><td>Lifestyle</td><td>14</td><td>20%</td><td><span style="color:#f87171;font-weight:600">0.43×</span></td></tr>
-<tr><td>Question</td><td>Local/Civic</td><td>8</td><td>19%</td><td><span style="color:#f87171;font-weight:600">0.42×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Business</td><td>6</td><td>15%</td><td><span style="color:#f87171;font-weight:600">0.33×</span></td></tr>
+    <tbody><tr><td>Here's / Here are</td><td>Sports</td><td>5</td><td>63%</td><td><span class="lift-pos">1.35×</span></td></tr>
+<tr><td>Number lead</td><td>Local/Civic</td><td>6</td><td>57%</td><td><span class="lift-pos">1.22×</span></td></tr>
+<tr><td>Possessive named entity</td><td>Local/Civic</td><td>6</td><td>54%</td><td><span class="lift-pos">1.15×</span></td></tr>
+<tr><td>Possessive named entity</td><td>Sports</td><td>9</td><td>52%</td><td><span class="lift-pos">1.11×</span></td></tr>
+<tr><td>Possessive named entity</td><td>Crime</td><td>12</td><td>50%</td><td><span class="lift-pos">1.08×</span></td></tr>
+<tr><td>Question</td><td>Sports</td><td>10</td><td>48%</td><td><span class="lift-pos">1.02×</span></td></tr>
+<tr><td>Number lead</td><td>Crime</td><td>27</td><td>45%</td><td><span class="lift-neg">0.96×</span></td></tr>
+<tr><td>Question</td><td>Weather</td><td>10</td><td>36%</td><td><span class="lift-neg">0.76×</span></td></tr>
+<tr><td>Question</td><td>Politics</td><td>19</td><td>33%</td><td><span class="lift-neg">0.70×</span></td></tr>
+<tr><td>Possessive named entity</td><td>Politics</td><td>8</td><td>31%</td><td><span class="lift-neg">0.68×</span></td></tr>
+<tr><td>Question</td><td>Business</td><td>6</td><td>27%</td><td><span class="lift-neg">0.58×</span></td></tr>
+<tr><td>Number lead</td><td>Lifestyle</td><td>14</td><td>20%</td><td><span class="lift-neg">0.43×</span></td></tr>
+<tr><td>Question</td><td>Local/Civic</td><td>8</td><td>19%</td><td><span class="lift-neg">0.42×</span></td></tr>
+<tr><td>Possessive named entity</td><td>Business</td><td>6</td><td>15%</td><td><span class="lift-neg">0.33×</span></td></tr>
 </tbody>
   </table>
 </div>
