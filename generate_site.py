@@ -1423,6 +1423,7 @@ fig1 = go.Figure(go.Bar(
     marker_color=colors_q1,
     text=[f"{v:.2f}×  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())],
     textposition="outside",
+    cliponaxis=False,
     hovertext=hover_q1,
     hoverinfo="y+text",
 ))
@@ -1446,6 +1447,7 @@ fig2 = go.Figure(go.Bar(
     marker_color=colors_q2,
     text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}×)" for _, r in df_q2.iterrows()],
     textposition="outside",
+    cliponaxis=False,
     hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
     hoverinfo="y+x+text",
 ))
@@ -1477,6 +1479,7 @@ fig3 = go.Figure(go.Bar(
     text=[f"{p:.0%} percentile  ({n:,} articles)"
           for p, n in zip(df_q4_chart["median_pct"].tolist(), df_q4_chart["n"].tolist())],
     textposition="outside",
+    cliponaxis=False,
     hovertext=[f"Median raw views: {int(v):,}" for v in df_q4_chart["median_views"].tolist()],
     hoverinfo="y+text",
 ))
@@ -1504,6 +1507,7 @@ fig4 = go.Figure(go.Bar(
     marker_color=colors_q5,
     text=sig_labels,
     textposition="outside",
+    cliponaxis=False,
     hovertext=[f"CTR present: {r['med_yes']*100:.2f}%  |  CTR absent: {r['med_no']*100:.2f}%"
                for _, r in df_q5.iterrows()],
     hoverinfo="y+text",
@@ -1551,6 +1555,7 @@ fig6.add_trace(go.Bar(
     marker_color=BLUE, opacity=0.85,
     text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["an_cv"].tolist(), df_var["an_n"].tolist())],
     textposition="outside",
+    cliponaxis=False,
     hovertemplate="<b>%{y}</b><br>Apple News IQR/median: %{x:.2f}<extra></extra>",
 ))
 fig6.add_trace(go.Bar(
@@ -1559,6 +1564,7 @@ fig6.add_trace(go.Bar(
     marker_color=GREEN, opacity=0.85,
     text=[f"{v:.1f}×  (n={n:,})" for v, n in zip(df_var["sn_cv"].tolist(), df_var["sn_n"].tolist())],
     textposition="outside",
+    cliponaxis=False,
     hovertemplate="<b>%{y}</b><br>SmartNews IQR/median: %{x:.2f}<extra></extra>",
 ))
 fig6.update_layout(
