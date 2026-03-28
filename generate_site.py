@@ -3222,6 +3222,36 @@ def bar_color(lift: float) -> str:
     if lift >= 0.8:   return AMBER
     return RED
 
+# Standard legend placement for per-bar color charts — matches fig5/fig6 style.
+_LEGEND_BELOW = dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, font=dict(size=11))
+
+def _lift_legend_traces() -> list:
+    """Dummy scatter traces explaining the per-bar lift color scale (fig1, fig2, fig4).
+    x=[], y=[] so no data point renders; only the legend entry is visible."""
+    entries = [
+        (GREEN, "Strong lift (≥ 1.5×)"),
+        (BLUE,  "Moderate lift (≥ 1.0×)"),
+        (AMBER, "Near baseline (≥ 0.8×)"),
+        (RED,   "Underperforms baseline (< 0.8×)"),
+    ]
+    return [go.Scatter(x=[], y=[], mode="markers",
+                       marker=dict(color=c, size=10, symbol="square"),
+                       name=lbl, showlegend=True)
+            for c, lbl in entries]
+
+def _sn_legend_traces() -> list:
+    """Dummy scatter traces for the SmartNews channel color scale (fig3)."""
+    entries = [
+        (GREEN, "High ROI (lift > 1.5×)"),
+        (BLUE,  "Moderate ROI (lift > 1.0×)"),
+        (RED,   "High volume, low ROI (> 20% share)"),
+        (GRAY,  "Other"),
+    ]
+    return [go.Scatter(x=[], y=[], mode="markers",
+                       marker=dict(color=c, size=10, symbol="square"),
+                       name=lbl, showlegend=True)
+            for c, lbl in entries]
+
 # Chart 1 — Formula lift (percentile)
 colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
 hover_q1 = [f"Median percentile: {r['median']:.0%} | n={r['n']}" for _, r in df_q1.iterrows()]
@@ -3241,13 +3271,14 @@ fig1 = go.Figure(go.Bar(
 ))
 fig1.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Baseline", annotation_position="top")
+for _t in _lift_legend_traces(): fig1.add_trace(_t)
 fig1.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig1_text), t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig1_text), t=50, b=80),
                   title="Percentile-within-cohort lift vs. baseline by formula (non-Featured articles only)"),
     xaxis=dict(title="Median cohort percentile relative to untagged baseline (1.0 = same as baseline)",
                gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig1_x, margin=0.25)),
     yaxis=dict(title=""),
-    showlegend=False,
+    showlegend=True, legend=_LEGEND_BELOW,
 )
 enforce_category_order(fig1, df_q1["label"].tolist())
 
@@ -3267,13 +3298,14 @@ fig2 = go.Figure(go.Bar(
 ))
 fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=_T["baseline"],
                annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
+for _t in _lift_legend_traces(): fig2.add_trace(_t)
 fig2.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig2_text), t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig2_text), t=50, b=80),
                   title="% of articles Featured by Apple, by headline formula"),
     xaxis=dict(title="% of articles in formula group that were Featured by Apple",
                gridcolor=_T["grid"], zeroline=False, range=safe_range((df_q2["featured_rate"] * 100).tolist(), margin=0.25)),
     yaxis=dict(title=""),
-    showlegend=False,
+    showlegend=True, legend=_LEGEND_BELOW,
 )
 enforce_category_order(fig2, df_q2["label"].tolist())
 
@@ -3299,13 +3331,14 @@ fig3 = go.Figure(go.Bar(
     hovertext=[f"Median raw views: {int(v):,}" for v in df_q4_chart["median_views"].tolist()],
     hoverinfo="y+text",
 ))
+for _t in _sn_legend_traces(): fig3.add_trace(_t)
 fig3.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig3_text), t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig3_text), t=50, b=80),
                   title="Median percentile rank by SmartNews channel (with article volume)"),
     xaxis=dict(title="Median cohort percentile (same outlet × month; 0=lowest, 1=highest)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
-    showlegend=False,
+    showlegend=True, legend=_LEGEND_BELOW,
 )
 enforce_category_order(fig3, df_q4_chart["category"].tolist())
 
@@ -3332,12 +3365,13 @@ fig4 = go.Figure(go.Bar(
 ))
 fig4.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="No effect", annotation_position="top")
+for _t in _lift_legend_traces(): fig4.add_trace(_t)
 fig4.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(sig_labels), t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(sig_labels), t=50, b=80),
                   title="Notification CTR lift by headline feature (median CTR, feature present vs. absent)"),
     xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig4_x, margin=0.25)),
     yaxis=dict(title=""),
-    showlegend=False,
+    showlegend=True, legend=_LEGEND_BELOW,
 )
 enforce_category_order(fig4, df_q5["feature"].tolist())
 
@@ -5593,6 +5627,33 @@ def _check_formula_labels() -> list[str]:
     return warnings
 
 
+def _check_chart_legends(figures: dict) -> list[str]:
+    """Verify every chart with per-bar coloring (marker.color is a list) has showlegend=True.
+
+    Per-bar color charts use a single trace with a color array — Plotly won't auto-generate
+    legend entries for them. They require dummy legend traces (e.g. _lift_legend_traces()).
+    If a chart has per-bar colors but showlegend is False/None, readers have no key to
+    interpret the color encoding.
+
+    Call this after all figures are defined, passing a dict of {label: figure}.
+    Returns list of warning strings (empty = all legends present).
+    """
+    warnings: list[str] = []
+    for name, fig in figures.items():
+        has_per_bar = any(
+            hasattr(t, "marker") and t.marker is not None
+            and isinstance(getattr(t.marker, "color", None), (list, tuple))
+            for t in fig.data
+        )
+        if has_per_bar and not fig.layout.showlegend:
+            warnings.append(
+                f"[chart_legends] '{name}' uses per-bar colors but showlegend=False — "
+                f"add _lift_legend_traces() or _sn_legend_traces() dummy entries and set "
+                f"showlegend=True, legend=_LEGEND_BELOW in its update_layout() call."
+            )
+    return warnings
+
+
 _js_errors = (_validate_js(str(out), "index") +
               _validate_js(str(playbook_out), "playbook") +
               _validate_js(str(author_pb_out), "author-playbooks"))
@@ -5605,6 +5666,16 @@ _audit_warnings = _post_build_audit({
 
 _palette_warnings  = _check_color_palette()
 _formula_warnings  = _check_formula_labels()
+_legend_warnings   = _check_chart_legends({
+    "fig1 (formula lift)":       fig1,
+    "fig2 (featured rate)":      fig2,
+    "fig3 (SmartNews channels)": fig3,
+    "fig4 (notification CTR)":   fig4,
+    "fig5 (topic × platform)":   fig5,
+    "fig6 (variance by topic)":  fig6,
+    "fig7 (engagement scatter)": fig7,
+    "fig8 (longitudinal)":       fig8,
+})
 
 # ── Rigor warnings summary ────────────────────────────────────────────────────
 print(f"\n{'─'*60}")
@@ -5659,5 +5730,12 @@ if _formula_warnings:
     print("     → Fix: update _FORMULA_LABELS dict keys to match the return values in classify_formula().")
 else:
     print("  ✓  Formula labels consistent (_FORMULA_LABELS keys match classify_formula()).")
+if _legend_warnings:
+    print(f"\n  ✗  {len(_legend_warnings)} CHART LEGEND MISSING — per-bar color charts need a legend key:")
+    for _w in _legend_warnings:
+        print(f"     • {_w}")
+    print("     → Fix: add _lift_legend_traces() or _sn_legend_traces() + showlegend=True, legend=_LEGEND_BELOW.")
+else:
+    print("  ✓  All charts have legends (per-bar color scales are explained).")
 print(f"  meta.json → {_meta_slot}/meta.json")
 print(f"{'─'*60}\n")
