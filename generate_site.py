@@ -160,6 +160,16 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   which owns the overflow-x:auto scroll, border-radius, and box-shadow.
 #   Tables scroll horizontally when content is wider than the panel — text is NEVER
 #   clipped or truncated. Do not add overflow:hidden or fixed widths to table elements.
+#
+# DARK MODE TABLE COLORS — always use explicit body.theme-dark / body.theme-light selectors:
+#   CSS custom properties (--bg, --nav-bg, etc.) are defined under body.theme-light /
+#   body.theme-dark. Detail panels have hardcoded dark backgrounds regardless of theme.
+#   If table background/text use var(--bg) etc., the resolved color depends on the body
+#   class — which fails inside hardcoded-dark panels when body is theme-light. Rule:
+#   NEVER use CSS variables for table background or text colors. Always write:
+#       body.theme-light table.findings { background: #ffffff; }
+#       body.theme-dark  table.findings { background: #1e293b; }
+#   This makes table theming unambiguous regardless of surrounding panel context.
 
 def safe_range(
     values: "Iterable[float]",
@@ -2726,18 +2736,28 @@ html = f"""<!DOCTYPE html>
   /* Scroll wrapper: owns the shadow, radius, and overflow. Tables never bleed
      past this boundary — wide tables scroll horizontally, text is never clipped. */
   .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
-                 border-radius:8px; margin:0.5rem 0 1.25rem;
-                 box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.2); }}
+                 border-radius:8px; margin:0.5rem 0 1.25rem; }}
   table.findings {{ width:100%; border-collapse:collapse; font-size:0.78rem; margin:0;
-                    background:var(--bg); border-radius:8px; overflow:hidden; }}
-  table.findings th {{ text-align:left; padding:6px 10px; background:var(--nav-bg); color:var(--text-muted);
+                    border-radius:8px; overflow:hidden;
+                    box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.15); }}
+  table.findings th {{ text-align:left; padding:6px 10px;
                        font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
                        letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
-  table.findings td {{ padding:6px 10px; border-bottom:1px solid var(--bg-card);
-                       vertical-align:top; color:var(--text-secondary);
+  table.findings td {{ padding:6px 10px; vertical-align:top;
                        word-break:break-word; overflow-wrap:break-word; }}
   table.findings tr:last-child td {{ border-bottom:none; }}
-  table.findings tr:hover td {{ background:var(--bg-muted); }}
+  /* Light theme table colours */
+  body.theme-light table.findings {{ background:#ffffff; }}
+  body.theme-light table.findings th {{ background:#f5f5f7; color:#6e6e73; border-bottom:1px solid #d2d2d7; }}
+  body.theme-light table.findings td {{ color:#424245; border-bottom:1px solid #f0f0f0; }}
+  body.theme-light table.findings tr:hover td {{ background:#f0f0f0; }}
+  body.theme-light .table-wrap {{ box-shadow:0 0 0 1px #d2d2d7,0 1px 3px rgba(0,0,0,0.08); }}
+  /* Dark theme table colours — explicit so they are never ambiguous */
+  body.theme-dark table.findings {{ background:#1e293b; }}
+  body.theme-dark table.findings th {{ background:#0f172a; color:#94a3b8; border-bottom:1px solid #334155; }}
+  body.theme-dark table.findings td {{ color:#cbd5e1; border-bottom:1px solid #0f172a; }}
+  body.theme-dark table.findings tr:hover td {{ background:#253352; }}
+  body.theme-dark .table-wrap {{ box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.3); }}
 
   /* ── Tags (semantic status colors stay fixed) ── */
   .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; margin-right: 6px; }}
