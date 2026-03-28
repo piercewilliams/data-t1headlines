@@ -420,7 +420,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_print_src';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var _pdfTile = _findTileForPanel(panelEl);
     if (_pdfTile) {
@@ -435,10 +435,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {
-      scale: 2,
-      bgcolor: bg
-    }).then(function(dataUrl) {
+    domtoimage.toPng(container, { bgcolor: bg }).then(function(dataUrl) {
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -475,7 +472,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
     var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
     var container = document.createElement('div');
     container.id = '_exp_png';
-    container.style.cssText = 'position:absolute;left:-9999px;top:0;width:1100px;' +
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
       'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
     var tileEl = _findTileForPanel(panelEl);
     if (tileEl) {
@@ -489,10 +486,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
     container.appendChild(pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {
-      scale: 2,
-      bgcolor: bg
-    }).then(function(dataUrl) {
+    domtoimage.toPng(container, { bgcolor: bg }).then(function(dataUrl) {
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       var a = document.createElement('a');
       a.href = dataUrl;
