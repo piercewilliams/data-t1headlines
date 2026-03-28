@@ -141,6 +141,182 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
     return layout
 
 
+# ── Visualization guardrails ──────────────────────────────────────────────────
+# Defensive helpers that prevent the most common Plotly issues with this setup.
+# Every new chart MUST use these instead of hardcoded values or raw data access.
+
+def safe_range(
+    values: "Iterable[float]",
+    margin: float = 0.15,
+    floor: float | None = 0.0,
+) -> list[float]:
+    """Compute a [lo, hi] axis range from actual data plus a relative margin.
+
+    Never hardcode chart axis ranges — data that exceeds a fixed range is
+    silently clipped by Plotly with no error. This auto-sizes based on what
+    the data actually contains.
+
+    Args:
+        values: Iterable of numeric values. NaN and inf are ignored.
+        margin: Fraction of the data span to pad on each end (default 15%).
+        floor:  Minimum value for lo. Pass None to allow negative lo.
+                Default 0.0 prevents negative axes on lift/CTR charts.
+
+    Example:
+        xaxis=dict(range=safe_range(df["lift"], margin=0.2))
+    """
+    vals = [v for v in values if pd.notna(v) and np.isfinite(v)]
+    if not vals:
+        return [0.0, 1.0]
+    lo, hi = min(vals), max(vals)
+    span = hi - lo if hi != lo else max(abs(hi), 0.1)
+    lo_out = lo - span * margin
+    if floor is not None:
+        lo_out = max(lo_out, floor)
+    return [lo_out, hi + span * margin]
+
+
+def safe_log_floor(series: pd.Series, floor: float = 1.0) -> list:
+    """Replace zeros and negatives with `floor` before a log-scale axis.
+
+    Plotly's log-scale silently drops zero/negative values, leaving invisible
+    chart points with no error or warning. Always use this when
+    xaxis/yaxis type='log'.
+
+    Example:
+        x=safe_log_floor(df["Total Views"])
+    """
+    return series.clip(lower=floor).fillna(floor).tolist()
+
+
+def auto_right_margin(labels: list[str], per_char: float = 7.5, base: float = 80.0) -> int:
+    """Estimate the right margin (px) needed for textposition='outside' labels.
+
+    Too-small margins silently clip long bar labels — Plotly does not warn.
+    Sizes the margin to the longest label string in the list.
+
+    Args:
+        labels:   Text label strings that will appear outside bars.
+        per_char: Estimated px width per character (default 7.5 for 12px font).
+        base:     Minimum margin regardless of label length.
+
+    Example:
+        margin=dict(l=20, r=auto_right_margin(text_labels), t=50, b=40)
+    """
+    if not labels:
+        return int(base)
+    longest = max(len(str(lbl)) for lbl in labels)
+    return int(max(longest * per_char, base))
+
+
+def escape_hover(text: "str | float | None") -> str:
+    """Escape characters that silently corrupt Plotly hover popups.
+
+    Raw headline text passed into hovertemplate or hovertext often contains
+    <, >, &, and " which break HTML rendering inside the hover popup.
+
+    Example:
+        hovertext=[escape_hover(h) for h in df["Article"]]
+    """
+    if text is None or (isinstance(text, float) and np.isnan(text)):
+        return ""
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def cap_lift(value: float, cap: float = 5.0) -> float:
+    """Cap an extreme lift ratio for display purposes.
+
+    inf or very large lifts (from near-zero baselines) make bar charts
+    unreadable. The cap is display-only — raw data is untouched.
+
+    Example:
+        x=[cap_lift(r["lift"]) for _, r in df.iterrows()]
+    """
+    if not np.isfinite(value):
+        return cap
+    return min(float(value), cap)
+
+
+def enforce_category_order(
+    fig: go.Figure,
+    categories: list[str],
+    axis: str = "yaxis",
+) -> go.Figure:
+    """Force a Plotly categorical axis to match the DataFrame's sort order.
+
+    Without this, Plotly may reorder categories alphabetically or by
+    first-seen order — scrambling bar charts that were sorted in the DataFrame.
+
+    Args:
+        fig:        The Plotly Figure to update in-place.
+        categories: Ordered list of category strings as they appear in the data.
+        axis:       'yaxis' for horizontal bars, 'xaxis' for vertical bars.
+
+    Example:
+        enforce_category_order(fig, df["label"].tolist())
+    """
+    fig.update_layout(**{axis: dict(categoryorder="array", categoryarray=categories)})
+    return fig
+
+
+def safe_chart(
+    fig: go.Figure,
+    fallback: str = "<p class='caveat'>Chart unavailable for this dataset.</p>",
+) -> str:
+    """Render a Plotly figure to HTML with a graceful fallback on failure.
+
+    A single chart error should never abort the entire site build. This wraps
+    fig.to_html() so any rendering exception logs a rigor warning and returns
+    a plain fallback string instead of crashing.
+
+    Always use this — never call fig.to_html() directly in the HTML template.
+
+    Example:
+        c1 = safe_chart(fig1)
+    """
+    try:
+        return fig.to_html(
+            full_html=False,
+            include_plotlyjs=False,
+            config={"responsive": True},
+        )
+    except Exception as exc:
+        _rigor_warn("chart_render", f"{type(fig).__name__}: {type(exc).__name__}: {exc}")
+        return fallback
+
+
+def guard_empty(
+    fig: go.Figure,
+    df: pd.DataFrame,
+    message: str = "Insufficient data for this chart.",
+    min_rows: int = 2,
+) -> go.Figure:
+    """Add a 'no data' annotation when the source DataFrame is too small.
+
+    Prevents Plotly from silently rendering blank axes. Call this on any
+    figure whose source data may be empty (conditional sheets, small n).
+
+    Example:
+        fig8 = guard_empty(fig8, df_periods, "No longitudinal data yet.")
+    """
+    if len(df) < min_rows:
+        fig.add_annotation(
+            text=message,
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=13, color=GRAY),
+            align="center",
+        )
+    return fig
+
+
 # ── Classifiers ───────────────────────────────────────────────────────────────
 def classify_formula(text: str) -> str:
     """Classify a headline into one of 7 formula types using regex. Returns the formula name string."""
@@ -531,6 +707,31 @@ if len(_kw_groups) >= 2:
         Q1_KW_STAT, Q1_KW_P = stats.kruskal(*_kw_groups)
     except (ValueError, TypeError):
         pass
+
+# Dunn's post-hoc pairwise test — which formula pairs are significantly different?
+# Only runs when pingouin is present AND Kruskal-Wallis is significant.
+Q1_DUNN: "pd.DataFrame | None" = None
+if HAS_PINGOUIN and Q1_KW_P is not None and Q1_KW_P < 0.05:
+    try:
+        _dunn_df = nf[nf["formula"].isin(FORMULA_LABELS)][["formula", VIEWS_METRIC]].dropna()
+        _pg_res = pg.pairwise_tests(
+            data=_dunn_df,
+            dv=VIEWS_METRIC,
+            between="formula",
+            parametric=False,  # Dunn's non-parametric test
+            padjust="fdr_bh",
+        )
+        # Column names differ across pingouin versions (U-val vs U_val, p-unc vs p_unc)
+        _col_map = {}
+        for _c in _pg_res.columns:
+            _cl = _c.lower().replace("-", "_")
+            _col_map[_c] = _cl
+        _pg_res = _pg_res.rename(columns=_col_map)
+        Q1_DUNN = _pg_res[["a", "b", "u_val", "p_unc", "p_corr", "hedges"]].copy()
+        Q1_DUNN.columns = ["Formula A", "Formula B", "U", "p_raw", "p_adj", "hedges_g"]
+        Q1_DUNN = Q1_DUNN[Q1_DUNN["p_adj"] < 0.10].sort_values("p_adj")
+    except Exception:
+        pass  # Non-critical; pairwise Mann-Whitney results still stand
 
 
 # ── Q2: Featured rate per formula ─────────────────────────────────────────────
@@ -1922,12 +2123,14 @@ def bar_color(lift):
 colors_q1 = [bar_color(r["lift"]) for _, r in df_q1.iterrows()]
 hover_q1 = [f"Median percentile: {r['median']:.0%} | n={r['n']}" for _, r in df_q1.iterrows()]
 
+_fig1_x = [cap_lift(r["lift"]) for _, r in df_q1.iterrows()]
+_fig1_text = [f"{v:.2f}×  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())]
 fig1 = go.Figure(go.Bar(
     y=df_q1["label"].tolist(),
-    x=df_q1["lift"].tolist(),
+    x=_fig1_x,
     orientation="h",
     marker_color=colors_q1,
-    text=[f"{v:.2f}×  (n={n})" for v, n in zip(df_q1["lift"].tolist(), df_q1["n"].tolist())],
+    text=_fig1_text,
     textposition="outside",
     cliponaxis=False,
     hovertext=hover_q1,
@@ -1936,22 +2139,24 @@ fig1 = go.Figure(go.Bar(
 fig1.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Baseline", annotation_position="top")
 fig1.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=120, t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig1_text), t=50, b=40),
                   title="Percentile-within-cohort lift vs. baseline by formula — non-Featured articles only"),
     xaxis=dict(title="Median percentile rank relative to untagged baseline (1.0 = same as baseline)",
-               gridcolor=_T["grid"], zeroline=False, range=[0, 4.5]),
+               gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig1_x, margin=0.25)),
     yaxis=dict(title=""),
     showlegend=False,
 )
+enforce_category_order(fig1, df_q1["label"].tolist())
 
 # Chart 2 — Featured rate
 colors_q2 = [bar_color(r["featured_lift"]) for _, r in df_q2.iterrows()]
+_fig2_text = [f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}×)" for _, r in df_q2.iterrows()]
 fig2 = go.Figure(go.Bar(
     y=df_q2["label"].tolist(),
     x=(df_q2["featured_rate"] * 100).tolist(),
     orientation="h",
     marker_color=colors_q2,
-    text=[f"{r['featured_rate']:.0%}  ({r['featured_lift']:.2f}×)" for _, r in df_q2.iterrows()],
+    text=_fig2_text,
     textposition="outside",
     cliponaxis=False,
     hovertext=[f"n={r['n']}" for _, r in df_q2.iterrows()],
@@ -1960,13 +2165,14 @@ fig2 = go.Figure(go.Bar(
 fig2.add_vline(x=overall_feat_rate * 100, line_dash="dash", line_color=_T["baseline"],
                annotation_text=f"Baseline {overall_feat_rate:.0%}", annotation_position="top")
 fig2.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=120, t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig2_text), t=50, b=40),
                   title="% of articles Featured by Apple, by headline formula"),
     xaxis=dict(title="% of articles in formula group that were Featured by Apple",
-               gridcolor=_T["grid"], zeroline=False, range=[0, 85]),
+               gridcolor=_T["grid"], zeroline=False, range=safe_range((df_q2["featured_rate"] * 100).tolist(), margin=0.25)),
     yaxis=dict(title=""),
     showlegend=False,
 )
+enforce_category_order(fig2, df_q2["label"].tolist())
 
 # Chart 3 — SmartNews categories (percentile)
 df_q4_chart = df_q4.sort_values("median_pct", ascending=True)
@@ -1977,26 +2183,28 @@ for _, r in df_q4_chart.iterrows():
     elif r["pct_share"] > 0.20: q4_colors.append(RED)
     else:                    q4_colors.append(GRAY)
 
+_fig3_text = [f"{p:.0%} percentile  ({n:,} articles)"
+              for p, n in zip(df_q4_chart["median_pct"].tolist(), df_q4_chart["n"].tolist())]
 fig3 = go.Figure(go.Bar(
     y=df_q4_chart["category"].tolist(),
     x=df_q4_chart["median_pct"].tolist(),
     orientation="h",
     marker_color=q4_colors,
-    text=[f"{p:.0%} percentile  ({n:,} articles)"
-          for p, n in zip(df_q4_chart["median_pct"].tolist(), df_q4_chart["n"].tolist())],
+    text=_fig3_text,
     textposition="outside",
     cliponaxis=False,
     hovertext=[f"Median raw views: {int(v):,}" for v in df_q4_chart["median_views"].tolist()],
     hoverinfo="y+text",
 ))
 fig3.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=280, t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig3_text), t=50, b=40),
                   title="Median percentile rank by SmartNews channel — with article volume"),
     xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
     showlegend=False,
 )
+enforce_category_order(fig3, df_q4_chart["category"].tolist())
 
 # Chart 4 — Notification CTR lift
 colors_q5 = [bar_color(r["lift"]) for _, r in df_q5.iterrows()]
@@ -2006,9 +2214,10 @@ for _, r in df_q5.iterrows():
     s = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
     sig_labels.append(f"{r['lift']:.2f}×  {s}  (n={r['n_true']})")
 
+_fig4_x = [cap_lift(r["lift"]) for _, r in df_q5.iterrows()]
 fig4 = go.Figure(go.Bar(
     y=df_q5["feature"].tolist(),
-    x=df_q5["lift"].tolist(),
+    x=_fig4_x,
     orientation="h",
     marker_color=colors_q5,
     text=sig_labels,
@@ -2021,12 +2230,13 @@ fig4 = go.Figure(go.Bar(
 fig4.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="No effect", annotation_position="top")
 fig4.update_layout(
-    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=220, t=50, b=40),
+    **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(sig_labels), t=50, b=40),
                   title="Notification CTR lift by headline feature (median CTR, feature present vs. absent)"),
-    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=_T["grid"], zeroline=False, range=[0, 3.8]),
+    xaxis=dict(title="CTR lift (1.0 = no effect)", gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig4_x, margin=0.25)),
     yaxis=dict(title=""),
     showlegend=False,
 )
+enforce_category_order(fig4, df_q5["feature"].tolist())
 
 # Chart 5 — Topic index by platform
 fig5 = go.Figure()
@@ -2052,6 +2262,7 @@ fig5.update_layout(
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
 )
+enforce_category_order(fig5, topic_df["label"].tolist())
 
 # Chart 6 — Variance (IQR/median of percentile)
 fig6 = go.Figure()
@@ -2082,6 +2293,7 @@ fig6.update_layout(
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
 )
+enforce_category_order(fig6, df_var["label"].tolist())
 
 # Chart 7 — Views vs active time scatter
 q6_sample = an_eng
@@ -2090,25 +2302,25 @@ nfeat_mask = ~q6_sample["is_featured"]
 
 fig7 = go.Figure()
 fig7.add_trace(go.Scatter(
-    x=q6_sample[nfeat_mask]["Total Views"].tolist(),
+    x=safe_log_floor(q6_sample[nfeat_mask]["Total Views"]),
     y=q6_sample[nfeat_mask][AT_COL].tolist(),
     mode="markers", name="Not Featured",
     marker=dict(color=BLUE, size=4, opacity=0.35),
-    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Not Featured</extra>",
+    hovertemplate="Views: %{x:,.0f}<br>Active time: %{y:.0f}s<extra>Not Featured</extra>",
 ))
 fig7.add_trace(go.Scatter(
-    x=q6_sample[feat_mask]["Total Views"].tolist(),
+    x=safe_log_floor(q6_sample[feat_mask]["Total Views"]),
     y=q6_sample[feat_mask][AT_COL].tolist(),
     mode="markers", name="Featured by Apple",
     marker=dict(color=GREEN, size=5, opacity=0.6),
-    hovertemplate="Views: %{x:,}<br>Active time: %{y}s<extra>Featured</extra>",
+    hovertemplate="Views: %{x:,.0f}<br>Active time: %{y:.0f}s<extra>Featured</extra>",
 ))
 fig7.update_layout(
     **make_layout(THEME, height=460, margin=dict(l=20, r=40, t=50, b=80),
                   title=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})"),
     xaxis=dict(title="Total views (log scale)", type="log", gridcolor=_T["grid"]),
     yaxis=dict(title="Avg. active time (seconds)", gridcolor=_T["grid"],
-               range=[0, max(an_eng[AT_COL].quantile(0.99), 180)]),
+               range=safe_range(q6_sample[AT_COL].dropna(), margin=0.1, floor=0.0)),
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
 )
 
@@ -2179,10 +2391,38 @@ fig8.update_layout(
         gridcolor=_T["grid"],
         zeroline=False,
         tickformat=".2f",
-        range=[0.3, 1.6],
+        range=safe_range(df_periods["lift"].dropna() if not df_periods.empty else [1.0], margin=0.2, floor=None),
     ),
     legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
+guard_empty(fig8, df_periods, "Longitudinal data requires at least 2 time periods.")
+
+# OLS trend lines — shows whether each formula's lift is trending up or down.
+# Only runs when statsmodels is present and there are enough data points.
+if HAS_STATSMODELS and not df_periods.empty:
+    for f, color in _period_colors_8.items():
+        sub = df_periods[df_periods["formula"] == f].copy()
+        sub = sub[sub["n"] >= _CHART_MIN_N].dropna(subset=["lift"])
+        sub["_x"] = sub["period"].map(_q_to_x)
+        sub = sub.dropna(subset=["_x"]).sort_values("_x")
+        if len(sub) < 3:
+            continue
+        try:
+            _ols_x = sm.add_constant(sub["_x"].values.astype(float))
+            _ols_res = sm.OLS(sub["lift"].values.astype(float), _ols_x).fit()
+            _x_line = np.linspace(sub["_x"].min(), sub["_x"].max(), 50)
+            _y_line = _ols_res.params[0] + _ols_res.params[1] * _x_line
+            fig8.add_trace(go.Scatter(
+                x=_x_line.tolist(),
+                y=_y_line.tolist(),
+                mode="lines",
+                name=f"{FORMULA_LABELS.get(f, f)} trend",
+                line=dict(color=color, width=1.0, dash="dot"),
+                showlegend=False,
+                hoverinfo="skip",
+            ))
+        except Exception:
+            pass  # Non-critical; scatter points still show
 
 # Chart HL — Headline length quartile vs. percentile (Apple News + SmartNews)
 fig_hl = go.Figure()
@@ -2201,10 +2441,13 @@ if not df_hl_len.empty:
               for v, n in zip(df_hl_len["sn_med"], df_hl_len["sn_n"])],
         textposition="outside", cliponaxis=False,
     ))
+_fig_hl_text = ([f"{v:.0%}  (n={n:,})" if pd.notna(v) else "—"
+                 for v, n in zip(df_hl_len["an_med"].fillna(0), df_hl_len["an_n"].fillna(0))]
+                if not df_hl_len.empty else [])
 fig_hl.add_vline(x=0.5, line_dash="dash", line_color=_T["baseline"],
                  annotation_text="50th %ile", annotation_position="top")
 fig_hl.update_layout(
-    **make_layout(THEME, height=360, margin=dict(l=20, r=180, t=50, b=80),
+    **make_layout(THEME, height=360, margin=dict(l=20, r=auto_right_margin(_fig_hl_text), t=50, b=80),
                   title="Headline length (character count quartile) vs. median percentile rank"),
     barmode="group",
     xaxis=dict(title="Median percentile_within_cohort", gridcolor=_T["grid"],
@@ -2212,21 +2455,19 @@ fig_hl.update_layout(
     yaxis=dict(title=""),
     legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
 )
+guard_empty(fig_hl, df_hl_len, "Headline length data unavailable.")
 
 
 # ── Render charts ─────────────────────────────────────────────────────────────
-def chart_html(fig):
-    return fig.to_html(full_html=False, include_plotlyjs=False, config={"responsive": True})
-
-c1 = chart_html(fig1)
-c2 = chart_html(fig2)
-c3 = chart_html(fig3)
-c4 = chart_html(fig4)
-c5 = chart_html(fig5)
-c6 = chart_html(fig6)
-c7   = chart_html(fig7)
-c8   = chart_html(fig8)
-c_hl = chart_html(fig_hl)
+c1 = safe_chart(fig1)
+c2 = safe_chart(fig2)
+c3 = safe_chart(fig3)
+c4 = safe_chart(fig4)
+c5 = safe_chart(fig5)
+c6 = safe_chart(fig6)
+c7   = safe_chart(fig7)
+c8   = safe_chart(fig8)
+c_hl = safe_chart(fig_hl)
 
 # ── Conditional sections ──────────────────────────────────────────────────────
 _finding9_html = ""
@@ -3446,6 +3687,10 @@ print(f"  Packages        : statsmodels={'✓' if HAS_STATSMODELS else '✗ (pip
 if Q1_KW_P is not None:
     _kw_sig = "significant" if Q1_KW_P < 0.05 else "not significant"
     print(f"  Q1 Kruskal-Wallis omnibus: H={Q1_KW_STAT:.2f}, p={Q1_KW_P:.4f} ({_kw_sig})")
+if Q1_DUNN is not None and len(Q1_DUNN) > 0:
+    print(f"  Q1 Dunn post-hoc: {len(Q1_DUNN)} significant pairwise difference(s) at p_adj<0.10 (BH-FDR)")
+elif HAS_PINGOUIN and Q1_KW_P is not None and Q1_KW_P >= 0.05:
+    print("  Q1 Dunn post-hoc: skipped (Kruskal-Wallis not significant)")
 if Q2_LOGIT_SUMMARY:
     print(f"  Q2 {Q2_LOGIT_SUMMARY}")
 if _RIGOR_WARNINGS:
