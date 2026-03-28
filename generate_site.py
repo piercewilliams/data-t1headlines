@@ -12,6 +12,7 @@ Optional args:
 import argparse
 import html as html_module
 import math
+import shutil
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -1648,6 +1649,27 @@ _F9_Q4_WORDS_STR = f"{int(WC_Q4_WORDS):,}"  if pd.notna(WC_Q4_WORDS) else "1,200
 _F9_Q2_PCT_STR   = f"{WC_Q2_PCT:.0%}"       if pd.notna(WC_Q2_PCT)   else "48th percentile"
 _F9_Q2_WORDS_STR = f"{int(WC_Q2_WORDS):,}"  if pd.notna(WC_Q2_WORDS) else "~900"
 
+# Headline length quartile performance for Playbook tile
+if not df_hl_len.empty:
+    try:
+        _hli = df_hl_len.set_index("bucket")
+        AN_LEN_Q1_PCT   = float(_hli.loc["Short (Q1)",     "an_med"])     if "Short (Q1)"     in _hli.index else np.nan
+        AN_LEN_Q4_PCT   = float(_hli.loc["Very long (Q4)", "an_med"])     if "Very long (Q4)" in _hli.index else np.nan
+        AN_LEN_Q1_CHARS = float(_hli.loc["Short (Q1)",     "an_len_med"]) if "Short (Q1)"     in _hli.index else np.nan
+        AN_LEN_Q4_CHARS = float(_hli.loc["Very long (Q4)", "an_len_med"]) if "Very long (Q4)" in _hli.index else np.nan
+    except Exception:
+        AN_LEN_Q1_PCT = AN_LEN_Q4_PCT = AN_LEN_Q1_CHARS = AN_LEN_Q4_CHARS = np.nan
+else:
+    AN_LEN_Q1_PCT = AN_LEN_Q4_PCT = AN_LEN_Q1_CHARS = AN_LEN_Q4_CHARS = np.nan
+
+AN_LEN_Q1_STR       = f"{AN_LEN_Q1_PCT:.0%}"     if pd.notna(AN_LEN_Q1_PCT)   else "—"
+AN_LEN_Q4_STR       = f"{AN_LEN_Q4_PCT:.0%}"     if pd.notna(AN_LEN_Q4_PCT)   else "—"
+AN_LEN_Q4_CHARS_STR = f"~{int(AN_LEN_Q4_CHARS)}" if pd.notna(AN_LEN_Q4_CHARS) else "~93"
+AN_LEN_Q1_CHARS_STR = f"~{int(AN_LEN_Q1_CHARS)}" if pd.notna(AN_LEN_Q1_CHARS) else "~55"
+
+# Data-run slug for archive system
+REPORT_DATE_SLUG = datetime.now().strftime("%Y-%m")
+
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 CHART_H = 400
@@ -2101,10 +2123,12 @@ html = f"""<!DOCTYPE html>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; transition: background 0.2s, color 0.2s; }}
 
   /* ── Nav ── */
-  nav {{ position: sticky; top: 0; z-index: 100; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }}
-  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); }}
-  .nav-right {{ display: flex; align-items: center; gap: 14px; }}
-  .nav-date {{ font-size: 11px; color: var(--text-muted); }}
+  nav {{ position: sticky; top: 0; z-index: 100; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); height: 44px; display: flex; align-items: center; gap: 0; padding: 0 28px; }}
+  .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text); flex-shrink: 0; }}
+  .nav-links {{ display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }}
+  .nav-links a {{ font-size: 12px; color: var(--text-muted); text-decoration: none; transition: color 0.15s; }}
+  .nav-links a:hover {{ color: var(--text); }}
+  .nav-meta {{ display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 20px; border-left: 1px solid var(--border); }}
   .theme-btn {{ background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 3px 9px; transition: background 0.15s, color 0.15s, border-color 0.15s; }}
   .theme-btn:hover {{ background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }}
 
@@ -2187,10 +2211,11 @@ html = f"""<!DOCTYPE html>
 
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <div class="nav-right">
-    <a href="playbook/index.html" style="font-size:12px;color:var(--text-muted);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Playbook</a>
-    <a href="experiments/index.html" style="font-size:12px;color:var(--text-muted);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Experiments</a>
-    <span class="nav-date">{REPORT_DATE}</span>
+  <div class="nav-links">
+    <a href="playbook/">Playbooks</a>
+    <a href="experiments/">Experiments</a>
+  </div>
+  <div class="nav-meta">
     <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
   </div>
 </nav>
@@ -2205,6 +2230,8 @@ html = f"""<!DOCTYPE html>
     <span><span class="stat-num">{N_NOTIF}</span><span class="stat-label">push notifications</span></span>
     <span class="stat-sep">·</span>
     <span><span class="stat-num">{PLATFORMS}</span><span class="stat-label">platforms · 2025–2026</span></span>
+    <span class="stat-sep">·</span>
+    <span><span class="stat-label">Updated {REPORT_DATE}</span></span>
   </div>
 </div>
 
@@ -2588,7 +2615,7 @@ function closeDetail() {{
   <p style="margin-top: 6px;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
-    <a href="playbook/">Playbook</a> &nbsp;·&nbsp;
+    <a href="playbook/">Playbooks</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
 </footer>
@@ -2601,13 +2628,55 @@ out.parent.mkdir(exist_ok=True)
 out.write_text(html, encoding="utf-8")
 print(f"Site written to {out}  ({len(html):,} chars)")
 
-# ── Editorial Playbook page ────────────────────────────────────────────────────
+# ── Archive logic ─────────────────────────────────────────────────────────────
+import re as _re
+
+def _slug_to_label(slug):
+    try:
+        from datetime import datetime as _dt
+        return _dt.strptime(slug, "%Y-%m").strftime("%B %Y")
+    except Exception:
+        return slug
+
+_pb_path     = Path("docs/playbook/index.html")
+_archive_dir = Path("docs/playbook/archive")
+
+# If the existing playbook is from a different run, archive it before overwriting
+if _pb_path.exists():
+    _pb_existing = _pb_path.read_text(encoding="utf-8")
+    _pb_m        = _re.search(r'<meta name="data-run" content="([^"]+)"', _pb_existing)
+    _pb_old_slug = _pb_m.group(1) if _pb_m else None
+    if _pb_old_slug and _pb_old_slug != REPORT_DATE_SLUG:
+        _arch_dir = _archive_dir / _pb_old_slug
+        _arch_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(_pb_path), str(_arch_dir / "index.html"))
+        print(f"Archived {_pb_old_slug} playbook → {_arch_dir}/index.html")
+
+# Collect past archived runs (newest first)
+_archived_runs = []
+if _archive_dir.exists():
+    for _d in sorted(_archive_dir.iterdir(), reverse=True):
+        if _d.is_dir() and (_d / "index.html").exists():
+            _archived_runs.append(_d.name)
+
+_past_runs_html = ""
+if _archived_runs:
+    _lis = "".join(
+        f'<li><a href="archive/{s}/">{_slug_to_label(s)}</a></li>'
+        for s in _archived_runs
+    )
+    _past_runs_html = f'<section class="past-section"><h3 class="section-eyebrow">Past runs</h3><ul class="past-list">{_lis}</ul></section>'
+
+_pb_run_label = _slug_to_label(REPORT_DATE_SLUG)
+
+# ── Editorial Playbooks page ──────────────────────────────────────────────────
 playbook_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>T1 Headline Analysis · Editorial Playbook</title>
+<meta name="data-run" content="{REPORT_DATE_SLUG}">
+<title>T1 Headline Analysis · Playbooks</title>
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -2615,126 +2684,250 @@ playbook_html = f"""<!DOCTYPE html>
           -webkit-font-smoothing:antialiased; }}
   nav {{ background:rgba(15,23,42,0.95); backdrop-filter:blur(20px);
          -webkit-backdrop-filter:blur(20px); padding:0 2rem;
-         display:flex; align-items:center; gap:1.5rem; height:44px;
+         display:flex; align-items:center; gap:0; height:44px;
          border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }}
-  nav .brand {{ color:#f1f5f9; font-weight:700; font-size:0.72rem;
-                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
-  nav a {{ color:#94a3b8; text-decoration:none; font-size:0.73rem; transition:color 0.15s; }}
-  nav a:hover {{ color:#f1f5f9; }}
-  .container {{ max-width:860px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
+  .brand {{ color:#f1f5f9; font-weight:700; font-size:0.72rem;
+            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
+  .nav-links a {{ color:#94a3b8; text-decoration:none; font-size:12px; transition:color 0.15s; }}
+  .nav-links a:hover {{ color:#f1f5f9; }}
+  .container {{ max-width:920px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
               color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }}
   h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
-        letter-spacing:-0.02em; margin-bottom:0.5rem; color:#f1f5f9; }}
-  .meta {{ font-size:0.8rem; color:#94a3b8; margin-bottom:2rem; line-height:1.6; }}
-  h2 {{ font-size:1.05rem; font-weight:700; letter-spacing:-0.01em;
-        color:#f1f5f9; margin:2.5rem 0 0.75rem; padding-top:2rem;
-        border-top:1px solid #1e293b; }}
-  h2:first-of-type {{ border-top:none; padding-top:0; }}
-  h3 {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-        color:#94a3b8; margin:1.75rem 0 0.6rem; }}
-  p {{ color:#cbd5e1; margin-bottom:0.9rem; font-size:0.9375rem; }}
-  .callout {{ padding:1rem 1.25rem; border-radius:8px; margin:1.25rem 0; font-size:0.875rem;
-              background:#1e293b; border:1px solid #334155; color:#cbd5e1; }}
-  .callout-inline {{ background:#1e293b; border-radius:8px; padding:1rem 1.25rem;
-                     margin:1.25rem 0; border:1px solid #334155; }}
-  .callout-inline strong {{ color:#f1f5f9; font-size:0.875rem; }}
-  .callout-inline ul {{ padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8; color:#cbd5e1; }}
-  .callout-inline li {{ padding:0; border:none; list-style:disc; }}
-  table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:1.25rem 0;
-           background:#1e293b; border-radius:8px; overflow:hidden;
+        letter-spacing:-0.02em; margin-bottom:0.4rem; color:#f1f5f9; }}
+  .sub {{ color:#94a3b8; font-size:0.875rem; margin-bottom:0; }}
+  .run-header {{ display:flex; align-items:baseline; gap:12px; margin:2rem 0 1.25rem;
+                 padding-bottom:0.75rem; border-bottom:1px solid #1e293b; }}
+  .run-label {{ font-size:1.05rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; }}
+  .run-meta {{ font-size:0.8rem; color:#64748b; }}
+  .tile-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1rem; }}
+  @media (max-width:720px) {{ .tile-grid {{ grid-template-columns:1fr; }} }}
+  @media (max-width:1000px) and (min-width:721px) {{ .tile-grid {{ grid-template-columns:repeat(2,1fr); }} }}
+  .pb-tile {{ background:#1e293b; border:1px solid #334155; border-radius:10px;
+              padding:1.1rem 1.25rem; cursor:pointer;
+              transition:border-color 0.15s, box-shadow 0.15s; user-select:none; }}
+  .pb-tile:hover {{ border-color:#475569; box-shadow:0 0 0 1px #475569 inset; }}
+  .pb-tile.open {{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6 inset; }}
+  .conf-badge {{ display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
+                 letter-spacing:0.07em; padding:2px 6px; border-radius:3px; margin-bottom:8px; }}
+  .conf-high {{ background:rgba(22,163,74,0.2); color:#4ade80; }}
+  .conf-mod  {{ background:rgba(37,99,235,0.2);  color:#60a5fa; }}
+  .conf-dir  {{ background:rgba(100,116,139,0.15); color:#94a3b8; }}
+  .tile-label {{ display:block; font-size:0.78rem; font-weight:700; color:#f1f5f9;
+                 letter-spacing:0.01em; margin-bottom:0.5rem; }}
+  .tile-claim {{ font-size:0.84rem; color:#cbd5e1; margin-bottom:0.5rem; line-height:1.55; }}
+  .tile-action {{ font-size:0.8rem; color:#60a5fa; font-weight:500; margin-bottom:0.5rem; line-height:1.45; }}
+  .tile-toggle {{ font-size:0.7rem; color:#64748b; display:block; margin-top:0.5rem; }}
+  .pb-detail {{ background:#1e293b; border:1px solid #334155; border-radius:10px;
+                padding:1.5rem 1.75rem; margin-bottom:1rem; }}
+  h3.rh {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+           color:#94a3b8; margin:1.5rem 0 0.6rem; }}
+  h3.rh:first-child {{ margin-top:0; }}
+  p.detail-sub {{ font-size:0.8rem; color:#64748b; margin-bottom:0.6rem; }}
+  table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:0.5rem 0 1.25rem;
+           background:#0f172a; border-radius:8px; overflow:hidden;
            box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.2); }}
-  th {{ text-align:left; padding:8px 12px; background:#0f172a; color:#94a3b8;
+  th {{ text-align:left; padding:8px 12px; background:#0a1120; color:#94a3b8;
         font-weight:600; font-size:0.62rem; text-transform:uppercase;
         letter-spacing:0.08em; border-bottom:1px solid #334155; }}
-  td {{ padding:8px 12px; border-bottom:1px solid #0f172a; vertical-align:top; color:#cbd5e1; }}
+  td {{ padding:8px 12px; border-bottom:1px solid #1e293b; vertical-align:top; color:#cbd5e1; }}
   tr:last-child td {{ border-bottom:none; }}
-  .caveat {{ font-size:0.74rem; color:#64748b; margin-top:0.75rem; line-height:1.6; }}
-  .tag {{ display:inline-block; font-size:10px; font-weight:600; border-radius:4px;
-          padding:2px 6px; margin-right:6px; }}
+  .rules {{ padding-left:18px; margin:0.5rem 0 1rem; font-size:0.875rem;
+            line-height:1.85; color:#cbd5e1; }}
+  .rules li {{ margin-bottom:0.15rem; }}
+  .caveat {{ font-size:0.74rem; color:#64748b; margin-top:1rem; line-height:1.6; }}
+  .past-section {{ margin-top:3rem; padding-top:1.5rem; border-top:1px solid #1e293b; }}
+  .section-eyebrow {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em;
+                      text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem;
+                      display:block; }}
+  .past-list {{ list-style:none; padding:0; margin:0; }}
+  .past-list li {{ padding:0.4rem 0; border-bottom:1px solid #1e293b; }}
+  .past-list li:last-child {{ border-bottom:none; }}
+  .past-list a {{ color:#60a5fa; text-decoration:none; font-size:0.875rem; }}
+  .past-list a:hover {{ color:#93c5fd; }}
 </style>
 </head>
 <body>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../index.html">← Current analysis</a>
-  <a href="../experiments/index.html">Experiments</a>
+  <div class="nav-links">
+    <a href="../">← Current analysis</a>
+    <a href="../experiments/">Experiments</a>
+  </div>
 </nav>
 <div class="container">
 
-<span class="eyebrow">Editorial Playbook</span>
+<span class="eyebrow">Editorial Playbooks</span>
 <h1>Per-Platform Headline Guidance</h1>
-<p class="meta">Synthesized from Findings 1–8 · {REPORT_DATE} · Apple News, SmartNews, Push Notifications</p>
+<p class="sub">Synthesized from Findings 1–8. One playbook per monthly Tarrow data run. Click any tile to expand the full guidance.</p>
 
-<div class="callout">
-  <strong>How to use this:</strong> Each platform rewards different headline structures. This playbook translates data findings into per-channel rules. Top formula × topic combinations are ranked by lift vs. untagged baseline (≥5 articles required per cell). Treat as directional guidance — see individual findings for p-values and sample sizes.
+<div class="run-header">
+  <span class="run-label">{_pb_run_label}</span>
+  <span class="run-meta">Tarrow T1 data · {REPORT_DATE} · Apple News, SmartNews, Push Notifications</span>
 </div>
 
-<h2>Apple News</h2>
+<div class="tile-grid">
 
-<h3>Top formula × topic combinations</h3>
-<p>Non-Featured articles only, ranked by lift vs. untagged baseline.</p>
-<table>
-  <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-  <tbody>{_t_an_guide}</tbody>
-</table>
+  <div class="pb-tile" onclick="togglePb(this,'pb-1')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News · Headline Formulas</span>
+    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it — but specific patterns clearly underperform.</p>
+    <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>
 
-<div class="callout-inline">
-  <strong>Apple News rules of thumb</strong>
-  <ul>
+  <div class="pb-tile" onclick="togglePb(this,'pb-2')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News · Featured Targeting</span>
+    <p class="tile-claim">"What to know" drives {WTN_FEAT_LIFT:.1f}× Featured placement. But for non-Featured articles, organic view performance trends lower ({WTN_ORGANIC_P_STR}).</p>
+    <p class="tile-action">→ Reserve "What to know" for intentional Featured campaigns. Don't apply it broadly for organic reach.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-3')">
+    <span class="conf-badge conf-high">High confidence · most actionable</span>
+    <span class="tile-label">SmartNews · Channel Allocation</span>
+    <p class="tile-claim">Entertainment receives {float(_r4_ent['pct_share']):.0%} of SmartNews volume at the lowest ROI. Local and U.S. National deliver {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× on far less.</p>
+    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required — reframe what's already being published.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
+    <span class="conf-badge conf-mod">Moderate · Jan–Feb 2026 only</span>
+    <span class="tile-label">Push Notifications</span>
+    <p class="tile-claim">{N_SIG_NOTIF_FEATURES} features show significant CTR lift after multiple-comparison correction. "EXCLUSIVE:" and possessive framing are the top signals.</p>
+    <p class="tile-action">→ Lead genuine scoops with "EXCLUSIVE:"; use possessive framing; write ≥80 characters to give readers context before the tap.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
+    <span class="conf-badge conf-dir">Directional</span>
+    <span class="tile-label">Apple News · Headline Length</span>
+    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). Effect is directional, not statistically established.</p>
+    <p class="tile-action">→ Don't truncate. The \u226480 char rule applies to push notifications only — not to article headlines.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>
+
+</div>
+
+<!-- Detail panels (shown one at a time below the grid) -->
+
+<div id="pb-1" class="pb-detail" style="display:none">
+  <h3 class="rh">Top formula × topic combinations — Apple News</h3>
+  <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
+  <table>
+    <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+    <tbody>{_t_an_guide}</tbody>
+  </table>
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
     <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
-    <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the {NL_SWEET_SPOT_CAT} range; avoid round numbers ({NL_ROUND_SPECIFIC_PTS} percentile-point penalty vs. specific numbers).</li>
-    <li><strong>Avoid question format</strong> for organic performance — underperforms {_r1_q['lift']:.2f}× baseline. Reserve for Featured targeting only if "What to know" is unavailable.</li>
-    <li><strong>Longer headlines outperform shorter ones</strong> — median length is {AN_MEDIAN_HL_LEN:.0f} chars; don't truncate to fit a format preference.</li>
-    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV}) — headline choice matters most here. Concentrate variant production on these topics first.</li>
+    <li><strong>Number leads:</strong> use specific figures in the {NL_SWEET_SPOT_CAT} range. Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_P_STR} after BH-FDR).</li>
+    <li><strong>Avoid question format</strong> for organic reach — underperforms {_r1_q['lift']:.2f}× baseline ({F1_Q_P_STR}). Reserve for Featured targeting if "What to know" is unavailable.</li>
+    <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is {AN_MEDIAN_HL_LEN:.0f} chars.</li>
+    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV}) — headline choice matters most here. Prioritize variant production on these topics first.</li>
   </ul>
 </div>
 
-<h2>SmartNews</h2>
+<div id="pb-2" class="pb-detail" style="display:none">
+  <h3 class="rh">Featured rate by formula — Apple News</h3>
+  <table>
+    <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
+    <tbody>{_t2}</tbody>
+  </table>
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
+    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is {WTN_FEAT_LIFT:.1f}×, but organic views for non-Featured "What to know" articles trend lower ({WTN_ORGANIC_P_STR}, directional only).</li>
+    <li><strong>Featured articles drive {FEAT_VIEW_LIFT_STR} views vs. non-Featured</strong> — treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
+    <li><strong>Don't apply "What to know" broadly</strong> — the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
+  </ul>
+</div>
 
-<h3>Top formula × topic combinations</h3>
-<p>Ranked by lift vs. untagged SmartNews baseline. Channel placement matters as much as the formula.</p>
-<table>
-  <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-  <tbody>{_t_sn_guide}</tbody>
-</table>
-
-<div class="callout-inline">
-  <strong>SmartNews rules of thumb</strong>
-  <ul>
+<div id="pb-3" class="pb-detail" style="display:none">
+  <h3 class="rh">Performance by channel — SmartNews</h3>
+  <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
+  <table>
+    <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
+    <tbody>{_t3}</tbody>
+  </table>
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
     <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× ROI respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
     <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
-    <li><strong>Sports underperforms SmartNews</strong> ({sports_sn_idx:.2f}× platform median) — don't rely on sports content for SmartNews reach; the same story with a local/civic frame does better.</li>
-    <li><strong>Median headline length</strong> on SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars — see the length analysis in Finding 6 for platform-specific guidance.</li>
+    <li><strong>Sports underperforms</strong> ({sports_sn_idx:.2f}× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
+    <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>
 </div>
 
-<h2>Push Notifications</h2>
-
-<h3>Top features by CTR lift</h3>
-<table>
-  <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Lift</th><th>Significant?</th></tr></thead>
-  <tbody>{_t4}</tbody>
-</table>
-
-<div class="callout-inline">
-  <strong>Notification rules of thumb</strong>
-  <ul>
+<div id="pb-4" class="pb-detail" style="display:none">
+  <h3 class="rh">Features by CTR lift — Push Notifications</h3>
+  <p class="detail-sub">Jan–Feb 2026 · N={N_NOTIF} notifications · BH-FDR corrected · {N_SIG_NOTIF_FEATURES} features significant after correction</p>
+  <table>
+    <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
+    <tbody>{_t4}</tbody>
+  </table>
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
     <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — {EXCL_LIFT} CTR lift. The word must be earned; overuse erodes the signal.</li>
     <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" ({_r5_poss['lift']:.2f}× lift).</li>
-    <li><strong>Write longer notifications</strong>: ≤80 chars gets {(1-float(_r5_sh['lift'])):.0%} fewer clicks. Give readers context before asking them to tap.</li>
-    <li><strong>Avoid question format</strong>: hurts notification CTR ({_r5_q['lift']:.2f}×), consistent with the article finding.</li>
-    <li><strong>Serial/escalating stories with a celebrity anchor</strong> are the highest-CTR content type — structure updates as installments with named-person possessive framing.</li>
+    <li><strong>Write longer notifications:</strong> ≤80 chars delivers {(1-float(_r5_sh['lift'])):.0%} fewer clicks. Give readers context before asking them to tap.</li>
+    <li><strong>Avoid question format:</strong> hurts CTR ({_r5_q['lift']:.2f}×), consistent with the Apple News finding.</li>
+    <li><strong>Serial/escalating stories with a named anchor</strong> are the highest-CTR content type — structure updates as installments with possessive framing.</li>
   </ul>
+  <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
 </div>
 
-<p class="caveat">Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels for p-values and sample sizes.</p>
+<div id="pb-5" class="pb-detail" style="display:none">
+  <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
+  <table>
+    <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
+    <tbody>{_t_hl_len}</tbody>
+  </table>
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
+    <li><strong>Longer tends to outperform shorter</strong> on Apple News — top quartile ({AN_LEN_Q4_CHARS_STR} chars) reaches {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom quartile ({AN_LEN_Q1_CHARS_STR} chars).</li>
+    <li><strong>The \u226480-char rule applies to notifications only</strong> — don't apply it to article headlines. The data runs in the opposite direction.</li>
+    <li><strong>Effect is directional, not confirmed</strong> — longer headlines may correlate with longer, higher-stakes stories. Don't pad headlines to hit a character count.</li>
+    <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
+  </ul>
+  <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
+</div>
+
+{_past_runs_html}
+
+<p class="caveat" style="margin-top:2.5rem">Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels on the <a href="../" style="color:#60a5fa">main analysis page</a> for p-values and sample sizes.</p>
 
 </div>
+<script>
+var _openTile = null, _openPanel = null;
+function togglePb(tile, id) {{
+  var panel = document.getElementById(id);
+  var toggle = tile.querySelector('.tile-toggle');
+  var isOpen = tile.classList.contains('open');
+  if (_openTile && _openTile !== tile) {{
+    _openTile.classList.remove('open');
+    _openTile.querySelector('.tile-toggle').textContent = 'Details \u2193';
+    _openPanel.style.display = 'none';
+  }}
+  if (!isOpen) {{
+    tile.classList.add('open');
+    toggle.textContent = 'Details \u2191';
+    panel.style.display = 'block';
+    _openTile = tile; _openPanel = panel;
+    setTimeout(function() {{ panel.scrollIntoView({{behavior:'smooth',block:'nearest'}}); }}, 50);
+  }} else {{
+    tile.classList.remove('open');
+    toggle.textContent = 'Details \u2193';
+    panel.style.display = 'none';
+    _openTile = null; _openPanel = null;
+  }}
+}}
+</script>
 </body>
 </html>"""
 
 playbook_out = Path("docs/playbook/index.html")
 playbook_out.parent.mkdir(exist_ok=True)
 playbook_out.write_text(playbook_html, encoding="utf-8")
-print(f"Playbook written to {playbook_out}  ({len(playbook_html):,} chars)")
+print(f"Playbooks written to {playbook_out}  ({len(playbook_html):,} chars)")
