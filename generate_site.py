@@ -2168,12 +2168,68 @@ if NL_PARSED >= 10:
   </details>
 """
 
+# ── Archive helpers (shared by main page and playbook archive logic) ──────────
+import re as _re
+
+def _slug_to_label(slug):
+    try:
+        from datetime import datetime as _dt
+        return _dt.strptime(slug, "%Y-%m").strftime("%B %Y")
+    except Exception:
+        return slug
+
+def _slug_age_months(slug):
+    """Months between slug (YYYY-MM) and today. Returns large number on parse failure."""
+    try:
+        from datetime import datetime as _dt, date as _date
+        then = _dt.strptime(slug, "%Y-%m").date().replace(day=1)
+        now  = _date.today().replace(day=1)
+        return (now.year - then.year) * 12 + (now.month - then.month)
+    except Exception:
+        return 999
+
+# ── Main page archive logic (runs before html f-string so _main_past_runs_html is defined) ──
+_main_path     = Path("docs/index.html")
+_main_arch_dir = Path("docs/archive")
+
+# Archive the existing main page if it's from a different run slug
+if _main_path.exists():
+    _main_existing = _main_path.read_text(encoding="utf-8")
+    _main_m        = _re.search(r'<meta name="data-run" content="([^"]+)"', _main_existing)
+    _main_old_slug = _main_m.group(1) if _main_m else None
+    if _main_old_slug and _main_old_slug != REPORT_DATE_SLUG:
+        _main_arch_slot = _main_arch_dir / _main_old_slug
+        _main_arch_slot.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(_main_path), str(_main_arch_slot / "index.html"))
+        print(f"Archived {_main_old_slug} main page → {_main_arch_slot}/index.html")
+
+# Collect archived main runs (newest first), capped at 12 months
+_main_archived = []
+if _main_arch_dir.exists():
+    for _d in sorted(_main_arch_dir.iterdir(), reverse=True):
+        if _d.is_dir() and (_d / "index.html").exists():
+            if _slug_age_months(_d.name) <= 12:
+                _main_archived.append(_d.name)
+
+# Build link list — empty string when no archives exist (renders nothing in the f-string)
+_main_past_runs_html = ""
+if _main_archived:
+    _lis = "".join(
+        f'<li><a href="archive/{s}/">{_slug_to_label(s)}</a></li>'
+        for s in _main_archived
+    )
+    _main_past_runs_html = f"""<section class="past-analyses">
+  <h3>Past analyses</h3>
+  <ul>{_lis}</ul>
+</section>"""
+
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
@@ -2293,6 +2349,11 @@ html = f"""<!DOCTYPE html>
 
   /* ── Footer ── */
   footer {{ padding: 40px 28px; text-align: center; color: var(--text-muted); font-size: 11px; border-top: 1px solid var(--border-subtle); background: var(--bg); margin-top: 0; letter-spacing: 0.01em; }}
+  .past-analyses {{ max-width: 900px; margin: 0 auto; padding: 2rem 28px 0.5rem; border-top: 1px solid var(--border-subtle); }}
+  .past-analyses h3 {{ font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.6rem; }}
+  .past-analyses ul {{ list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; }}
+  .past-analyses li a {{ font-size: 0.8rem; color: var(--accent); text-decoration: none; }}
+  .past-analyses li a:hover {{ color: var(--accent-hover, #93c5fd); text-decoration: underline; }}
   footer a {{ color: var(--accent); text-decoration: none; }}
   footer a:hover {{ text-decoration: underline; }}
 
@@ -2704,10 +2765,11 @@ function closeDetail() {{
 }}
 </script>
 
+{_main_past_runs_html}
+
 <footer>
   <p>McClatchy CSA · T1 Headline Performance Analysis · {REPORT_DATE}</p>
   <p style="margin-top: 6px;">
-    <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
     <a href="playbook/">Playbooks</a> &nbsp;·&nbsp;
     Data: T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
@@ -2723,15 +2785,6 @@ out.write_text(html, encoding="utf-8")
 print(f"Site written to {out}  ({len(html):,} chars)")
 
 # ── Archive logic ─────────────────────────────────────────────────────────────
-import re as _re
-
-def _slug_to_label(slug):
-    try:
-        from datetime import datetime as _dt
-        return _dt.strptime(slug, "%Y-%m").strftime("%B %Y")
-    except Exception:
-        return slug
-
 _pb_path     = Path("docs/playbook/index.html")
 _archive_dir = Path("docs/playbook/archive")
 
@@ -2745,16 +2798,6 @@ if _pb_path.exists():
         _arch_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(_pb_path), str(_arch_dir / "index.html"))
         print(f"Archived {_pb_old_slug} playbook → {_arch_dir}/index.html")
-
-def _slug_age_months(slug):
-    """Months between slug (YYYY-MM) and today. Returns large number on parse failure."""
-    try:
-        from datetime import datetime as _dt, date as _date
-        then = _dt.strptime(slug, "%Y-%m").date().replace(day=1)
-        now  = _date.today().replace(day=1)
-        return (now.year - then.year) * 12 + (now.month - then.month)
-    except Exception:
-        return 999
 
 def _extract_compact_tiles(html_path):
     """Return the tile-grid inner HTML from an archived playbook, stripped of expand behaviour."""
