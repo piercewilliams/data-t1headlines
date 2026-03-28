@@ -3501,13 +3501,29 @@ function toggleTheme() {{
 }}
 
 /* ── Detail panels ── */
+function _setTileMoreText(tile, open) {{
+  var more = tile.querySelector('.tile-more');
+  if (more) more.textContent = open ? 'Close \u2191' : 'Details \u2193';
+}}
+
 function showDetail(id, tile) {{
-  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
-  tile.classList.add('active');
+  var isAlreadyOpen = tile.classList.contains('active');
+  // Reset all tiles to closed state
+  document.querySelectorAll('.tile').forEach(function(t) {{
+    t.classList.remove('active');
+    _setTileMoreText(t, false);
+  }});
   document.querySelectorAll('.detail-panel').forEach(p => p.style.display = 'none');
-  const panel = document.getElementById('detail-' + id);
+  var area = document.getElementById('detail-area');
+  // Toggle: if this tile was already open, collapse it
+  if (isAlreadyOpen) {{
+    area.style.display = 'none';
+    return;
+  }}
+  tile.classList.add('active');
+  _setTileMoreText(tile, true);
+  var panel = document.getElementById('detail-' + id);
   if (panel) panel.style.display = 'block';
-  const area = document.getElementById('detail-area');
   area.style.display = 'block';
   // Re-apply chart theme now that the panel (and its charts) are visible
   setTimeout(function() {{
@@ -3518,7 +3534,10 @@ function showDetail(id, tile) {{
 
 function closeDetail() {{
   document.getElementById('detail-area').style.display = 'none';
-  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tile').forEach(function(t) {{
+    t.classList.remove('active');
+    _setTileMoreText(t, false);
+  }});
 }}
 
 // ── Table sorting ──────────────────────────────────────────
@@ -3607,7 +3626,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
       '                   print-color-adjust: exact !important; }}'  ,
       '}}'
-    ].join('\n');
+    ].join('\\n');
     document.head.appendChild(style);
 
     function _cleanup() {{
@@ -4135,48 +4154,65 @@ function togglePb(tile, id) {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
+// PDF: browser native print — correct colors, vector text, no library needed.
+//      User saves as PDF from browser print dialog (File → Save as PDF).
+// PNG: html2canvas at 3× scale, full scrollWidth/scrollHeight — high-res.
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
   var title   = heading ? heading.textContent.trim() : (panelEl.id || 'export');
   var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
   var date    = new Date().toISOString().slice(0, 10);
-  var fname   = 'headline-analysis-' + slug + '-' + date;
 
-  html2canvas(panelEl, {{
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
-  }}).then(function(canvas) {{
-    if (format === 'png') {{
+  if (format === 'pdf') {{
+    var clone = panelEl.cloneNode(true);
+    clone.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    var wrap = document.createElement('div');
+    wrap.id = '_exp_print';
+    wrap.appendChild(clone);
+    document.body.appendChild(wrap);
+    var style = document.createElement('style');
+    style.id = '_exp_style';
+    style.textContent = [
+      '@media print {{',
+      '  body > *:not(#_exp_print) {{ display: none !important; }}',
+      '  #_exp_print {{ display: block !important; padding: 28px; }}',
+      '  #_exp_print * {{ -webkit-print-color-adjust: exact !important;',
+      '                   print-color-adjust: exact !important; }}'  ,
+      '}}'
+    ].join('\\n');
+    document.head.appendChild(style);
+    function _cleanup() {{
+      var w = document.getElementById('_exp_print');
+      var s = document.getElementById('_exp_style');
+      if (w) w.remove();
+      if (s) s.remove();
+      window.removeEventListener('afterprint', _cleanup);
+    }}
+    window.addEventListener('afterprint', _cleanup);
+    window.print();
+  }} else {{
+    html2canvas(panelEl, {{
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width:       panelEl.scrollWidth,
+      height:      panelEl.scrollHeight,
+      windowWidth: document.documentElement.scrollWidth,
+      backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+    }}).then(function(canvas) {{
       canvas.toBlob(function(blob) {{
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = fname + '.png';
+        a.download = 'headline-analysis-' + slug + '-' + date + '.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
-      }});
-    }} else {{
-      var jsPDF = window.jspdf && window.jspdf.jsPDF;
-      if (!jsPDF) {{ alert('PDF library not loaded — try PNG instead.'); return; }}
-      var w = canvas.width / 2, h = canvas.height / 2;
-      var pdf = new jsPDF({{
-        orientation: w > h ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [w, h],
-        hotfixes: ['px_scaling']
-      }});
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
-      pdf.save(fname + '.pdf');
-    }}
-  }}).catch(function(err) {{
-    console.error('Export failed:', err);
-    alert('Export failed — see browser console for details.');
-  }});
+      }}, 'image/png');
+    }}).catch(function(err) {{ console.error('PNG export failed:', err); }});
+  }}
 }}
 
 (function() {{
