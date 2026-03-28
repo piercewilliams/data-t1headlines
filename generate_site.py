@@ -2018,6 +2018,24 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             )
         _formula_tbody = "\n".join(_formula_rows) or "<tr><td colspan='5'>No formula data</td></tr>"
 
+        # Significance note for formula table
+        if _formula_test_p is not None:
+            if _formula_sig:
+                _f_sig_note = (f'<p class="detail-sub" style="color:#4ade80;margin-top:0.4rem">'
+                               f'&#10003; Top formula vs. dominant: p={_formula_test_p:.3f} '
+                               f'(Mann-Whitney U, one-tailed) — statistically significant.</p>')
+            elif _formula_dir:
+                _f_sig_note = (f'<p class="detail-sub" style="margin-top:0.4rem">'
+                               f'Top formula vs. dominant: p={_formula_test_p:.3f} — directional, '
+                               f'not yet significant at p&lt;0.05. Worth testing with more articles.</p>')
+            else:
+                _f_sig_note = (f'<p class="detail-sub" style="margin-top:0.4rem">'
+                               f'Top formula vs. dominant: p={_formula_test_p:.3f} — no significant '
+                               f'difference detected. More data needed.</p>')
+        else:
+            _f_sig_note = ('<p class="detail-sub" style="margin-top:0.4rem">'
+                           'Significance test not run (fewer than 3 articles per formula group).</p>')
+
         _plat_rows = []
         for _, _pr in _ap.iterrows():
             _lift_p = float(_pr["med_pct"]) / _team_med_pct if _team_med_pct > 0 else 1.0
@@ -2028,6 +2046,23 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                 f'<td><span class="{_lp_cls}">{_lift_p:.2f}\u00d7</span></td></tr>'
             )
         _plat_tbody = "\n".join(_plat_rows) or "<tr><td colspan='4'>No platform data</td></tr>"
+
+        # Significance note for platform table
+        if _platform_test_p is not None:
+            if _platform_sig:
+                _p_sig_note = (f'<p class="detail-sub" style="color:#4ade80;margin-top:0.4rem">'
+                               f'&#10003; Best vs. weakest platform: p={_platform_test_p:.3f} '
+                               f'(Mann-Whitney U, one-tailed) — statistically significant.</p>')
+            elif _platform_dir:
+                _p_sig_note = (f'<p class="detail-sub" style="margin-top:0.4rem">'
+                               f'Best vs. weakest platform: p={_platform_test_p:.3f} — directional, '
+                               f'not yet significant at p&lt;0.05.</p>')
+            else:
+                _p_sig_note = (f'<p class="detail-sub" style="margin-top:0.4rem">'
+                               f'Best vs. weakest platform: p={_platform_test_p:.3f} — no significant '
+                               f'difference detected.</p>')
+        else:
+            _p_sig_note = ""  # no platform split → no note needed
 
         _top_arts = _adf.nlargest(min(10, _n), "percentile")
         _top_rows = []
@@ -2082,24 +2117,26 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             f'<div id="{_ap_id}" class="pb-detail" style="display:none">\n'
             f'  <h3 class="rh">Performance overview</h3>\n'
             f'  <p class="detail-sub">{_n} matched articles across {_n_plats} platform(s) \u00b7 '
-            f'{_med:.0%} median percentile \u00b7 {_delta_pts:.1f} pts {_above_below} team median '
+            f'{_med:.0%} median cohort percentile \u00b7 {_delta_pts:.1f} pts {_above_below} team median '
             f'({_team_med_pct:.0%})</p>\n'
             f'\n  <h3 class="rh">Formula profile</h3>\n'
             f'  <p class="detail-sub">Lift vs. team-wide median for each formula. '
             f'&gt;1.0\u00d7 = outperforms team benchmark for that format.</p>\n'
             f'  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th>'
-            f'<th>Median %ile</th><th>Lift vs. team</th></tr></thead>\n'
+            f'<th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>\n'
             f'  <tbody>{_formula_tbody}</tbody></table>\n'
-            f'\n  <h3 class="rh">Platform distribution</h3>\n'
-            f'  <p class="detail-sub">Lift vs. overall team median ({_team_med_pct:.0%}).</p>\n'
+            f'{_f_sig_note}'
+            f'\n  <h3 class="rh">Platform breakdown</h3>\n'
+            f'  <p class="detail-sub">Cohort percentile vs. overall team median ({_team_med_pct:.0%}).</p>\n'
             f'  <table><thead><tr><th>Platform</th><th>n</th>'
-            f'<th>Median %ile</th><th>Lift vs. team</th></tr></thead>\n'
+            f'<th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>\n'
             f'  <tbody>{_plat_tbody}</tbody></table>\n'
+            f'{_p_sig_note}'
             f'{_ct_section_html}\n'
-            f'  <h3 class="rh">Top {len(_top_arts)} articles by percentile rank</h3>\n'
+            f'  <h3 class="rh">Top {len(_top_arts)} articles by cohort percentile</h3>\n'
             f'  <p class="detail-sub">Highest-performing matched articles for {_safe_auth}.</p>\n'
             f'  <table><thead><tr><th>Headline</th><th>Platform</th>'
-            f'<th>Views</th><th>%ile</th></tr></thead>\n'
+            f'<th>Views</th><th>Cohort %ile</th></tr></thead>\n'
             f'  <tbody>{_top_tbody}</tbody></table>\n'
             f'</div>'
         )
