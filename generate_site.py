@@ -3961,7 +3961,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -4028,7 +4033,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     // dom-to-image-more: serializes DOM → SVG foreignObject → PNG.
     // Text is rendered by the browser's own engine — no character-measurement
     // heuristics, so system fonts (SF Pro / -apple-system) render correctly.
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png');
       if (c) c.remove();
       var a = document.createElement('a');
@@ -4585,7 +4595,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -4636,7 +4651,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       var a = document.createElement('a');
       a.href = dataUrl;
@@ -4969,7 +4989,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(_pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var src = document.getElementById('_exp_print_src'); if (src) src.remove();
       var printDiv = document.createElement('div');
       printDiv.id = '_exp_print';
@@ -5020,7 +5045,12 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(pc);
     document.body.appendChild(container);
-    domtoimage.toPng(container, {{ bgcolor: bg }}).then(function(dataUrl) {{
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth,
+      height: container.scrollHeight,
+      style:  {{ position: 'relative', left: '0', top: '0' }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       var a = document.createElement('a');
       a.href = dataUrl;
