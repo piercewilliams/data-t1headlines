@@ -1,22 +1,28 @@
 """
-T1 Headline Analysis site generator
-Run:    python3 generate_site.py
-Output: docs/index.html
+generate_site.py — T1 Headline Analysis site generator.
 
-Optional args:
-  --data-2025 "path/to/new_2025_file.xlsx"
-  --data-2026 "path/to/new_2026_file.xlsx"
-  --tracker   "path/to/Tracker Template.xlsx"
+Reads two Excel exports (2025 and 2026 YTD) from Chris Tarrow's Google Sheet,
+runs 9 statistical analyses, and writes:
+  - docs/index.html          — main analysis page (9 findings, interactive tiles)
+  - docs/playbook/index.html — editorial playbooks (sorted by confidence level)
+
+Usage:
+    python3 generate_site.py [--data-2025 FILE] [--data-2026 FILE]
+                              [--tracker FILE] [--theme light|dark]
+                              [--release YYYY-MM] [--skip-main-archive]
+
+Called by ingest.py for the standard monthly update. See CLAUDE.md for the
+automated workflow and PLAYBOOK.md for scenario-specific guidance.
 """
 
 import argparse
 import html as html_module
+import json
 import math
 import shutil
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import re
 import warnings
 from datetime import datetime
@@ -24,6 +30,35 @@ from pathlib import Path
 from scipy import stats
 
 warnings.filterwarnings("ignore")
+
+# ── Optional packages (graceful fallbacks if not installed) ───────────────────
+# Install all: pip3 install statsmodels polars scikit-learn pingouin xlrd
+try:
+    import statsmodels.api as sm
+    from statsmodels.discrete.discrete_model import Logit
+    from statsmodels.stats.multitest import multipletests as sm_multipletests
+    HAS_STATSMODELS = True
+except ImportError:
+    HAS_STATSMODELS = False
+
+try:
+    import polars as pl
+    HAS_POLARS = True
+except ImportError:
+    HAS_POLARS = False
+
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.preprocessing import LabelEncoder
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
+
+try:
+    import pingouin as pg
+    HAS_PINGOUIN = True
+except ImportError:
+    HAS_PINGOUIN = False
 
 parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site")
 parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
@@ -107,7 +142,8 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 
 
 # ── Classifiers ───────────────────────────────────────────────────────────────
-def classify_formula(text):
+def classify_formula(text: str) -> str:
+    """Classify a headline into one of 7 formula types using regex. Returns the formula name string."""
     t = str(text).strip()
     tl = t.lower()
     if re.match(r"^\d", t): return "number_lead"
@@ -118,7 +154,8 @@ def classify_formula(text):
     if t.startswith("\u2018"): return "quoted_lede"
     return "untagged"
 
-def tag_topic(text):
+def tag_topic(text: str) -> str:
+    """Tag a headline with a topic using keyword/regex matching. Returns the topic string."""
     t = str(text).lower()
     if re.search(r"\b(shot|kill|murder|dead|death|shooting|arrest|charge|crime|victim|police|cop|suspect|robbery|assault)\b", t): return "crime"
     if re.search(r"\b(game|team|nfl|nba|mlb|nhl|coach|season|championship|super bowl|playoff|quarterback)\b", t): return "sports"
@@ -130,7 +167,7 @@ def tag_topic(text):
     if re.search(r"\b(animal|creature|species|wildlife|shark|bear|alligator|snake|bird|dog|cat|pet)\b", t): return "nature_wildlife"
     return "other"
 
-def tag_subtopic(text, topic):
+def tag_subtopic(text: str, topic: str) -> "str | None":
     """Two-level classifier. Returns subtopic for sports and crime, None for others."""
     t = str(text).lower()
     if topic == "sports":
@@ -163,7 +200,7 @@ def tag_subtopic(text, topic):
     return None
 
 
-def classify_number_lead(text):
+def classify_number_lead(text: str) -> "dict | None":
     """Classify the lead number in a number_lead headline by type and roundness."""
     t = str(text).strip()
     # Extract the leading token
@@ -202,7 +239,8 @@ def classify_number_lead(text):
 
 
 # ── Statistical helpers ───────────────────────────────────────────────────────
-def bh_correct(pvals):
+def bh_correct(pvals: "list[float]") -> "list[float]":
+    """Apply Benjamini-Hochberg FDR correction. Returns adjusted p-values in the same order."""
     n = len(pvals)
     if n == 0: return []
     order = sorted(range(n), key=lambda i: pvals[i])
@@ -216,11 +254,13 @@ def bh_correct(pvals):
         result[orig_i] = min(adj_sorted[rank], 1.0)
     return result
 
-def rank_biserial(u_stat, n1, n2):
+def rank_biserial(u_stat: float, n1: int, n2: int) -> float:
+    """Compute rank-biserial r effect size from a Mann-Whitney U statistic. Range: -1 to 1."""
     return 1.0 - (2.0 * u_stat) / (n1 * n2)
 
-def bootstrap_ci_lift(grp_vals, base_vals, n_boot=1000, ci=0.95):
-    rng = np.random.default_rng(42)
+def bootstrap_ci_lift(grp_vals: np.ndarray, base_vals: np.ndarray, n_boot: int = 1000, seed: int = 42, ci: float = 0.95) -> "tuple[float, float]":
+    """Bootstrap 95% CI on the median ratio (group_b / group_a). Returns (ci_lo, ci_hi)."""
+    rng = np.random.default_rng(seed)
     boot = []
     for _ in range(n_boot):
         sg = rng.choice(grp_vals, size=len(grp_vals), replace=True)
@@ -231,7 +271,8 @@ def bootstrap_ci_lift(grp_vals, base_vals, n_boot=1000, ci=0.95):
     alpha = 1 - ci
     return float(np.percentile(boot, alpha / 2 * 100)), float(np.percentile(boot, (1 - alpha / 2) * 100))
 
-def required_n_80pct(r_rb):
+def required_n_80pct(effect_r: float, alpha: float = 0.05) -> "int | None":
+    r_rb = effect_r
     if r_rb is None or r_rb == 0: return None
     r = abs(r_rb)
     d = 2 * r / math.sqrt(max(1 - r ** 2, 1e-9))
@@ -245,14 +286,9 @@ _RIGOR_WARNINGS: list = []
 def _rigor_warn(section: str, msg: str) -> None:
     _RIGOR_WARNINGS.append(f"[{section}] {msg}")
 
-def _conf_level(p_adj=None, n=None, n_platforms=1, p_raw=None):
-    """Return (css_class, label) based on consistent statistical criteria.
-
-    High:         p_adj < 0.05, n ≥ 100, replicated on ≥ 2 platforms
-    Moderate:     p_adj < 0.05, n ≥ 20  OR  p_raw < 0.10, n ≥ 100
-    Directional:  p < 0.10 or untested, n ≥ 10
-    Insufficient: n < 10
-    """
+def _conf_level(p_adj: "float | None" = None, n: "int | None" = None, n_platforms: int = 1, p_raw: "float | None" = None) -> "tuple[str, str]":
+    """Return (css_class, label) for a confidence badge. Criteria: High = p_adj<0.05 AND n≥100
+    AND n_platforms≥2; Moderate = p_adj<0.05 AND n≥20; Directional = p<0.10 or untested AND n≥10."""
     if n is not None and n < 10:
         return "conf-dir", "Insufficient data"
     if p_adj is not None and p_adj < 0.05:
@@ -265,19 +301,17 @@ def _conf_level(p_adj=None, n=None, n_platforms=1, p_raw=None):
         return "conf-mod", "Moderate"
     return "conf-dir", "Directional"
 
-def _require_test(section: str, p_adj, n_a: int, n_b: int = 0) -> None:
+def _require_test(section: str, p_adj: "float | None", n_a: int, n_b: int = 0) -> None:
     """Emit a build-time warning if a group comparison lacks a significance test."""
     if p_adj is None or (isinstance(p_adj, float) and math.isnan(float(p_adj))):
         _rigor_warn(section, f"No significance test (n_a={n_a}, n_b={n_b}). Add Mann-Whitney U.")
 
 
 # ── normalize() ───────────────────────────────────────────────────────────────
-def normalize(df, views_col, date_col=None, group_col=None):
-    """
-    Add two normalized columns to df (in-place):
-    - views_per_day: views / days since publish (only if date_col provided)
-    - percentile_within_cohort: percentile rank within same publication month
-    """
+def normalize(df: pd.DataFrame, views_col: str, date_col: "str | None" = None, group_col: "str | None" = None) -> pd.DataFrame:
+    """Add views_per_day and percentile_within_cohort columns. percentile_within_cohort is the
+    primary metric — percentile rank within the same publication-month cohort, controlling for
+    temporal view accumulation."""
     df = df.copy()
     if date_col is not None:
         dates = pd.to_datetime(df[date_col], errors="coerce")
@@ -301,7 +335,7 @@ _KNOWN_SHEETS_2026 = {"Apple News", "Apple News Notifications", "SmartNews", "Ya
                       "MSN Video", "MSN video", "Yahoo Video", "Yahoo video",
                       "MSN (minumum 10k PV)", "Notifications summary"}
 
-def _check_new_sheets(path, known_sheets):
+def _check_new_sheets(path: str, known_sheets: "set[str]") -> None:
     """Warn if the Excel file contains sheets the pipeline doesn't analyze."""
     try:
         import openpyxl as _openpyxl
@@ -313,8 +347,8 @@ def _check_new_sheets(path, known_sheets):
             _rigor_warn("sheet_discovery",
                         f"{Path(path).name}: sheets not yet in pipeline — {sorted(_new)}. "
                         "Add to generate_site.py if data is worth analyzing.")
-    except Exception:
-        pass  # openpyxl unavailable or file unreadable; non-fatal
+    except ImportError:
+        pass  # openpyxl unavailable; non-fatal
 
 _check_new_sheets(DATA_2025, _KNOWN_SHEETS_2025)
 _check_new_sheets(DATA_2026, _KNOWN_SHEETS_2026)
@@ -338,7 +372,7 @@ def _fix_mac_encoding(text):
         return str(text).encode("mac_roman").decode("utf-8")
     except (UnicodeEncodeError, UnicodeDecodeError):
         return str(text)
-an_2026["Article"] = an_2026["Article"].dropna().apply(_fix_mac_encoding).reindex(an_2026.index)
+an_2026["Article"] = an_2026["Article"].apply(lambda x: _fix_mac_encoding(x) if pd.notna(x) else x)
 
 # Common columns for concat
 _common_cols = [c for c in an_2025.columns if c in an_2026.columns]
@@ -358,7 +392,7 @@ msn   = pd.read_excel(DATA_2025, sheet_name="MSN")
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
 
 # ── Column validation — friendly errors instead of KeyError crashes ───────────
-def _require_col(df, col, sheet_label):
+def _require_col(df: pd.DataFrame, col: str, sheet_label: str) -> None:
     if col not in df.columns:
         raise SystemExit(
             f"\n✗  Missing column '{col}' in {sheet_label}.\n"
@@ -484,6 +518,20 @@ df_q1 = pd.DataFrame(q1_rows).sort_values("median")
 if "p_adj" not in df_q1.columns:
     df_q1["p_adj"] = np.nan
 
+# Kruskal-Wallis omnibus: is there ANY difference across all formula groups?
+# Runs automatically when statsmodels is present; result surfaces in build report.
+Q1_KW_P: float | None = None
+Q1_KW_STAT: float | None = None
+_kw_groups = [
+    nf[nf["formula"] == f][VIEWS_METRIC].dropna().values
+    for f in FORMULA_LABELS if len(nf[nf["formula"] == f]) >= 5
+]
+if len(_kw_groups) >= 2:
+    try:
+        Q1_KW_STAT, Q1_KW_P = stats.kruskal(*_kw_groups)
+    except (ValueError, TypeError):
+        pass
+
 
 # ── Q2: Featured rate per formula ─────────────────────────────────────────────
 overall_feat_rate = an["is_featured"].mean()
@@ -503,7 +551,7 @@ for f, label in FORMULA_LABELS.items():
                      [other_feat, max(other_total - other_feat, 0)]])
     try:
         _chi2_f, _p_chi_f, _, _ = stats.chi2_contingency(_ctg)
-    except Exception:
+    except (ValueError, ZeroDivisionError):
         _chi2_f, _p_chi_f = np.nan, 1.0
     _q2_raw_p.append(_p_chi_f)
     _q2_indices.append(len(q2_rows))
@@ -532,6 +580,36 @@ feat_at_col = "Avg. Active Time (in seconds)"
 _feat_at_an  = an[an["is_featured"]][feat_at_col].dropna()
 _nfeat_at_an = an[~an["is_featured"]][feat_at_col].dropna()
 _, p_feat_at = stats.mannwhitneyu(_feat_at_an, _nfeat_at_an, alternative="two-sided")
+
+# Logistic regression: Featured placement ~ formula + topic + headline_length
+# Supplements the per-formula chi-square by controlling for confounders simultaneously.
+# Only runs when statsmodels is present; result surfaces in build report.
+Q2_LOGIT_SUMMARY: str | None = None
+Q2_LOGIT_TOP: list[tuple[str, float, float]] = []   # [(predictor, coef, p)]
+if HAS_STATSMODELS:
+    try:
+        _lr_df = an.copy()
+        _lr_df["hl_len"] = _lr_df["Article"].str.len().fillna(0)
+        _lr_df = pd.get_dummies(_lr_df, columns=["formula", "topic"], drop_first=True)
+        _lr_cols = [c for c in _lr_df.columns if c.startswith("formula_") or c.startswith("topic_")]
+        _lr_cols.append("hl_len")
+        _lr_X = _lr_df[_lr_cols].astype(float)
+        _lr_X = sm.add_constant(_lr_X)
+        _lr_y = _lr_df["is_featured"].astype(int)
+        _lr_model = Logit(_lr_y, _lr_X).fit(disp=False, maxiter=200)
+        # Extract significant predictors (p < 0.10)
+        for pred, coef, pval in zip(_lr_model.params.index, _lr_model.params.values, _lr_model.pvalues.values):
+            if pred != "const" and pval < 0.10:
+                Q2_LOGIT_TOP.append((pred, float(coef), float(pval)))
+        Q2_LOGIT_TOP.sort(key=lambda x: abs(x[1]), reverse=True)
+        Q2_LOGIT_SUMMARY = (
+            f"Logistic regression (n={len(_lr_y)}, outcome=Featured): "
+            f"pseudo-R²={_lr_model.prsquared:.3f}, "
+            f"AIC={_lr_model.aic:.1f}. "
+            f"{len(Q2_LOGIT_TOP)} predictor(s) significant at p<0.10."
+        )
+    except Exception:
+        pass  # Non-critical; chi-square results stand
 
 
 # ── Q4: SmartNews category ROI ────────────────────────────────────────────────
@@ -796,7 +874,8 @@ try:
         labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"], duplicates="drop")
     sn["_hl_bucket"] = pd.qcut(sn["_hl_len"], 4,
         labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"], duplicates="drop")
-except Exception:
+except (ValueError, TypeError):
+    # qcut fails when too many ties; fall back to fixed-width bins
     an["_hl_bucket"] = pd.cut(an["_hl_len"], bins=[0,55,75,95,999],
         labels=["Short (Q1)","Medium (Q2)","Long (Q3)","Very long (Q4)"])
     sn["_hl_bucket"] = pd.cut(sn["_hl_len"], bins=[0,55,75,95,999],
@@ -938,17 +1017,37 @@ STOPWORDS = {
 }
 
 def top_words(texts, n=30):
-    words = {}
+    """Frequency-based keyword extraction (fallback when scikit-learn is unavailable)."""
+    words: dict[str, int] = {}
     for t in texts:
         for w in re.sub(r"[^a-z\s]", "", str(t).lower()).split():
             if w not in STOPWORDS and len(w) > 2:
                 words[w] = words.get(w, 0) + 1
     return set(sorted(words, key=lambda x: -words[x])[:n])
 
+def top_words_tfidf(texts, n=30):
+    """TF-IDF keyword extraction — upweights terms distinctive to top-quartile headlines."""
+    docs = [re.sub(r"[^a-z\s]", "", str(t).lower()) for t in texts]
+    vec = TfidfVectorizer(stop_words=list(STOPWORDS), min_df=2, max_features=500, ngram_range=(1, 1))
+    try:
+        X = vec.fit_transform(docs)
+        scores = X.sum(axis=0).A1
+        terms = vec.get_feature_names_out()
+        top = sorted(zip(terms, scores), key=lambda x: -x[1])[:n]
+        return {t for t, _ in top}
+    except ValueError:
+        return top_words(texts, n)
+
 q75_an = an[VIEWS_METRIC].quantile(0.75)
 q75_sn = sn[VIEWS_METRIC].quantile(0.75)
-top_an_words = top_words(an[an[VIEWS_METRIC] >= q75_an]["Article"])
-top_sn_words = top_words(sn[sn[VIEWS_METRIC] >= q75_sn]["title"])
+_top_an_texts = an[an[VIEWS_METRIC] >= q75_an]["Article"]
+_top_sn_texts = sn[sn[VIEWS_METRIC] >= q75_sn]["title"]
+if HAS_SKLEARN:
+    top_an_words = top_words_tfidf(_top_an_texts)
+    top_sn_words = top_words_tfidf(_top_sn_texts)
+else:
+    top_an_words = top_words(_top_an_texts)
+    top_sn_words = top_words(_top_sn_texts)
 kw_overlap   = top_an_words & top_sn_words
 kw_overlap_n = len(kw_overlap)
 
@@ -1039,7 +1138,7 @@ df_yoy_valid = df_yoy[(df_yoy["suppressed"] == False)].dropna(subset=["lift_2025
 if len(df_yoy_valid) > 0:
     df_yoy_valid = df_yoy_valid.copy()
     df_yoy_valid["_delta"] = (df_yoy_valid["lift_2026"] - df_yoy_valid["lift_2025"]).abs()
-    _biggest_change_row = df_yoy_valid.sort_values("_delta", ascending=False).iloc[0]
+    _biggest_change_row = df_yoy_valid.nlargest(1, "_delta").iloc[0]
     YOY_CHANGING_FORMULA = _biggest_change_row["label"]
     YOY_CHANGING_DELTA   = _biggest_change_row["lift_2026"] - _biggest_change_row["lift_2025"]
 else:
@@ -1474,7 +1573,7 @@ def _nl_size_table():
 
 def _q1_table():
     rows = df_q1[df_q1["formula"] != "untagged"].sort_values("lift", ascending=False)
-    html_out = ""
+    parts = []
     for _, r in rows.iterrows():
         p_adj = r.get("p_adj", np.nan)
         p_raw = r.get("p")
@@ -1485,14 +1584,14 @@ def _q1_table():
         req_n_str = f"~{int(_rn)} needed" if (_rn is not None and pd.notna(_rn)) else "—"
         pct_str = f"{r['median']:.0%}"
         tag = _row_tag(r["lift"])
-        html_out += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+        parts.append(f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
                      f'<td>{pct_str}</td><td>{r["lift"]:.2f}×</td><td>{ci_str}</td>'
                      f'<td>{r_str}</td><td>{p_str}</td><td>{req_n_str}</td></tr>\n')
-    return html_out
+    return "".join(parts)
 
 def _q2_table():
     rows = df_q2[df_q2["formula"] != "untagged"].sort_values("featured_rate", ascending=False)
-    html_out = ""
+    parts = []
     for _, r in rows.iterrows():
         feat_med = r.get("feat_med_views")
         if feat_med is not None and not np.isnan(float(feat_med)):
@@ -1502,52 +1601,52 @@ def _q2_table():
         p_adj = r.get("p_chi_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else _fmt_p(r["p_chi"])
         tag = _row_tag(r["featured_lift"])
-        html_out += (f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
+        parts.append(f'<tr><td>{tag}{r["label"]}</td><td>{r["n"]:,}</td>'
                      f'<td>{r["featured_rate"]:.0%}</td>'
                      f'<td>{r["featured_lift"]:.2f}×</td>'
                      f'<td>{p_str}</td>'
                      f'<td>{wf}</td></tr>\n')
-    return html_out
+    return "".join(parts)
 
 def _q4_table():
     rows_sorted = df_q4[df_q4["category"] != "Top"].sort_values("lift", ascending=False)
-    html_out = ""
+    parts = []
     for _, r in rows_sorted.iterrows():
         is_red = (r["lift"] < 2.0 and r["category"] in ("Entertainment", "Lifestyle"))
         tag = _row_tag(r["lift"], is_red=is_red)
         p_adj = r.get("p_mw_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (p_adj is None or (isinstance(p_adj, float) and np.isnan(float(p_adj)))) else "—"
-        html_out += (f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
+        parts.append(f'<tr><td>{tag}{r["category"]}</td><td>{r["n"]:,}</td>'
                      f'<td>{r["pct_share"]:.1%}</td>'
                      f'<td>{r["median_pct"]:.0%}</td>'
                      f'<td>{int(r["median_views"]):,}</td>'
                      f'<td>{r["lift"]:.2f}×</td>'
                      f'<td>{p_str}</td></tr>\n')
     if _r4_top is not None:
-        html_out += (f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
+        parts.append(f'<tr><td>Top feed (baseline)</td><td>{int(_r4_top["n"]):,}</td>'
                      f'<td>{_r4_top["pct_share"]:.1%}</td>'
                      f'<td>{top_median_sn_pct:.0%}</td>'
                      f'<td>{int(_r4_top["median_views"]):,}</td><td>1.00×</td><td>—</td></tr>\n')
-    return html_out
+    return "".join(parts)
 
 def _q5_table():
     sig = df_q5[df_q5.apply(
         lambda r: (r.get("p_adj", r["p"]) if not (isinstance(r.get("p_adj", np.nan), float) and np.isnan(r.get("p_adj", np.nan))) else r["p"]) < 0.05,
         axis=1
     )].sort_values("lift", ascending=False)
-    html_out = ""
+    parts = []
     for _, r in sig.iterrows():
         p_adj = r.get("p_adj", np.nan)
         p_str = _fmt_p(p_adj, adj=True) if not (isinstance(p_adj, float) and np.isnan(p_adj)) else _fmt_p(r["p"])
         r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
         ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
         tag = _row_tag(r["lift"])
-        html_out += (f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
+        parts.append(f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
                      f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
                      f'<td>{r["lift"]:.2f}× {ci_str}</td>'
                      f'<td>{r_str}</td>'
                      f'<td>{p_str}</td></tr>\n')
-    return html_out
+    return "".join(parts)
 
 def _sports_subtopic_table():
     html_out = ""
@@ -1760,7 +1859,8 @@ if not df_wc_quartile.empty and WC_MATCHED_N >= 20:
         WC_Q4_WORDS = float(_wci.loc["Q4 (long)", "med_wc"])   if "Q4 (long)" in _wci.index else np.nan
         WC_Q2_PCT   = float(_wci.loc["Q2", "med_pct"])         if "Q2" in _wci.index else np.nan
         WC_Q2_WORDS = float(_wci.loc["Q2", "med_wc"])          if "Q2" in _wci.index else np.nan
-    except Exception:
+    except (KeyError, ValueError):
+        # Intentional: quartile labels may vary; default to nan so downstream strs show "—"
         WC_Q4_PCT = WC_Q4_WORDS = WC_Q2_PCT = WC_Q2_WORDS = np.nan
 else:
     WC_Q4_PCT = WC_Q4_WORDS = WC_Q2_PCT = WC_Q2_WORDS = np.nan
@@ -1778,7 +1878,8 @@ if not df_hl_len.empty:
         AN_LEN_Q4_PCT   = float(_hli.loc["Very long (Q4)", "an_med"])     if "Very long (Q4)" in _hli.index else np.nan
         AN_LEN_Q1_CHARS = float(_hli.loc["Short (Q1)",     "an_len_med"]) if "Short (Q1)"     in _hli.index else np.nan
         AN_LEN_Q4_CHARS = float(_hli.loc["Very long (Q4)", "an_len_med"]) if "Very long (Q4)" in _hli.index else np.nan
-    except Exception:
+    except (KeyError, ValueError):
+        # Intentional: bucket labels may vary if qcut fell back; default to nan for display
         AN_LEN_Q1_PCT = AN_LEN_Q4_PCT = AN_LEN_Q1_CHARS = AN_LEN_Q4_CHARS = np.nan
 else:
     AN_LEN_Q1_PCT = AN_LEN_Q4_PCT = AN_LEN_Q1_CHARS = AN_LEN_Q4_CHARS = np.nan
@@ -2216,13 +2317,13 @@ if NL_PARSED >= 10:
 """
 
 # ── Archive helpers (shared by main page and playbook archive logic) ──────────
-import re as _re
 
 def _slug_to_label(slug):
     try:
         from datetime import datetime as _dt
         return _dt.strptime(slug, "%Y-%m").strftime("%B %Y")
-    except Exception:
+    except ValueError:
+        # Slug doesn't match YYYY-MM format; return as-is
         return slug
 
 def _slug_age_months(slug):
@@ -2232,7 +2333,8 @@ def _slug_age_months(slug):
         then = _dt.strptime(slug, "%Y-%m").date().replace(day=1)
         now  = _date.today().replace(day=1)
         return (now.year - then.year) * 12 + (now.month - then.month)
-    except Exception:
+    except ValueError:
+        # Slug doesn't match YYYY-MM format; treat as very old to exclude from display
         return 999
 
 # ── Main page archive logic (runs before html f-string so _main_past_runs_html is defined) ──
@@ -2243,7 +2345,7 @@ _main_arch_dir = Path("docs/archive")
 # (skipped when ingest.py is in charge of archiving via --skip-main-archive)
 if not SKIP_ARCHIVE and _main_path.exists():
     _main_existing = _main_path.read_text(encoding="utf-8")
-    _main_m        = _re.search(r'<meta name="data-run" content="([^"]+)"', _main_existing)
+    _main_m        = re.search(r'<meta name="data-run" content="([^"]+)"', _main_existing)
     _main_old_slug = _main_m.group(1) if _main_m else None
     if _main_old_slug and _main_old_slug != REPORT_DATE_SLUG:
         _main_arch_slot = _main_arch_dir / _main_old_slug
@@ -2824,7 +2926,7 @@ function closeDetail() {{
     var s = text.replace(/<[^>]+>/g, '').trim();
     // Try to extract a leading number (handles ×, %, ~, p<, [, —)
     if (s === '—' || s === '') return -Infinity;
-    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    var m = s.match(/^[~\u2264<\u2265>]?\\s*([\\d,.]+)/);
     if (m) return parseFloat(m[1].replace(/,/g, ''));
     return s.toLowerCase();
   }}
@@ -2890,7 +2992,7 @@ _archive_dir = Path("docs/playbook/archive")
 # If the existing playbook is from a different run, archive it before overwriting
 if _pb_path.exists():
     _pb_existing = _pb_path.read_text(encoding="utf-8")
-    _pb_m        = _re.search(r'<meta name="data-run" content="([^"]+)"', _pb_existing)
+    _pb_m        = re.search(r'<meta name="data-run" content="([^"]+)"', _pb_existing)
     _pb_old_slug = _pb_m.group(1) if _pb_m else None
     if _pb_old_slug and _pb_old_slug != REPORT_DATE_SLUG:
         _arch_dir = _archive_dir / _pb_old_slug
@@ -2902,14 +3004,15 @@ def _extract_compact_tiles(html_path):
     """Return the tile-grid inner HTML from an archived playbook, stripped of expand behaviour."""
     try:
         content = Path(html_path).read_text(encoding="utf-8")
-        m = _re.search(r'<div class="tile-grid">(.*?)</div>\s*\n\s*\n\s*<!--', content, _re.DOTALL)
+        m = re.search(r'<div class="tile-grid">(.*?)</div>\s*\n\s*\n\s*<!--', content, re.DOTALL)
         if not m:
             return None
         tiles = m.group(1)
-        tiles = _re.sub(r' onclick="[^"]*"', '', tiles)          # remove expand handlers
-        tiles = _re.sub(r'\s*<span class="tile-toggle">[^<]*</span>', '', tiles)  # remove toggle
+        tiles = re.sub(r' onclick="[^"]*"', '', tiles)          # remove expand handlers
+        tiles = re.sub(r'\s*<span class="tile-toggle">[^<]*</span>', '', tiles)  # remove toggle
         return tiles.strip()
-    except Exception:
+    except (OSError, AttributeError):
+        # Intentional: archived file may be missing or malformed; return None to skip in playbook
         return None
 
 # Collect past archived runs (newest first), capped at 12 months
@@ -3248,7 +3351,7 @@ function togglePb(tile, id) {{
   function parseCell(text) {{
     var s = text.replace(/<[^>]+>/g, '').trim();
     if (s === '—' || s === '') return -Infinity;
-    var m = s.match(/^[~≤<≥>]?\s*([\d,.]+)/);
+    var m = s.match(/^[~\u2264<\u2265>]?\\s*([\\d,.]+)/);
     if (m) return parseFloat(m[1].replace(/,/g, ''));
     return s.toLowerCase();
   }}
@@ -3326,7 +3429,7 @@ _build_meta = {
 _meta_slot = _main_arch_dir / REPORT_DATE_SLUG
 _meta_slot.mkdir(parents=True, exist_ok=True)
 (_meta_slot / "meta.json").write_text(
-    __import__("json").dumps(_build_meta, indent=2), encoding="utf-8"
+    json.dumps(_build_meta, indent=2), encoding="utf-8"
 )
 
 # ── Rigor warnings summary ────────────────────────────────────────────────────
@@ -3336,6 +3439,15 @@ print(f"{'─'*60}")
 print(f"  Apple News rows : {N_AN:,}    SmartNews : {N_SN:,}    Notifications : {N_NOTIF:,}")
 print(f"  Playbook tiles  : {_conf_counts['High confidence']}× High  "
       f"{_conf_counts['Moderate']}× Moderate  {_conf_counts['Directional']}× Directional")
+print(f"  Packages        : statsmodels={'✓' if HAS_STATSMODELS else '✗ (pip install statsmodels)'}  "
+      f"sklearn={'✓' if HAS_SKLEARN else '✗ (pip install scikit-learn)'}  "
+      f"polars={'✓' if HAS_POLARS else '✗ (pip install polars)'}  "
+      f"pingouin={'✓' if HAS_PINGOUIN else '✗ (pip install pingouin)'}")
+if Q1_KW_P is not None:
+    _kw_sig = "significant" if Q1_KW_P < 0.05 else "not significant"
+    print(f"  Q1 Kruskal-Wallis omnibus: H={Q1_KW_STAT:.2f}, p={Q1_KW_P:.4f} ({_kw_sig})")
+if Q2_LOGIT_SUMMARY:
+    print(f"  Q2 {Q2_LOGIT_SUMMARY}")
 if _RIGOR_WARNINGS:
     print(f"\n  ⚠  {len(_RIGOR_WARNINGS)} rigor warning(s) — sections without significance tests:")
     for _w in _RIGOR_WARNINGS:

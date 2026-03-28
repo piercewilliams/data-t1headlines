@@ -93,7 +93,7 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 
 | File | Purpose |
 |------|---------|
-| `generate_site.py` | Full analysis pipeline + site generator (~3,200 lines). Reads Excel files, runs all analyses, writes both HTML outputs. |
+| `generate_site.py` | Full analysis pipeline + site generator (~3,300 lines). Reads Excel files, runs all analyses, writes both HTML outputs. Fully typed and documented. |
 | `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, commits. |
 | `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files. |
 | `CLAUDE.md` | Instructions for Claude Code — enables fully autonomous ingest when invoked via Claude. |

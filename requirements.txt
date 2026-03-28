@@ -1,0 +1,17 @@
+# T1 Headline Analysis — Python dependencies
+# Install: pip3 install -r requirements.txt
+#
+# Core (required)
+pandas>=2.0
+numpy>=1.26
+scipy>=1.10
+plotly>=5.0
+openpyxl>=3.1       # .xlsx reading
+xlrd>=2.0           # .xls reading (legacy format fallback)
+
+# Extended analytics (gracefully optional — pipeline degrades without them,
+# but install all for full capability)
+statsmodels>=0.14   # logistic regression, Kruskal-Wallis supplements, time series
+scikit-learn>=1.3   # TF-IDF keyword extraction, future ML classifiers
+polars>=0.20        # fast DataFrames for ad-hoc Claude Code analysis sessions
+pingouin>=0.5       # pairwise stats, ICC, richer power analysis

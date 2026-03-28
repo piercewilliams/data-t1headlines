@@ -30,7 +30,9 @@
       "Bash(grep:*)",
       "Bash(open:*)",
       "Bash(ls:*)",
-      "Bash(find /Users/pierce/Documents/GitHub/data-t1headlines/experiments -type f -name *.py -o -name *.html -o -name *.ipynb)"
+      "Bash(find /Users/pierce/Documents/GitHub/data-t1headlines/experiments -type f -name *.py -o -name *.html -o -name *.ipynb)",
+      "Bash(pip3 list:*)",
+      "Bash(pip3 show:*)"
     ]
   }
 }
