@@ -154,6 +154,9 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   enforce_category_order() — always call after update_layout() on sorted bar charts
 #   safe_chart()             — always use instead of fig.to_html(); never call directly
 #   guard_empty()            — always call on figures whose source data may be missing
+#   cap_engagement_seconds() — always call on active-time cols before any chart/stat that
+#                              uses them; outliers (e.g. 23k-second rows from 2025 data)
+#                              silently collapse y-axes and flatten scatter plots
 #
 # TABLES — do NOT add overflow/scroll CSS to individual tables:
 #   The JS DOMContentLoaded listener auto-wraps every <table> in a .table-wrap div,
@@ -341,6 +344,55 @@ def guard_empty(
             align="center",
         )
     return fig
+
+
+def cap_engagement_seconds(
+    df: pd.DataFrame,
+    cols: list[str],
+    ceiling: float = 600.0,
+) -> pd.DataFrame:
+    """Clip implausibly large values in active-time (seconds) columns.
+
+    Apple News active-time columns are labeled "in seconds" but occasional rows
+    contain values in the thousands or tens-of-thousands — clearly bad data or
+    unconverted milliseconds. These outliers collapse chart y-axes to 0–25k and
+    make the scatter unreadable, with all real data compressed into a flat line
+    near zero.
+
+    This clips in-place at `ceiling` (default 600s = 10 min) which is already
+    an extreme but physically plausible average article read time. Outliers above
+    the ceiling are capped, and a rigor warning is emitted listing the count and
+    original max value so the issue is visible in every build report.
+
+    Always call this immediately after loading engagement columns — before any
+    correlation, decile, or chart calculation that depends on them.
+
+    Args:
+        df:      DataFrame containing the active-time columns (modified in-place).
+        cols:    List of column names to cap. Non-existent columns are skipped.
+        ceiling: Maximum plausible value in seconds (default 600).
+
+    Returns:
+        The same DataFrame with capped values (modified in-place for efficiency).
+
+    Example:
+        an_eng = cap_engagement_seconds(an_eng, [AT_COL, SUB_AT_COL, NSUB_AT_COL])
+    """
+    df = df.copy()
+    for col in cols:
+        if col not in df.columns:
+            continue
+        outliers = df[col].dropna()
+        outliers = outliers[outliers > ceiling]
+        if len(outliers) > 0:
+            _rigor_warn(
+                "engagement_outliers",
+                f"Column '{col}': {len(outliers)} row(s) exceeded {ceiling:.0f}s ceiling "
+                f"(max={outliers.max():.0f}s). Capped to {ceiling:.0f}s. "
+                f"Likely bad data or unconverted milliseconds in source Excel.",
+            )
+        df[col] = df[col].clip(upper=ceiling)
+    return df
 
 
 # ── Classifiers ───────────────────────────────────────────────────────────────
@@ -955,6 +1007,7 @@ NSUB_AT_COL = "Avg. Active Time (in seconds), Non-subscribers, Free Content"
 an_eng = an[[AT_COL, SAV_COL, LIK_COL, SHA_COL,
              SUB_AT_COL, NSUB_AT_COL,
              "Total Views", VIEWS_METRIC, "is_featured"]].dropna(subset=[AT_COL, "Total Views"])
+an_eng = cap_engagement_seconds(an_eng, [AT_COL, SUB_AT_COL, NSUB_AT_COL])
 
 r_views_at,    p_views_at    = stats.pearsonr(an_eng["Total Views"], an_eng[AT_COL])
 r_views_at_sp, p_views_at_sp = stats.spearmanr(an_eng["Total Views"], an_eng[AT_COL])
