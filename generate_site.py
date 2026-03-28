@@ -2767,7 +2767,7 @@ html = f"""<!DOCTYPE html>
   .stat-sep {{ color: var(--border); margin: 0 2px; }}
 
   /* ── Tile grid ── */
-  main {{ max-width: 1100px; margin: 0 auto; padding: 28px 24px 0; }}
+  main {{ max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }}
   .grid-label {{ font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }}
   .tile-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 0; }}
   .tile {{ background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 7px; transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.2s; min-height: 140px; }}
@@ -2843,7 +2843,7 @@ html = f"""<!DOCTYPE html>
   .section-label {{ display: none; }}
 
   /* ── Footer ── */
-  footer {{ padding: 40px 28px; text-align: center; color: var(--text-muted); font-size: 11px; border-top: 1px solid var(--border-subtle); background: var(--bg); margin-top: 0; letter-spacing: 0.01em; }}
+  footer {{ padding: 40px 28px; text-align: center; color: var(--text-muted); font-size: 11px; border-top: 1px solid var(--border-subtle); background: var(--bg); margin-top: 40px; letter-spacing: 0.01em; }}
   .past-analyses {{ max-width: 900px; margin: 0 auto; padding: 2rem 28px 0.5rem; border-top: 1px solid var(--border-subtle); }}
   .past-analyses h3 {{ font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.6rem; }}
   .past-analyses ul {{ list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; }}
