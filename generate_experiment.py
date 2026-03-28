@@ -394,6 +394,7 @@ def render_report(spec, result, metric_info, chart_html, timeseries_html=None, l
   nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
            font-size:0.73rem; transition:color 0.15s; }}
   nav a:hover {{ color:rgba(255,255,255,0.85); }}
+  nav a.nav-active {{ color:#fff; font-weight:600; }}
   .container {{ max-width:800px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
               color:{BLUE}; font-weight:700; margin-bottom:0.5rem; display:block; }}
@@ -428,8 +429,10 @@ def render_report(spec, result, metric_info, chart_html, timeseries_html=None, l
 <body>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../../index.html">← Current analysis</a>
-  <a href="../index.html">All experiments</a>
+  <a href="../../">Current Analysis</a>
+  <a href="../../playbook/">Editorial Playbooks</a>
+  <a href="../../author-playbooks/">Author Playbooks</a>
+  <a href="../" class="nav-active">Experiments</a>
 </nav>
 <div class="container">
   <p class="eyebrow">Experiment · {spec.get('platform','').replace('_',' ').title()} · {spec.get('metric','').replace('_',' ').title()}</p>
@@ -514,6 +517,7 @@ def update_experiment_index(specs):
   nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
            font-size:0.73rem; transition:color 0.15s; }}
   nav a:hover {{ color:rgba(255,255,255,0.85); }}
+  nav a.nav-active {{ color:#fff; font-weight:600; }}
   .container {{ max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }}
   h1 {{ font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
         margin-bottom:0.4rem; line-height:1.25; }}
@@ -536,7 +540,10 @@ def update_experiment_index(specs):
 <body>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../index.html">← Current analysis</a>
+  <a href="../">Current Analysis</a>
+  <a href="../playbook/">Editorial Playbooks</a>
+  <a href="../author-playbooks/">Author Playbooks</a>
+  <a href="./" class="nav-active">Experiments</a>
 </nav>
 <div class="container">
 <h1>Experiments</h1>
