@@ -14,11 +14,13 @@ Monthly analysis of headline and topic performance signals for McClatchy Tier 1 
 |------|------|---------|
 | Main analysis | `docs/index.html` | 9 findings tiles with expandable detail panels, charts, and statistical tables |
 | Editorial Playbooks | `docs/playbook/index.html` | Per-platform headline guidance synthesized from findings; auto-sorted by confidence level |
-| Author Playbooks | `docs/author-playbooks/index.html` | Per-author formula profiles, performance percentiles, and individual guidance (requires Tracker data) |
+| Author Playbooks | `docs/author-playbooks/index.html` | Per-author formula profiles, performance percentiles, structured DO/TRY guidance (requires Tracker data) |
 | Experiments | `docs/experiments/index.html` | Before/after formula tests tracked over time |
 | Archive | `docs/archive/YYYY-MM/` | Full monthly snapshots; "Past analyses" link list on main page |
 
 The main page surfaces findings as interactive tiles. Each tile has a confidence badge (`High confidence`, `Moderate`, `Directional`) derived from sample size, adjusted p-value, and replication across platforms. The hero headline is auto-selected each run by scoring every finding on effect size × significance × surprise factor — it always reflects the most statistically interesting result in the current data.
+
+All charts include color legends. All table column headers show a plain-English tooltip on hover. Both dark and light modes are supported across all pages, with preference persisted across sessions via localStorage.
 
 ---
 
@@ -58,11 +60,13 @@ ingest.py
   │       ├─ normalize(): percentile_within_cohort per publication-month cohort
   │       ├─ 9+ analyses with BH-FDR, bootstrap CIs, rank-biserial r
   │       ├─ Hero scoring: picks top 2 findings by effect × significance × surprise
-  │       ├─ Build report: row counts, tile confidence breakdown, rigor warnings
+  │       ├─ Build report: row counts, tile confidence, rigor + audit + tooltip warnings
   │       ├─ meta.json: saved to docs/archive/{slug}/ for future delta comparison
   │       ├─ docs/index.html (main site)
   │       ├─ docs/playbook/index.html (playbooks, tiles sorted by confidence)
   │       └─ docs/author-playbooks/index.html (author profiles, requires Tracker)
+  ├─ 4b. python3 generate_experiment.py <each experiments/*.md>
+  │       └─ Regenerates all experiment pages + index (keeps nav/theme/export in sync)
   └─ 5. git commit (docs/)
 ```
 
@@ -78,10 +82,23 @@ Each analysis tests multiple groups simultaneously (6 formula types, 8 SmartNews
 Rather than hardcoding which findings appear in the hero headline, each finding is scored: `effect_size × (1 / p_value) × surprise_factor`. The top 2 are used. The score auto-adapts as data changes — if a formula type becomes highly significant with more data, it surfaces automatically.
 
 **Rigor infrastructure**
-Three functions maintain statistical discipline at build time:
+Four functions maintain analytical discipline at build time:
 - `_conf_level(p_adj, n, n_platforms)` → consistent badge criteria across all findings
 - `_require_test(section, p_adj, n_a, n_b)` → emits a build-time warning if a comparison lacks a significance test
 - `_RIGOR_WARNINGS` → collected and printed in the build report every run
+- `_check_chart_legends(figures)` → fires if any per-bar-color chart lacks a legend
+
+**Build-time audit suite**
+Five checks run automatically on every build and print to the build report:
+1. `_validate_js()` — JS syntax valid on all three pages
+2. `_post_build_audit()` — all required tokens (theme toggle, rethemeCharts, etc.) present on all pages
+3. `_check_color_palette()` — JS `_NEON_COLORS`/`_NORM_COLORS` arrays match Python palette constants
+4. `_check_formula_labels()` — `_FORMULA_LABELS` keys match `classify_formula()` return values
+5. `_check_chart_legends()` — all per-bar-color charts have a legend
+6. `_check_col_tooltips()` — all `<th>` column headers have a hover tooltip in `_COL_TOOLTIPS`
+
+**Chart color theming**
+Charts are built at generate time with dark-mode (neon) colors. The JS `_rethemeCharts(isDark)` function swaps colors at runtime using `_NEON_COLORS`/`_NORM_COLORS` lookup tables. Per-bar color arrays require double-wrapping in `Plotly.restyle` (`[mc]` not `mc`) — this is intentional and correct.
 
 **Playbook tile sorting**
 Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by `_CONF_RANK = {"conf-high": 0, "conf-mod": 1, "conf-dir": 2}` before the page renders. As confidence levels change with more data, the tile order updates automatically.
@@ -89,15 +106,21 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 **Archive coordination**
 `ingest.py` is the archiving authority. It reads the `data-run` meta tag from the existing `docs/index.html` to determine the correct archive slot (the old page's own slug, not the current month). `generate_site.py` gets `--skip-main-archive` to prevent double-archiving. A `meta.json` is saved per run for future delta comparison.
 
+**Column header tooltips**
+`_COL_TOOLTIPS` in `generate_site.py` is the single source of truth for all table column explanations. `_make_col_tooltip_js()` serializes it to JSON and injects it into every page. `_check_col_tooltips()` fires a build warning for any `<th>` text not covered. To add a tooltip for a new column: add one entry to `_COL_TOOLTIPS`.
+
+**Per-author guidance**
+Author playbook tiles show a structured "Recommended actions this round" callout with explicit **DO:** / **TRY:** labels. DO = statistically supported signal (Moderate badge); TRY = directional signal. Platform routing is always included as a second item when formula is the primary signal.
+
 ---
 
 ## File reference
 
 | File | Purpose |
 |------|---------|
-| `generate_site.py` | Full analysis pipeline + site generator (~5,500 lines). Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Nav is auto-generated via `_build_nav()`. Export JS (PNG/PDF) is auto-generated via `_make_export_js()`. Both are single sources of truth — no manual nav or JS editing needed. |
-| `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, commits. |
-| `generate_experiment.py` | Generates individual experiment report pages from `experiments/*.md` spec files AND regenerates the experiments index page. Uses the same `_build_nav()` / `_NAV_PAGES` pattern (copied into the file) for consistent nav across all experiment pages. |
+| `generate_site.py` | Full analysis pipeline + site generator. Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Nav via `_build_nav()`, export JS via `_make_export_js()`, tooltips via `_make_col_tooltip_js()` — all single sources of truth. |
+| `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, regenerates all experiment pages, commits. |
+| `generate_experiment.py` | Generates individual experiment report pages from `experiments/*.md` spec files AND regenerates the experiments index page. Uses the same `_build_nav()` / `_NAV_PAGES` pattern for consistent nav across all experiment pages. |
 | `requirements.txt` | All Python dependencies. `pip3 install -r requirements.txt` to set up a new machine. |
 | `CLAUDE.md` | Instructions for Claude Code — enables fully autonomous ingest when invoked via Claude. |
 | `PLAYBOOK.md` | Scenario guide: what to do when specific data conditions change (new sheets, columns, platforms, experiments). |
@@ -109,7 +132,7 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 | `docs/playbook/index.html` | Live editorial playbook page. Regenerated on each run. Tiles have PNG/PDF export buttons. |
 | `docs/author-playbooks/index.html` | Live author playbook page. Regenerated on each run (requires Tracker data). Tiles have PNG/PDF export buttons. |
 | `docs/archive/YYYY-MM/` | Monthly snapshot. Contains `index.html` (with orange archived banner), `data_profile.json`, `meta.json`. |
-| `docs/experiments/index.html` | Experiment index page. |
+| `docs/experiments/index.html` | Experiment index page. Regenerated on every ingest. |
 
 **Data files** (in repo root):
 
@@ -159,7 +182,9 @@ To add a new formula pattern: add a regex case to `classify_formula()`. To add a
 3. **Add a main page tile** — add a tile `<div>` to the tile-grid section of the `html` f-string.
 4. **Add a playbook tile** — add a `(conf_class, panel_id, html)` tuple to `_pb_tile_defs`. It will sort into position automatically.
 5. **Add detail panels** — add both a `<div class="detail-panel">` (main page) and a `<div id="pb-N" class="pb-detail">` (playbook) with table, chart, and caveat text.
-6. **Run and verify the build report** — rigor warnings will fire for any untested comparisons.
+6. **Add column tooltips** — for any new `<th>` text, add an entry to `_COL_TOOLTIPS` in `generate_site.py`. The build will warn if any column is missing.
+7. **Add chart legends** — if the chart uses per-bar coloring (marker.color is a list), call `_lift_legend_traces()` or `_sn_legend_traces()` and set `showlegend=True`. The build will warn if any per-bar chart lacks a legend.
+8. **Run and verify the build report** — all six audit checks must pass green.
 
 ### Adding an experiment
 
@@ -178,7 +203,7 @@ start_date: 2026-04-01
 status: active
 ```
 
-The experiment appears at `docs/experiments/my-slug/index.html` and is added to the experiments index automatically.
+The experiment appears at `docs/experiments/my-slug/index.html` and is added to the experiments index automatically. On every subsequent ingest, all experiment pages are regenerated automatically.
 
 ---
 
@@ -192,11 +217,23 @@ A sheet appeared in the export that isn't in the known list. Two options:
 - **Worth analyzing** (>50 rows, recognizable metrics): note for Claude Code to wire into the pipeline in a future session.
 - **Summary/pivot sheet** (few rows): add to `_KNOWN_SHEETS_2025` or `_KNOWN_SHEETS_2026` near the top of `generate_site.py` to suppress the warning.
 
+### Build report shows `[col_tooltips]` warning
+A table column header has no tooltip. Add the missing key and a 1-sentence plain-English explanation to `_COL_TOOLTIPS` in `generate_site.py`. The key is the normalized header text (lowercase, spaces collapsed, en-dash → hyphen).
+
+### Build report shows `[chart_legends]` warning
+A chart uses per-bar coloring but has no legend. Add `_lift_legend_traces()` or `_sn_legend_traces()` dummy traces and set `showlegend=True, legend=_LEGEND_BELOW` in the chart's `update_layout()` call.
+
 ### Row counts are lower than the last run
 The export may be truncated. Check `docs/archive/*/meta.json` for prior counts. Investigate the source sheet before committing.
 
 ### Charts render blank in an archived page
-Charts depend on `https://cdn.plot.ly/plotly-2.27.0.min.js`. Archives require internet to render charts. Tables render offline. Known limitation — workaround is to view locally with internet or embed Plotly inline in archive copies.
+Charts depend on `https://cdn.plot.ly/plotly-2.27.0.min.js`. Archives require internet to render charts. Tables render offline. Known limitation.
+
+### Charts show wrong colors in light mode
+`_rethemeCharts` swaps neon ↔ normal colors at runtime. If all bars are the same color, the `Plotly.restyle` call may be passing a flat array instead of a wrapped one — per-bar color arrays must be passed as `[mc]` not `mc`. The `_check_color_palette()` build check will catch any palette mismatch.
+
+### Export PNG/PDF shows white charts in dark mode
+The export container reads its background from `document.body` (not the panel element, which is transparent). If exports show white, check that `_rawBg` in `_exportPanel` is resolving correctly from `getComputedStyle(document.body)`.
 
 ### Playbook tile order changed unexpectedly
 Expected — tiles sort by `_CONF_RANK` on every build. If a finding's sample size grew enough to change its confidence level, its tile moves. The build report shows the current tile breakdown.
