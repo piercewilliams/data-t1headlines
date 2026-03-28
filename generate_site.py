@@ -42,7 +42,7 @@ NAVY   = "#0f172a"
 BLUE   = "#2563eb"
 GREEN  = "#16a34a"
 RED    = "#dc2626"
-AMBER  = "#d97706"
+AMBER  = "#f59e0b"
 GRAY   = "#64748b"
 LIGHT  = "#f8fafc"
 BORDER = "#e2e8f0"
@@ -1606,7 +1606,7 @@ FORMULA_DISPLAY = {
 _long_colors_8 = {
     "number_lead":             AMBER,
     "question":                RED,
-    "possessive_named_entity": NAVY,
+    "possessive_named_entity": BLUE,
 }
 
 fig8 = make_subplots(
@@ -1821,10 +1821,10 @@ html = f"""<!DOCTYPE html>
     --bg-subtle:    #334155;
     --text:         #f1f5f9;
     --text-secondary: #cbd5e1;
-    --text-muted:   #94a3b8;
+    --text-muted:   #b0bec5;
     --border:       #334155;
     --border-subtle:#1e293b;
-    --accent:       #60a5fa;
+    --accent:       #3b82f6;
     --nav-bg:       rgba(15,23,42,0.88);
   }}
 
