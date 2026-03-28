@@ -451,6 +451,40 @@ def classify_formula(text: str) -> str:
     if t.startswith("\u2018"): return "quoted_lede"
     return "untagged"
 
+def _classify_untagged_structure(text: str) -> str:
+    """Secondary micro-classifier for untagged headlines. Identifies structural patterns
+    that don't fit the main formula taxonomy but are still informative."""
+    t = str(text).strip()
+    tl = t.lower()
+    words = tl.split()
+    if not words:
+        return "other"
+    first = words[0].rstrip(".,;:")
+    if re.match(r"^(how|why)\b", first):
+        return "how_why"
+    if re.match(r"^(inside|behind|meet|the story|the case|a look)\b", " ".join(words[:3])):
+        return "narrative_lede"
+    if re.match(r"^(watch|video|listen|photos?|gallery|map)\b", first):
+        return "media_label"
+    if re.match(r"^(report|study|survey|poll|analysis|data|new research)\b", first):
+        return "cited_source"
+    # Two or more consecutive Title-Cased words at start = likely named-entity declarative
+    if re.match(r"^[A-Z][a-z]+(?:\s[A-Z][a-z]+)+\s", t):
+        return "named_declarative"
+    if len(words) <= 5:
+        return "short_declarative"
+    return "other"
+
+_UNTAGGED_STRUCTURE_LABELS: dict[str, str] = {
+    "how_why":           "How/Why framing",
+    "narrative_lede":    "Narrative / 'Inside' lede",
+    "media_label":       "Media-type label (Watch, Video, etc.)",
+    "cited_source":      "Report/Study/Survey lede",
+    "named_declarative": "Named-entity declarative",
+    "short_declarative": "Short declarative (≤5 words)",
+    "other":             "Other unstructured",
+}
+
 def tag_topic(text: str) -> str:
     """Tag a headline with a topic using keyword/regex matching. Returns the topic string."""
     t = str(text).lower()
@@ -1742,8 +1776,8 @@ _author_playbook_defs: list[tuple[str, int, float, str, str]] = []
 _FORMULA_LABELS: dict[str, str] = {
     "number_lead":            "number lead",
     "what_to_know":           '"What to know"',
-    "heres_hereare":          '"Here\'s / Here are"',
-    "question_format":        "question format",
+    "heres_formula":          '"Here\'s / Here are"',
+    "question":               "question format",
     "possessive_named_entity":"possessive named entity",
     "quoted_lede":            "quoted lede",
     "untagged":               "no tracked formula",
@@ -2101,6 +2135,42 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
 
         _n_plats     = len(_ap)
 
+        # ── Untagged sub-characterization ──────────────────────────
+        # When untagged is a significant share, break it into structural sub-patterns
+        # so the author sees what their untagged headlines actually are.
+        _untagged_section_html = ""
+        _untagged_df = _adf[_adf["formula"] == "untagged"]
+        _untagged_share_of_total = len(_untagged_df) / max(_n, 1)
+        if len(_untagged_df) >= 4 and _untagged_share_of_total >= 0.20:
+            _untagged_df = _untagged_df.copy()
+            _untagged_df["_structure"] = _untagged_df["headline"].apply(_classify_untagged_structure)
+            _us = (_untagged_df.groupby("_structure")
+                   .agg(n=("percentile","count"), med_pct=("percentile","median"))
+                   .reset_index().sort_values("n", ascending=False))
+            _us_rows = []
+            for _, _ur in _us.iterrows():
+                _ulbl = _UNTAGGED_STRUCTURE_LABELS.get(str(_ur["_structure"]),
+                                                        str(_ur["_structure"]).replace("_"," "))
+                _u_pct = float(_ur["med_pct"])
+                _u_lfc = "lift-high" if _u_pct >= 0.65 else ("lift-pos" if _u_pct >= 0.45 else "lift-neg")
+                _us_rows.append(
+                    f'<tr><td>{_ulbl}</td><td>{int(_ur["n"])}</td>'
+                    f'<td><span class="{_u_lfc}">{_u_pct:.0%}</span></td></tr>'
+                )
+            if _us_rows:
+                _untagged_section_html = (
+                    f'\n  <h3 class="rh">What the untagged headlines actually are</h3>\n'
+                    f'  <p class="detail-sub">{len(_untagged_df)} of {_n} articles '
+                    f'({_untagged_share_of_total:.0%}) matched no tracked formula. '
+                    f'Secondary pattern breakdown — cohort %ile per structural type.</p>\n'
+                    f'  <table><thead><tr><th>Structure</th><th>n</th>'
+                    f'<th>Median %ile</th></tr></thead>\n'
+                    f'  <tbody>{"".join(_us_rows)}</tbody></table>\n'
+                    f'  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within '
+                    f'the untagged bucket — not formal formulas, but useful for spotting what\'s '
+                    f'working and where a structured formula could be applied next.</p>\n'
+                )
+
         # ── Assemble tile + detail HTML ────────────────────────────
         _ap_id = f"ap-{_ai}"
 
@@ -2141,6 +2211,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             f'<th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>\n'
             f'  <tbody>{_formula_tbody}</tbody></table>\n'
             f'{_f_sig_note}'
+            f'{_untagged_section_html}'
             f'\n  <h3 class="rh">Platform breakdown</h3>\n'
             f'  <p class="detail-sub">Cohort percentile vs. overall team median ({_team_med_pct:.0%}).</p>\n'
             f'  <table><thead><tr><th>Platform</th><th>n</th>'
