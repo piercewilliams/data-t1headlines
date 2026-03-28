@@ -142,8 +142,24 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 
 
 # ── Visualization guardrails ──────────────────────────────────────────────────
-# Defensive helpers that prevent the most common Plotly issues with this setup.
-# Every new chart MUST use these instead of hardcoded values or raw data access.
+# Defensive helpers that prevent the most common Plotly/table issues with this setup.
+# Every new chart and table MUST follow these rules:
+#
+# CHARTS — use the helper functions below instead of hardcoded values:
+#   safe_range()             — never hardcode axis ranges; data outside them silently clips
+#   safe_log_floor()         — always use before log-scale axes; zeros drop silently
+#   auto_right_margin()      — always size right margin from actual label strings
+#   escape_hover()           — always escape headline text going into hovertemplates
+#   cap_lift()               — cap inf/extreme lift values before passing to chart x/y
+#   enforce_category_order() — always call after update_layout() on sorted bar charts
+#   safe_chart()             — always use instead of fig.to_html(); never call directly
+#   guard_empty()            — always call on figures whose source data may be missing
+#
+# TABLES — do NOT add overflow/scroll CSS to individual tables:
+#   The JS DOMContentLoaded listener auto-wraps every <table> in a .table-wrap div,
+#   which owns the overflow-x:auto scroll, border-radius, and box-shadow.
+#   Tables scroll horizontally when content is wider than the panel — text is NEVER
+#   clipped or truncated. Do not add overflow:hidden or fixed widths to table elements.
 
 def safe_range(
     values: "Iterable[float]",
@@ -2707,14 +2723,19 @@ html = f"""<!DOCTYPE html>
   .callout-inline {{ font-size: 12px; color: var(--text-muted); background: var(--bg-muted); border-left: 2px solid var(--border); padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
 
   /* ── Tables ── */
-  table.findings {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:0.5rem 0 1.25rem;
-                    background:var(--bg); border-radius:8px; overflow:hidden;
-                    box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.2); }}
-  table.findings th {{ text-align:left; padding:8px 12px; background:var(--nav-bg); color:var(--text-muted);
-                       font-weight:600; font-size:0.62rem; text-transform:uppercase;
+  /* Scroll wrapper: owns the shadow, radius, and overflow. Tables never bleed
+     past this boundary — wide tables scroll horizontally, text is never clipped. */
+  .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
+                 border-radius:8px; margin:0.5rem 0 1.25rem;
+                 box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.2); }}
+  table.findings {{ width:100%; border-collapse:collapse; font-size:0.78rem; margin:0;
+                    background:var(--bg); border-radius:8px; overflow:hidden; }}
+  table.findings th {{ text-align:left; padding:6px 10px; background:var(--nav-bg); color:var(--text-muted);
+                       font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
                        letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
-  table.findings td {{ padding:8px 12px; border-bottom:1px solid var(--bg-card);
-                       vertical-align:top; color:var(--text-secondary); }}
+  table.findings td {{ padding:6px 10px; border-bottom:1px solid var(--bg-card);
+                       vertical-align:top; color:var(--text-secondary);
+                       word-break:break-word; overflow-wrap:break-word; }}
   table.findings tr:last-child td {{ border-bottom:none; }}
   table.findings tr:hover td {{ background:var(--bg-muted); }}
 
@@ -3184,6 +3205,16 @@ function closeDetail() {{
     rows.forEach(function(r) {{ tbody.appendChild(r); }});
   }}
   document.addEventListener('DOMContentLoaded', function() {{
+    // Wrap every table in a .table-wrap scroll container so wide tables never
+    // bleed past the tile edge — content scrolls horizontally, never clips.
+    document.querySelectorAll('table').forEach(function(t) {{
+      if (t.parentNode && !t.parentNode.classList.contains('table-wrap')) {{
+        var w = document.createElement('div');
+        w.className = 'table-wrap';
+        t.parentNode.insertBefore(w, t);
+        w.appendChild(t);
+      }}
+    }});
     document.querySelectorAll('table thead th').forEach(function(th) {{
       var icon = document.createElement('span');
       icon.className = 'sort-icon';
@@ -3399,13 +3430,16 @@ playbook_html = f"""<!DOCTYPE html>
            color:#94a3b8; margin:1.5rem 0 0.6rem; }}
   h3.rh:first-child {{ margin-top:0; }}
   p.detail-sub {{ font-size:0.8rem; color:#64748b; margin-bottom:0.6rem; }}
-  table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:0.5rem 0 1.25rem;
-           background:#0f172a; border-radius:8px; overflow:hidden;
-           box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.2); }}
-  th {{ text-align:left; padding:8px 12px; background:#0a1120; color:#94a3b8;
-        font-weight:600; font-size:0.62rem; text-transform:uppercase;
+  .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
+                 border-radius:8px; margin:0.5rem 0 1.25rem;
+                 box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.2); }}
+  table {{ width:100%; border-collapse:collapse; font-size:0.78rem; margin:0;
+           background:#0f172a; border-radius:8px; overflow:hidden; }}
+  th {{ text-align:left; padding:6px 10px; background:#0a1120; color:#94a3b8;
+        font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
         letter-spacing:0.08em; border-bottom:1px solid #334155; }}
-  td {{ padding:8px 12px; border-bottom:1px solid #1e293b; vertical-align:top; color:#cbd5e1; }}
+  td {{ padding:6px 10px; border-bottom:1px solid #1e293b; vertical-align:top; color:#cbd5e1;
+        word-break:break-word; overflow-wrap:break-word; }}
   tr:last-child td {{ border-bottom:none; }}
   .rules {{ padding-left:18px; margin:0.5rem 0 1rem; font-size:0.875rem;
             line-height:1.85; color:#cbd5e1; }}
@@ -3609,6 +3643,16 @@ function togglePb(tile, id) {{
     rows.forEach(function(r) {{ tbody.appendChild(r); }});
   }}
   document.addEventListener('DOMContentLoaded', function() {{
+    // Wrap every table in a .table-wrap scroll container so wide tables never
+    // bleed past the tile edge — content scrolls horizontally, never clips.
+    document.querySelectorAll('table').forEach(function(t) {{
+      if (t.parentNode && !t.parentNode.classList.contains('table-wrap')) {{
+        var w = document.createElement('div');
+        w.className = 'table-wrap';
+        t.parentNode.insertBefore(w, t);
+        w.appendChild(t);
+      }}
+    }});
     document.querySelectorAll('table thead th').forEach(function(th) {{
       var icon = document.createElement('span');
       icon.className = 'sort-icon';
