@@ -105,7 +105,7 @@
   .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }
   table thead th[data-sort] .sort-icon { opacity: 1; color: #60a5fa; }
 
-  /* ── Export button (hardcoded dark — playbook page is always dark) ── */
+  /* ── Export button (hardcoded dark—playbook page is always dark) ── */
   .export-btn-wrap { float: right; position: relative; margin: 0 0 10px 16px; }
   .export-btn { font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
                 border: 1px solid #334155; background: #0f172a; color: #94a3b8;
@@ -145,7 +145,7 @@
   <div class="pb-tile" onclick="togglePb(this,'pb-1')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News · Headline Formulas</span>
-    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it — but specific patterns clearly underperform.</p>
+    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it—but specific patterns clearly underperform.</p>
     <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
@@ -162,7 +162,7 @@
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">SmartNews · Channel Allocation</span>
     <p class="tile-claim">Entertainment receives 36% of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver 1.85× and 1.81× on far less.</p>
-    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required — reframe what’s already being published.</p>
+    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required—reframe what’s already being published.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -170,7 +170,7 @@
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News · Headline Length</span>
     <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</p>
-    <p class="tile-action">→ Don’t truncate. The ≤80 char rule applies to push notifications only — not to article headlines.</p>
+    <p class="tile-action">→ Don’t truncate. The ≤80 char rule applies to push notifications only—not to article headlines.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -191,11 +191,11 @@
   <ul class="rules">
     <li><strong>Possessive + named entity</strong> on crime and business is associated with the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
     <li><strong>Number leads:</strong> use specific figures in the 11–20 range. Round numbers score 13 percentile points below specific numbers (p=0.04 * after BH-FDR).</li>
-    <li><strong>Avoid question format</strong> for organic reach — underperforms 0.65× baseline (p<sub>adj</sub>&lt;0.001 ***). Reserve for Featured targeting if "What to know" is unavailable.</li>
-    <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is 80 chars.</li>
-    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: 1.55 and 1.56) — headline choice matters most here. Prioritize variant production on these topics first.</li>
+    <li><strong>Avoid question format</strong> for organic reach—underperforms 0.65× baseline (p<sub>adj</sub>&lt;0.001 ***). Reserve for Featured targeting if "What to know" is unavailable.</li>
+    <li><strong>Don't truncate headlines</strong> to fit a format preference—median performing length is 80 chars.</li>
+    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: 1.55 and 1.56)—headline choice matters most here. Prioritize variant production on these topics first.</li>
   </ul>
-  <h3 class="rh">Top formula × topic combinations — Apple News</h3>
+  <h3 class="rh">Top formula × topic combinations—Apple News</h3>
   <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
   <table>
     <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
@@ -220,11 +220,11 @@
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong> — Featured rate is 1.8×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.12, not significant at α=0.05, n=16).</li>
-    <li><strong>Featured articles drive 3.1× views vs. non-Featured</strong> — treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
-    <li><strong>Don't apply "What to know" broadly</strong> — the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
+    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong>—Featured rate is 1.8×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.12, not significant at α=0.05, n=16).</li>
+    <li><strong>Featured articles drive 3.1× views vs. non-Featured</strong>—treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
+    <li><strong>Don't apply "What to know" broadly</strong>—the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
   </ul>
-  <h3 class="rh">Featured rate by formula — Apple News</h3>
+  <h3 class="rh">Featured rate by formula—Apple News</h3>
   <table>
     <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
     <tbody><tr><td><span class="tag tag-green">★</span>What to know</td><td>29</td><td>45%</td><td>1.81×</td><td>p<sub>adj</sub>=0.03 *</td><td>81% (1.16× Featured avg)</td></tr>
@@ -240,12 +240,12 @@
 <div id="pb-3" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× median percentile rank respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× median percentile rank respectively. Frame content with geographic specificity—"Sacramento," not "California," not "the region."</li>
     <li><strong>Reduce Entertainment volume</strong>: 36% of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
-    <li><strong>Sports underperforms</strong> (0.77× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
-    <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
+    <li><strong>Sports underperforms</strong> (0.77× platform median)—the same story with a local or civic frame does better than a sports frame.</li>
+    <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews—more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>
-  <h3 class="rh">Performance by channel — SmartNews</h3>
+  <h3 class="rh">Performance by channel—SmartNews</h3>
   <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
   <table>
     <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
@@ -267,13 +267,13 @@
 <div id="pb-4" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — 2.49× CTR lift. The word must be earned; overuse erodes the signal.</li>
+    <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops—2.49× CTR lift. The word must be earned; overuse erodes the signal.</li>
     <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" (1.86× lift).</li>
     <li><strong>Write longer notifications:</strong> ≤80 chars delivers 39% fewer clicks. Give readers context before asking them to tap.</li>
     <li><strong>Avoid question format:</strong> hurts CTR (0.64×), consistent with the Apple News finding.</li>
-    <li><strong>Serial/escalating stories with a named anchor</strong> are the highest-CTR content type — structure updates as installments with possessive framing.</li>
+    <li><strong>Serial/escalating stories with a named anchor</strong> are the highest-CTR content type—structure updates as installments with possessive framing.</li>
   </ul>
-  <h3 class="rh">Features by CTR lift — Push Notifications</h3>
+  <h3 class="rh">Features by CTR lift—Push Notifications</h3>
   <p class="detail-sub">Jan–Feb 2026 · N=351 notifications · BH-FDR corrected · 5 features significant after correction</p>
   <table>
     <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
@@ -290,12 +290,12 @@
 <div id="pb-5" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Longer outperforms shorter on Apple News</strong> — top quartile (~93 chars) reaches 62% median %ile vs. 47% for bottom quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</li>
-    <li><strong>The ≤80-char rule applies to notifications only</strong> — don't apply it to article headlines. The data runs in the opposite direction.</li>
-    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong> — confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
-    <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
+    <li><strong>Longer outperforms shorter on Apple News</strong>—top quartile (~93 chars) reaches 62% median %ile vs. 47% for bottom quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</li>
+    <li><strong>The ≤80-char rule applies to notifications only</strong>—don't apply it to article headlines. The data runs in the opposite direction.</li>
+    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong>—confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
+    <li><strong>Business and lifestyle</strong> show the widest performance spread—length optimization is most likely to matter there.</li>
   </ul>
-  <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
+  <h3 class="rh">Views by headline length quartile—Apple News and SmartNews</h3>
   <table>
     <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
     <tbody><tr><td>Short (Q1)</td><td>74 chars</td><td>1,224</td><td>47%</td><td>10,305</td><td>46%</td></tr>
@@ -304,14 +304,14 @@
 <tr><td>Very long (Q4)</td><td>93 chars</td><td>1,035</td><td>62%</td><td>9,120</td><td>56%</td></tr>
 </tbody>
   </table>
-  <p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News p<sub>adj</sub>&lt;0.001 ***; SmartNews p<sub>adj</sub>&lt;0.001 *** (BH-FDR). Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>
+  <p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News p<sub>adj</sub>&lt;0.001 ***; SmartNews p<sub>adj</sub>&lt;0.001 *** (BH-FDR). Confounders possible—longer headlines may coincide with longer, higher-stakes stories.</p>
 </div>
 
 
 
 
 
-<p class="caveat" style="margin-top:2.5rem">Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels on the <a href="../" style="color:#60a5fa">main analysis page</a> for p-values and sample sizes.</p>
+<p class="caveat" style="margin-top:2.5rem">Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies—see individual finding panels on the <a href="../" style="color:#60a5fa">main analysis page</a> for p-values and sample sizes.</p>
 
 </div>
 <script>
@@ -362,7 +362,7 @@ function togglePb(tile, id) {
   }
   document.addEventListener('DOMContentLoaded', function() {
     // Wrap every table in a .table-wrap scroll container so wide tables never
-    // bleed past the tile edge — content scrolls horizontally, never clips.
+    // bleed past the tile edge—content scrolls horizontally, never clips.
     document.querySelectorAll('table').forEach(function(t) {
       if (t.parentNode && !t.parentNode.classList.contains('table-wrap')) {
         var w = document.createElement('div');
@@ -421,7 +421,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
       });
     } else {
       var jsPDF = window.jspdf && window.jspdf.jsPDF;
-      if (!jsPDF) { alert('PDF library not loaded — try PNG instead.'); return; }
+      if (!jsPDF) { alert('PDF library not loaded—try PNG instead.'); return; }
       var w = canvas.width / 2, h = canvas.height / 2;
       var pdf = new jsPDF({
         orientation: w > h ? 'landscape' : 'portrait',
@@ -434,7 +434,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
     }
   }).catch(function(err) {
     console.error('Export failed:', err);
-    alert('Export failed — see browser console for details.');
+    alert('Export failed—see browser console for details.');
   });
 }
 
