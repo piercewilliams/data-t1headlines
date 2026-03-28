@@ -4287,11 +4287,25 @@ html = f"""<!DOCTYPE html>
 var _NEON_COLORS  = ['#60a5fa','#4ade80','#f87171','#fb923c','#94a3b8'];
 var _NORM_COLORS  = ['#2563eb','#16a34a','#dc2626','#f59e0b','#64748b'];
 
+function _hexFromColor(c) {{
+  // Normalize a color to lowercase hex — handles both '#rrggbb' and 'rgb(r,g,b)' formats.
+  // Plotly may store colors as rgb() strings internally even when hex was passed at build time.
+  if (!c || typeof c !== 'string') return null;
+  c = c.trim().toLowerCase();
+  if (/^#[0-9a-f]{{6}}$/.test(c)) return c;
+  var m = c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) return '#' + [m[1], m[2], m[3]].map(function(n) {{
+    return ('0' + (+n).toString(16)).slice(-2);
+  }}).join('');
+  return null;
+}}
 function _swapColor(c, toDark) {{
   if (!c) return c;
   var from = toDark ? _NORM_COLORS : _NEON_COLORS;
   var to   = toDark ? _NEON_COLORS : _NORM_COLORS;
-  var i    = from.indexOf(typeof c === 'string' ? c.toLowerCase() : c);
+  // Normalize to hex so the lookup works whether Plotly stored '#rrggbb' or 'rgb(r,g,b)'.
+  var hex = _hexFromColor(c);
+  var i   = hex ? from.indexOf(hex) : -1;
   return i >= 0 ? to[i] : c;
 }}
 function _remapTraceColor(c, toDark) {{
@@ -4380,11 +4394,12 @@ function showDetail(id, tile) {{
   var panel = document.getElementById('detail-' + id);
   if (panel) panel.style.display = 'block';
   area.style.display = 'block';
-  // Re-apply chart theme now that the panel (and its charts) are visible
+  // Re-apply chart theme now that the panel (and its charts) are visible.
+  // 100 ms matches the export path — enough for Plotly's internal rAF queue to flush.
   setTimeout(function() {{
     _rethemeCharts(document.body.classList.contains('theme-dark'));
     area.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
-  }}, 50);
+  }}, 100);
 }}
 
 function closeDetail() {{
@@ -4875,7 +4890,14 @@ function togglePb(tile, id) {{
     toggle.textContent = 'Details \u2191';
     panel.style.display = 'block';
     _openTile = tile; _openPanel = panel;
-    setTimeout(function() {{ panel.scrollIntoView({{behavior:'smooth',block:'nearest'}}); }}, 50);
+    // Re-apply theme to newly-visible charts — closed panels are skipped at
+    // page-load theme time because Plotly.relayout throws on display:none elements.
+    setTimeout(function() {{
+      if (typeof _rethemeCharts === 'function') {{
+        _rethemeCharts(document.body.classList.contains('theme-dark'));
+      }}
+      panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
+    }}, 80);
   }} else {{
     tile.classList.remove('open');
     toggle.textContent = 'Details \u2193';
@@ -5149,7 +5171,14 @@ function togglePb(tile, id) {{
     if (toggle) toggle.textContent = 'Details \u2191';
     panel.style.display = 'block';
     _openTile = tile; _openPanel = panel;
-    setTimeout(function() {{ panel.scrollIntoView({{behavior:'smooth',block:'nearest'}}); }}, 50);
+    // Re-apply theme to newly-visible charts — closed panels are skipped at
+    // page-load theme time because Plotly.relayout throws on display:none elements.
+    setTimeout(function() {{
+      if (typeof _rethemeCharts === 'function') {{
+        _rethemeCharts(document.body.classList.contains('theme-dark'));
+      }}
+      panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
+    }}, 80);
   }} else {{
     tile.classList.remove('open');
     if (toggle) toggle.textContent = 'Details \u2193';
