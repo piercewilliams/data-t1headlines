@@ -91,6 +91,9 @@ GRAY   = "#64748b"
 LIGHT  = "#f8fafc"
 BORDER = "#e2e8f0"
 
+# Capture light-mode palette before dark override — used in color palette consistency check.
+_LIGHT_PALETTE = (BLUE, GREEN, RED, AMBER, GRAY)  # "#2563eb","#16a34a","#dc2626","#f59e0b","#64748b"
+
 # Dark-mode neon overrides — applied to chart traces only when --theme dark
 if THEME == "dark":
     BLUE  = "#60a5fa"   # electric blue
@@ -715,7 +718,11 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   }}
 
   if (typeof domtoimage === 'undefined') {{
-    _showResult{s}('Export unavailable: rendering library not loaded', true);
+    _showResult{s}(
+      'Export unavailable \u2014 rendering library (dom-to-image) failed to load. ' +
+      'Check your internet connection and hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) to retry.',
+      true
+    );
     return;
   }}
 
@@ -4350,15 +4357,16 @@ function _rethemeCharts(isDark) {{
 
 /* ── Theme toggle ── */
 (function () {{
-  var stored = localStorage.getItem('theme') || '{THEME}';
-  applyTheme(stored);
+  // Safari private mode throws on localStorage access — always guard with try/catch.
+  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
+  applyTheme(stored || '{THEME}');
 }})();
 
 function applyTheme(t) {{
   document.body.className = 'theme-' + t;
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
-  localStorage.setItem('theme', t);
+  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
   _rethemeCharts(t === 'dark');
 }}
 
@@ -4393,9 +4401,17 @@ function showDetail(id, tile) {{
   if (panel) panel.style.display = 'block';
   area.style.display = 'block';
   // Re-apply chart theme now that the panel (and its charts) are visible.
+  // Also resize Plotly charts: they may have been rendered into a display:none container
+  // and cached dimensions of 0px — resize forces a correct layout pass.
   // 100 ms matches the export path — enough for Plotly's internal rAF queue to flush.
   setTimeout(function() {{
     _rethemeCharts(document.body.classList.contains('theme-dark'));
+    if (typeof Plotly !== 'undefined') {{
+      var panelEl = document.getElementById('detail-' + id);
+      if (panelEl) panelEl.querySelectorAll('.js-plotly-plot').forEach(function(div) {{
+        try {{ Plotly.Plots.resize(div); }} catch(e) {{}}
+      }});
+    }}
     area.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
   }}, 100);
 }}
@@ -5015,14 +5031,14 @@ function togglePb(tile, id) {{
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {{
-  var stored = localStorage.getItem('theme') || '{THEME}';
-  applyTheme(stored);
+  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
+  applyTheme(stored || '{THEME}');
 }})();
 function applyTheme(t) {{
   document.body.className = 'theme-' + t;
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  localStorage.setItem('theme', t);
+  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
 }}
 function toggleTheme() {{
   applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
@@ -5331,14 +5347,14 @@ function togglePb(tile, id) {{
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {{
-  var stored = localStorage.getItem('theme') || '{THEME}';
-  applyTheme(stored);
+  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
+  applyTheme(stored || '{THEME}');
 }})();
 function applyTheme(t) {{
   document.body.className = 'theme-' + t;
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  localStorage.setItem('theme', t);
+  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
 }}
 function toggleTheme() {{
   applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
@@ -5387,10 +5403,18 @@ _meta_slot.mkdir(parents=True, exist_ok=True)
     json.dumps(_build_meta, indent=2), encoding="utf-8"
 )
 
-# ── Post-build JS syntax validation ──────────────────────────────────────────
-# Catches f-string \n-in-JS bugs (e.g. join('\n') instead of join('\\n'))
-# and any other syntax errors introduced by future edits before the site ships.
-# Requires node.js on PATH; skips gracefully if unavailable.
+# ── Post-build validation suite ──────────────────────────────────────────────
+# Three layers of build-time checks that catch the classes of issues this project
+# has historically had to debug manually:
+#   1. _validate_js()         — JS syntax errors from f-string escaping mistakes
+#   2. _post_build_audit()    — required HTML elements on every output file
+#   3. _check_color_palette() — JS color arrays match Python palette vars
+#   4. _check_formula_labels()— _FORMULA_LABELS keys match classify_formula() output
+#
+# All warnings are collected and printed in the build report. JS syntax errors
+# are escalated to ✗ errors (block push). Others are ⚠ warnings (review before push).
+
+
 def _validate_js(html_path: str, label: str) -> list[str]:
     """Extract custom <script> blocks and syntax-check with node --check."""
     errors: list[str] = []
@@ -5419,9 +5443,158 @@ def _validate_js(html_path: str, label: str) -> list[str]:
         errors.append(f"[js_syntax:{label}] check failed: {exc}")
     return errors
 
+def _post_build_audit(paths: dict) -> list[str]:
+    """Check every generated HTML file for required elements.
+
+    Catches regressions where a future edit removes a critical JS function,
+    the theme toggle, localStorage calls, or other cross-page invariants.
+    Each warning names the missing token and describes what it controls.
+
+    Args:
+        paths: mapping of label → file path for all generated HTML output files.
+
+    Returns:
+        List of warning strings (empty = all clear).
+    """
+    warnings: list[str] = []
+
+    # Tokens every page must have — covers the issues we've historically had to fix:
+    # theme persistence, export functionality, nav consistency.
+    universal: list[tuple[str, str]] = [
+        ("theme-toggle",    "nav theme-toggle button — theme selection invisible to user"),
+        ("localStorage",    "localStorage — theme preference won't persist across pages/sessions"),
+        ("toggleTheme",     "toggleTheme() — clicking the toggle button does nothing"),
+        ("applyTheme",      "applyTheme() — theme cannot be programmatically applied"),
+        ("theme-dark",      "body class='theme-dark' default — FOUC flash on first load"),
+        ("domtoimage",      "dom-to-image CDN <script> — PNG/PDF exports will fail silently"),
+    ]
+
+    # Tokens only required on specific pages
+    page_extras: dict[str, list[tuple[str, str]]] = {
+        "index": [
+            ("_rethemeCharts",      "_rethemeCharts() — chart colors won't update on theme toggle"),
+            ("_NEON_COLORS",        "_NEON_COLORS array — chart re-theming will fail for all traces"),
+            ("_NORM_COLORS",        "_NORM_COLORS array — light-mode chart colors will be wrong"),
+            ("_hexFromColor",       "_hexFromColor() — Plotly rgb() color normalization missing"),
+            ("Plotly.Plots.resize", "Plotly.Plots.resize — charts may render at 0px in closed panels"),
+            ("showDetail",          "showDetail() — finding tiles won't expand"),
+        ],
+        "playbook": [
+            ("togglePb",  "togglePb() — playbook tiles won't expand"),
+        ],
+        "author-playbooks": [
+            ("togglePb",  "togglePb() — author tiles won't expand"),
+        ],
+    }
+
+    for label, path in paths.items():
+        try:
+            content = Path(path).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            warnings.append(f"[audit:{label}] output file not found: {path}")
+            continue
+        for token, description in universal + page_extras.get(label, []):
+            if token not in content:
+                warnings.append(
+                    f"[audit:{label}] MISSING '{token}' — {description}  "
+                    f"(search generate_site.py for this token to restore)"
+                )
+
+    return warnings
+
+
+def _check_color_palette() -> list[str]:
+    """Verify JS _NEON_COLORS / _NORM_COLORS match the Python palette variables.
+
+    A mismatch means _swapColor() will silently return un-swapped (wrong) colors
+    when the user toggles between dark and light mode.
+
+    Returns:
+        List of warning strings (empty = palette is consistent).
+    """
+    warnings: list[str] = []
+
+    # _NEON_COLORS order must match Python dark-mode BLUE, GREEN, RED, AMBER, GRAY.
+    # _NORM_COLORS order must match Python light-mode palette (_LIGHT_PALETTE).
+    expected_neon: list[str] = [BLUE, GREEN, RED, AMBER, GRAY]  # dark-mode values
+    expected_norm: list[str] = list(_LIGHT_PALETTE)             # light-mode values
+
+    try:
+        content = Path("docs/index.html").read_text(encoding="utf-8")
+        neon_m = re.search(r"var _NEON_COLORS\s*=\s*\[([^\]]+)\]", content)
+        norm_m = re.search(r"var _NORM_COLORS\s*=\s*\[([^\]]+)\]", content)
+
+        if neon_m:
+            neon_js = [c.strip().strip("'\"") for c in neon_m.group(1).split(",")]
+            if neon_js != expected_neon:
+                warnings.append(
+                    f"[color_palette] _NEON_COLORS mismatch — "
+                    f"JS has {neon_js} but Python dark palette is {expected_neon}. "
+                    f"Update the _NEON_COLORS literal in generate_site.py near _rethemeCharts."
+                )
+        else:
+            warnings.append("[color_palette] _NEON_COLORS array not found in docs/index.html")
+
+        if norm_m:
+            norm_js = [c.strip().strip("'\"") for c in norm_m.group(1).split(",")]
+            if norm_js != expected_norm:
+                warnings.append(
+                    f"[color_palette] _NORM_COLORS mismatch — "
+                    f"JS has {norm_js} but Python light palette is {expected_norm}. "
+                    f"Update the _NORM_COLORS literal in generate_site.py near _rethemeCharts."
+                )
+        else:
+            warnings.append("[color_palette] _NORM_COLORS array not found in docs/index.html")
+
+    except Exception as exc:
+        warnings.append(f"[color_palette] check failed: {exc}")
+
+    return warnings
+
+
+def _check_formula_labels() -> list[str]:
+    """Verify _FORMULA_LABELS keys match all possible classify_formula() return values.
+
+    A missing key means author-playbook formula labels silently fall back to the raw
+    key string. An extra key is dead code — a sign of a rename that wasn't propagated.
+
+    Returns:
+        List of warning strings (empty = keys are consistent).
+    """
+    valid_keys = {
+        "number_lead", "heres_formula", "what_to_know", "question",
+        "possessive_named_entity", "quoted_lede", "untagged",
+    }
+    warnings: list[str] = []
+    extra   = set(_FORMULA_LABELS.keys()) - valid_keys
+    missing = valid_keys - set(_FORMULA_LABELS.keys())
+    if extra:
+        warnings.append(
+            f"[formula_labels] Unknown key(s) in _FORMULA_LABELS: {sorted(extra)} — "
+            f"these will never match a classify_formula() result. "
+            f"Remove or rename to match one of: {sorted(valid_keys)}"
+        )
+    if missing:
+        warnings.append(
+            f"[formula_labels] Missing key(s) in _FORMULA_LABELS: {sorted(missing)} — "
+            f"these formulas will show raw underscore keys in author-playbook tiles. "
+            f"Add display labels for them."
+        )
+    return warnings
+
+
 _js_errors = (_validate_js(str(out), "index") +
               _validate_js(str(playbook_out), "playbook") +
               _validate_js(str(author_pb_out), "author-playbooks"))
+
+_audit_warnings = _post_build_audit({
+    "index":            str(out),
+    "playbook":         str(playbook_out),
+    "author-playbooks": str(author_pb_out),
+})
+
+_palette_warnings  = _check_color_palette()
+_formula_warnings  = _check_formula_labels()
 
 # ── Rigor warnings summary ────────────────────────────────────────────────────
 print(f"\n{'─'*60}")
@@ -5455,5 +5628,26 @@ if _RIGOR_WARNINGS:
         print(f"     • {_w}")
 else:
     print("  ✓  All major comparisons have significance tests.")
+if _audit_warnings:
+    print(f"\n  ✗  {len(_audit_warnings)} HTML/JS AUDIT FAILURE(S) — required tokens missing from generated pages:")
+    for _w in _audit_warnings:
+        print(f"     • {_w}")
+    print("     → Fix: locate the missing token in generate_site.py and verify it is written to the correct output file.")
+else:
+    print("  ✓  HTML/JS audit passed (all required tokens present on all pages).")
+if _palette_warnings:
+    print(f"\n  ✗  {len(_palette_warnings)} COLOR PALETTE MISMATCH(ES) — JS color arrays diverge from Python constants:")
+    for _w in _palette_warnings:
+        print(f"     • {_w}")
+    print("     → Fix: sync _NEON_COLORS/_NORM_COLORS in the JS block with BLUE/GREEN/RED/AMBER/GRAY in generate_site.py.")
+else:
+    print("  ✓  Color palette consistent (JS arrays match Python constants).")
+if _formula_warnings:
+    print(f"\n  ✗  {len(_formula_warnings)} FORMULA LABEL MISMATCH(ES) — _FORMULA_LABELS keys don't match classify_formula() return values:")
+    for _w in _formula_warnings:
+        print(f"     • {_w}")
+    print("     → Fix: update _FORMULA_LABELS dict keys to match the return values in classify_formula().")
+else:
+    print("  ✓  Formula labels consistent (_FORMULA_LABELS keys match classify_formula()).")
 print(f"  meta.json → {_meta_slot}/meta.json")
 print(f"{'─'*60}\n")

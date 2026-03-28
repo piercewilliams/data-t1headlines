@@ -559,7 +559,11 @@ function _exportPanel(panelEl, format, dropdownEl) {
   }
 
   if (typeof domtoimage === 'undefined') {
-    _showResult3('Export unavailable: rendering library not loaded', true);
+    _showResult3(
+      'Export unavailable—rendering library (dom-to-image) failed to load. ' +
+      'Check your internet connection and hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) to retry.',
+      true
+    );
     return;
   }
 
@@ -704,14 +708,14 @@ function _exportPanel(panelEl, format, dropdownEl) {
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {
-  var stored = localStorage.getItem('theme') || 'dark';
-  applyTheme(stored);
+  var stored; try { stored = localStorage.getItem('theme'); } catch(e) {}
+  applyTheme(stored || 'dark');
 })();
 function applyTheme(t) {
   document.body.className = 'theme-' + t;
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
-  localStorage.setItem('theme', t);
+  try { localStorage.setItem('theme', t); } catch(e) {}
 }
 function toggleTheme() {
   applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
