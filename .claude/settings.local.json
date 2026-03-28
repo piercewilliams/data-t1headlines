@@ -34,7 +34,9 @@
       "Bash(pip3 list:*)",
       "Bash(pip3 show:*)",
       "Bash(find /Users/pierce/Documents/GitHub/data-t1headlines/docs -name *.html)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(head -15 echo \"---\" grep -n -A8 \"<nav>\" /Users/pierce/Documents/GitHub/data-t1headlines/docs/playbook/index.html)",
+      "Bash(head -15 echo \"---\" grep -n -A8 \"<nav>\" /Users/pierce/Documents/GitHub/data-t1headlines/docs/author-playbooks/index.html)"
     ]
   }
 }
