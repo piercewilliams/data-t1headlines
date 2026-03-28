@@ -2114,6 +2114,8 @@ html = f"""<!DOCTYPE html>
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
   <div class="nav-right">
+    <a href="playbook/index.html" style="font-size:12px;color:var(--text-muted);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Playbook</a>
+    <a href="experiments/index.html" style="font-size:12px;color:var(--text-muted);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">Experiments</a>
     <span class="nav-date">{REPORT_DATE}</span>
     <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
   </div>
@@ -2198,13 +2200,6 @@ html = f"""<!DOCTYPE html>
       <span class="tile-num">8 · Trends Over Time</span>
       <p class="tile-claim">Number leads climbed from {NL_LIFT_EARLY:.2f}× (Q1 2025) to {NL_LIFT_LATE:.2f}× (Q1 2026) — the only formula to cross into above-baseline territory. Question format dropped from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}×.</p>
       <p class="tile-action">→ Lean into number leads; deprioritize question-format headlines. Re-check quarterly as 2026 data accumulates.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
-    <div class="tile" onclick="showDetail('playbook', this)">
-      <span class="tile-num">Editorial Playbook</span>
-      <p class="tile-claim">Platform-by-platform headline rules synthesized from all 8 findings. Apple News, SmartNews, and Push Notifications.</p>
-      <p class="tile-action">→ Use as a pre-publication checklist. One section per platform.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
@@ -2443,64 +2438,6 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median percentile_within_cohort ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
-      <!-- DETAIL: EDITORIAL PLAYBOOK -->
-      <div class="detail-panel" id="detail-playbook">
-        <h2>Editorial Playbook · Per-Platform Headline Guidance</h2>
-        <div class="callout">
-          <strong>How to use this:</strong> Each platform rewards different headline structures. This playbook translates Findings 1–8 into per-channel rules. Top formula × topic combinations are ranked by lift vs. untagged baseline (≥5 articles required per cell).
-        </div>
-
-        <h3>Apple News — top formula × topic combinations</h3>
-        <p>Non-Featured articles only, ranked by lift vs. untagged baseline. Use these as starting points for which formula to reach for when writing for a given topic.</p>
-        <table class="findings">
-          <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-          <tbody>{_t_an_guide}</tbody>
-        </table>
-        <div class="callout-inline">
-          <strong>Apple News rules of thumb:</strong>
-          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
-            <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
-            <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the 11–20 range; avoid round numbers (round leads underperform specific leads).</li>
-            <li><strong>Avoid question format</strong> for organic performance — underperforms {_r1_q['lift']:.2f}× baseline. Reserve for Featured targeting only if "What to know" is unavailable.</li>
-            <li><strong>Longer headlines outperform shorter ones</strong> — median length is {AN_MEDIAN_HL_LEN:.0f} chars; don't truncate to fit a format preference.</li>
-            <li><strong>Business and lifestyle</strong> have the widest outcome variance (CV=1.55) — headline choice matters most here. Concentrate variant production on these topics first.</li>
-          </ul>
-        </div>
-
-        <h3>SmartNews — top formula × topic combinations</h3>
-        <p>Ranked by lift vs. untagged SmartNews baseline. SmartNews rewards local/geographic specificity — the channel placement (Finding 3) matters as much as the formula.</p>
-        <table class="findings">
-          <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-          <tbody>{_t_sn_guide}</tbody>
-        </table>
-        <div class="callout-inline">
-          <strong>SmartNews rules of thumb:</strong>
-          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
-            <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× ROI. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
-            <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
-            <li><strong>Sports underperforms SmartNews</strong> ({sports_sn_idx:.2f}× platform median) — don't rely on sports content for SmartNews reach; the same story with a local/civic frame does better.</li>
-            <li><strong>Median headline length</strong> on SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars — see the length analysis in Finding 6 for platform-specific guidance.</li>
-          </ul>
-        </div>
-
-        <h3>Push Notifications — top features by CTR lift</h3>
-        <table class="findings">
-          <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Lift</th><th>Significant?</th></tr></thead>
-          <tbody>{_t4}</tbody>
-        </table>
-        <div class="callout-inline">
-          <strong>Notification rules of thumb:</strong>
-          <ul style="padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8">
-            <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — {EXCL_LIFT} CTR lift. The word must be earned; overuse erodes the signal.</li>
-            <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" ({_r5_poss['lift']:.2f}× lift).</li>
-            <li><strong>Write longer notifications</strong>: ≤80 chars gets {(1-float(_r5_sh['lift'])):.0%} fewer clicks. Give readers context before asking them to tap.</li>
-            <li><strong>Avoid question format</strong>: hurts notification CTR ({_r5_q['lift']:.2f}×), consistent with the article finding.</li>
-            <li><strong>Serial/escalating stories with a celebrity anchor</strong> are the highest-CTR content type — structure updates as installments with named-person possessive framing.</li>
-          </ul>
-        </div>
-        <p class="caveat">This playbook synthesizes Findings 1–8. Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels for p-values and sample sizes. Treat as directional guidance, not policy.</p>
-      </div><!-- /#detail-playbook -->
-
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
       <!-- DETAIL: TEAM -->
       <div class="detail-panel" id="detail-team">
@@ -2577,6 +2514,7 @@ function closeDetail() {{
   <p style="margin-top: 6px;">
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
+    <a href="playbook/">Playbook</a> &nbsp;·&nbsp;
     Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
 </footer>
@@ -2588,3 +2526,141 @@ out = Path("docs/index.html")
 out.parent.mkdir(exist_ok=True)
 out.write_text(html, encoding="utf-8")
 print(f"Site written to {out}  ({len(html):,} chars)")
+
+# ── Editorial Playbook page ────────────────────────────────────────────────────
+playbook_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T1 Headline Analysis · Editorial Playbook</title>
+<style>
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+          background:#0f172a; color:#e2e8f0; font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; }}
+  nav {{ background:rgba(15,23,42,0.95); backdrop-filter:blur(20px);
+         -webkit-backdrop-filter:blur(20px); padding:0 2rem;
+         display:flex; align-items:center; gap:1.5rem; height:44px;
+         border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }}
+  nav .brand {{ color:#f1f5f9; font-weight:700; font-size:0.72rem;
+                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  nav a {{ color:#94a3b8; text-decoration:none; font-size:0.73rem; transition:color 0.15s; }}
+  nav a:hover {{ color:#f1f5f9; }}
+  .container {{ max-width:860px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
+  .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
+              color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }}
+  h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
+        letter-spacing:-0.02em; margin-bottom:0.5rem; color:#f1f5f9; }}
+  .meta {{ font-size:0.8rem; color:#94a3b8; margin-bottom:2rem; line-height:1.6; }}
+  h2 {{ font-size:1.05rem; font-weight:700; letter-spacing:-0.01em;
+        color:#f1f5f9; margin:2.5rem 0 0.75rem; padding-top:2rem;
+        border-top:1px solid #1e293b; }}
+  h2:first-of-type {{ border-top:none; padding-top:0; }}
+  h3 {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+        color:#94a3b8; margin:1.75rem 0 0.6rem; }}
+  p {{ color:#cbd5e1; margin-bottom:0.9rem; font-size:0.9375rem; }}
+  .callout {{ padding:1rem 1.25rem; border-radius:8px; margin:1.25rem 0; font-size:0.875rem;
+              background:#1e293b; border:1px solid #334155; color:#cbd5e1; }}
+  .callout-inline {{ background:#1e293b; border-radius:8px; padding:1rem 1.25rem;
+                     margin:1.25rem 0; border:1px solid #334155; }}
+  .callout-inline strong {{ color:#f1f5f9; font-size:0.875rem; }}
+  .callout-inline ul {{ padding-left:18px; margin-top:8px; font-size:13px; line-height:1.8; color:#cbd5e1; }}
+  .callout-inline li {{ padding:0; border:none; list-style:disc; }}
+  table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:1.25rem 0;
+           background:#1e293b; border-radius:8px; overflow:hidden;
+           box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.2); }}
+  th {{ text-align:left; padding:8px 12px; background:#0f172a; color:#94a3b8;
+        font-weight:600; font-size:0.62rem; text-transform:uppercase;
+        letter-spacing:0.08em; border-bottom:1px solid #334155; }}
+  td {{ padding:8px 12px; border-bottom:1px solid #0f172a; vertical-align:top; color:#cbd5e1; }}
+  tr:last-child td {{ border-bottom:none; }}
+  .caveat {{ font-size:0.74rem; color:#64748b; margin-top:0.75rem; line-height:1.6; }}
+  .tag {{ display:inline-block; font-size:10px; font-weight:600; border-radius:4px;
+          padding:2px 6px; margin-right:6px; }}
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">McClatchy CSA · T1 Headlines</span>
+  <a href="../index.html">← Current analysis</a>
+  <a href="../experiments/index.html">Experiments</a>
+</nav>
+<div class="container">
+
+<span class="eyebrow">Editorial Playbook</span>
+<h1>Per-Platform Headline Guidance</h1>
+<p class="meta">Synthesized from Findings 1–8 · {REPORT_DATE} · Apple News, SmartNews, Push Notifications</p>
+
+<div class="callout">
+  <strong>How to use this:</strong> Each platform rewards different headline structures. This playbook translates data findings into per-channel rules. Top formula × topic combinations are ranked by lift vs. untagged baseline (≥5 articles required per cell). Treat as directional guidance — see individual findings for p-values and sample sizes.
+</div>
+
+<h2>Apple News</h2>
+
+<h3>Top formula × topic combinations</h3>
+<p>Non-Featured articles only, ranked by lift vs. untagged baseline.</p>
+<table>
+  <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+  <tbody>{_t_an_guide}</tbody>
+</table>
+
+<div class="callout-inline">
+  <strong>Apple News rules of thumb</strong>
+  <ul>
+    <li><strong>Possessive + named entity</strong> on crime and business drives the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
+    <li><strong>Number leads</strong> are trending up (Finding 8) — use specific numbers in the 11–20 range; avoid round numbers (round leads underperform specific leads).</li>
+    <li><strong>Avoid question format</strong> for organic performance — underperforms {_r1_q['lift']:.2f}× baseline. Reserve for Featured targeting only if "What to know" is unavailable.</li>
+    <li><strong>Longer headlines outperform shorter ones</strong> — median length is {AN_MEDIAN_HL_LEN:.0f} chars; don't truncate to fit a format preference.</li>
+    <li><strong>Business and lifestyle</strong> have the widest outcome variance — headline choice matters most here. Concentrate variant production on these topics first.</li>
+  </ul>
+</div>
+
+<h2>SmartNews</h2>
+
+<h3>Top formula × topic combinations</h3>
+<p>Ranked by lift vs. untagged SmartNews baseline. Channel placement matters as much as the formula.</p>
+<table>
+  <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
+  <tbody>{_t_sn_guide}</tbody>
+</table>
+
+<div class="callout-inline">
+  <strong>SmartNews rules of thumb</strong>
+  <ul>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× ROI. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
+    <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest ROI. Reframe entertainment content toward lifestyle or local angles where possible.</li>
+    <li><strong>Sports underperforms SmartNews</strong> ({sports_sn_idx:.2f}× platform median) — don't rely on sports content for SmartNews reach; the same story with a local/civic frame does better.</li>
+    <li><strong>Median headline length</strong> on SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars — see the length analysis in Finding 6 for platform-specific guidance.</li>
+  </ul>
+</div>
+
+<h2>Push Notifications</h2>
+
+<h3>Top features by CTR lift</h3>
+<table>
+  <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Lift</th><th>Significant?</th></tr></thead>
+  <tbody>{_t4}</tbody>
+</table>
+
+<div class="callout-inline">
+  <strong>Notification rules of thumb</strong>
+  <ul>
+    <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops — {EXCL_LIFT} CTR lift. The word must be earned; overuse erodes the signal.</li>
+    <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" ({_r5_poss['lift']:.2f}× lift).</li>
+    <li><strong>Write longer notifications</strong>: ≤80 chars gets {(1-float(_r5_sh['lift'])):.0%} fewer clicks. Give readers context before asking them to tap.</li>
+    <li><strong>Avoid question format</strong>: hurts notification CTR ({_r5_q['lift']:.2f}×), consistent with the article finding.</li>
+    <li><strong>Serial/escalating stories with a celebrity anchor</strong> are the highest-CTR content type — structure updates as installments with named-person possessive framing.</li>
+  </ul>
+</div>
+
+<p class="caveat">Formula × topic cells require ≥5 articles. All lift values are vs. untagged baseline within the same platform. Statistical confidence varies — see individual finding panels for p-values and sample sizes.</p>
+
+</div>
+</body>
+</html>"""
+
+playbook_out = Path("docs/playbook/index.html")
+playbook_out.parent.mkdir(exist_ok=True)
+playbook_out.write_text(playbook_html, encoding="utf-8")
+print(f"Playbook written to {playbook_out}  ({len(playbook_html):,} chars)")
