@@ -2120,6 +2120,16 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
 
         _detail_html = (
             f'<div id="{_ap_id}" class="pb-detail" style="display:none">\n'
+            f'  <div style="background:rgba(255,255,255,0.03);border:1px solid #334155;'
+            f'border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">\n'
+            f'    <span class="conf-badge {_badge_cls}" style="margin-bottom:0.6rem">{_badge_lbl}</span>\n'
+            f'    <p style="font-size:0.88rem;color:#e2e8f0;line-height:1.55;margin-bottom:0.75rem">'
+            f'{_safe_claim}</p>\n'
+            f'    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;'
+            f'color:#64748b;margin-bottom:0.35rem">Worth experimenting on</p>\n'
+            f'    <p style="font-size:0.84rem;color:#60a5fa;font-weight:500;line-height:1.45;margin:0">'
+            f'\u2192 {_safe_action}</p>\n'
+            f'  </div>\n'
             f'  <h3 class="rh">Performance overview</h3>\n'
             f'  <p class="detail-sub">{_n} matched articles across {_n_plats} platform(s) \u00b7 '
             f'{_med:.0%} median cohort percentile \u00b7 {_delta_pts:.1f} pts {_above_below} team median '
