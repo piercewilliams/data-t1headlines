@@ -28,7 +28,7 @@
               color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }
   h1 { font-size:1.55rem; font-weight:700; line-height:1.3;
         letter-spacing:-0.02em; margin-bottom:0.4rem; color:#f1f5f9; }
-  .sub { color:#94a3b8; font-size:0.875rem; margin-bottom:0; }
+  .sub { color:#94a3b8; font-size:0.875rem; margin-bottom:1.5rem; }
   .run-header { display:flex; align-items:baseline; gap:12px; margin:2rem 0 1.25rem;
                  padding-bottom:0.75rem; border-bottom:1px solid #1e293b; }
   .run-label { font-size:1.05rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; }
@@ -432,6 +432,14 @@ function _exportPanel(panelEl, format, dropdownEl) {
   if (typeof domtoimage === 'undefined') {
     _showResult2('Export unavailable: rendering library not loaded', true);
     return;
+  }
+
+  // Re-apply the current theme to all Plotly charts before cloning.
+  // Charts inside closed panels are skipped when _rethemeCharts normally runs
+  // (Plotly.relayout throws on display:none elements). Now that this panel is
+  // open, force a re-theme so the clone captures correct dark/light colors.
+  if (typeof _rethemeCharts === 'function') {
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
   }
 
   var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
