@@ -1628,24 +1628,26 @@ _period_colors_8 = {
 }
 _period_order_8 = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
 
-# Only chart formulas with ≥15 articles per quarter — below that, noise swamps the trend.
-# Heres/WTK have n=4–9/quarter and produce misleading zigzags; they appear in the table below.
+# Only chart formulas with ≥15 articles per quarter — noise swamps trend below that.
+# Heres/WTK have n=4–9/quarter; they stay in the table but not in the chart.
 _CHART_MIN_N = 15
+# Use numeric x-positions mapped from quarter labels — avoids Plotly categorical axis quirks
+_q_to_x = {q: i for i, q in enumerate(_period_order_8)}
 
 fig8 = go.Figure()
 
 if not df_periods.empty:
     for f, color in _period_colors_8.items():
         sub = df_periods[df_periods["formula"] == f].copy()
-        sub = sub[sub["n"] >= _CHART_MIN_N]          # drop quarters with too few articles
-        sub["_order"] = sub["period"].map({p: i for i, p in enumerate(_period_order_8)})
-        sub = sub.sort_values("_order")
-        if len(sub) < 2:                              # need at least 2 points to draw a line
+        sub = sub[sub["n"] >= _CHART_MIN_N]
+        sub["_x"] = sub["period"].map(_q_to_x)
+        sub = sub.dropna(subset=["_x"]).sort_values("_x")
+        if len(sub) < 2:
             continue
         label = FORMULA_LABELS.get(f, f)
         fig8.add_trace(go.Scatter(
-            x=sub["period"],
-            y=sub["lift"],
+            x=sub["_x"].tolist(),
+            y=sub["lift"].tolist(),
             mode="lines+markers+text",
             name=label,
             line=dict(color=color, width=2.5),
@@ -1654,14 +1656,14 @@ if not df_periods.empty:
             textposition="top center",
             textfont=dict(size=10, color=color),
             hovertemplate="%{x}: %{y:.2f}× baseline (n=%{customdata})<extra>" + label + "</extra>",
-            customdata=sub["n"],
+            customdata=sub["n"].tolist(),
         ))
 
-fig8.add_hline(
-    y=1.0, line_dash="dash", line_color=_T["baseline"], line_width=1.5,
-    annotation_text="Baseline (1.0×)", annotation_position="right",
-    annotation_font_size=10, annotation_font_color=_T["baseline"],
-)
+fig8.add_shape(type="line", x0=-0.3, x1=len(_period_order_8)-0.7,
+               y0=1.0, y1=1.0, line=dict(color=_T["baseline"], width=1.5, dash="dash"))
+fig8.add_annotation(x=len(_period_order_8)-0.75, y=1.0, text="Baseline (1.0×)",
+                    showarrow=False, font=dict(size=10, color=_T["baseline"]),
+                    xanchor="left", yanchor="middle")
 
 fig8.update_layout(
     **make_layout(THEME, height=420, margin=dict(l=20, r=180, t=50, b=60),
@@ -1669,15 +1671,18 @@ fig8.update_layout(
     xaxis=dict(
         title="",
         gridcolor=_T["grid"],
-        categoryorder="array",
-        categoryarray=_period_order_8,
+        zeroline=False,
+        tickmode="array",
+        tickvals=list(range(len(_period_order_8))),
+        ticktext=_period_order_8,
+        range=[-0.4, len(_period_order_8) - 0.6],
     ),
     yaxis=dict(
         title="Lift vs. baseline (1.0 = same as unclassified headlines)",
         gridcolor=_T["grid"],
         zeroline=False,
         tickformat=".2f",
-        range=[0.3, 1.6],   # zoom into the signal — no formula ever reaches 0 or 2
+        range=[0.3, 1.6],
     ),
     legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
