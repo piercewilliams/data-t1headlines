@@ -3,7 +3,7 @@ generate_site.py — T1 Headline Analysis site generator.
 
 Reads two Excel exports (2025 and 2026 YTD) from Chris Tarrow's Google Sheet,
 runs 9 statistical analyses, and writes:
-  - docs/index.html          — main analysis page (9 findings, interactive tiles)
+  - docs/index.html          — main analysis page (interactive finding tiles)
   - docs/playbook/index.html — editorial playbooks (sorted by confidence level)
 
 Usage:
@@ -64,7 +64,7 @@ parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site
 parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
 parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx")
 parser.add_argument("--tracker",   default="Tracker Template.xlsx")
-parser.add_argument("--theme",     default="light", choices=["light", "dark"])
+parser.add_argument("--theme",     default="dark", choices=["light", "dark"])
 parser.add_argument("--release",   default=None,
                     help="Data release slug YYYY-MM (defaults to current month). "
                          "Pass explicitly when ingesting data from a prior month.")
@@ -157,6 +157,14 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   cap_engagement_seconds() — always call on active-time cols before any chart/stat that
 #                              uses them; outliers (e.g. 23k-second rows from 2025 data)
 #                              silently collapse y-axes and flatten scatter plots
+#
+# DARK MODE CHARTS — always keep --theme default as "dark":
+#   Charts are server-side rendered with Plotly; their paper/plot backgrounds and trace
+#   colors are baked into inline SVG at build time. CSS theme classes cannot override
+#   inline SVG fill/bgcolor. The fix: build with --theme dark (transparent backgrounds
+#   + neon trace colors); the JS _rethemeCharts() function in applyTheme() handles
+#   runtime color updates when the user toggles to light mode. NEVER change the
+#   --theme default back to "light" — white backgrounds will reappear in dark mode.
 #
 # TABLES — do NOT add overflow/scroll CSS to individual tables:
 #   The JS DOMContentLoaded listener auto-wraps every <table> in a .table-wrap div,
@@ -2041,7 +2049,7 @@ def _team_top_table():
         views_val = r.get('views', 0)
         views_str = f"{int(views_val):,}" if pd.notna(views_val) else "—"
         html_out += (f"<tr><td>{title}</td>"
-                     f"<td>{html_module.escape(str(r.get('platform','')))} — {html_module.escape(str(r.get('brand','')))}</td>"
+                     f"<td>{html_module.escape(str(r.get('platform','')))} / {html_module.escape(str(r.get('brand','')))}</td>"
                      f"<td>{html_module.escape(str(r.get('author','')))}</td>"
                      f"<td>{r['percentile']:.0%}</td>"
                      f"<td>{views_str}</td>"
@@ -2219,7 +2227,7 @@ fig1.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Baseline", annotation_position="top")
 fig1.update_layout(
     **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig1_text), t=50, b=40),
-                  title="Percentile-within-cohort lift vs. baseline by formula — non-Featured articles only"),
+                  title="Percentile-within-cohort lift vs. baseline by formula (non-Featured articles only)"),
     xaxis=dict(title="Median percentile rank relative to untagged baseline (1.0 = same as baseline)",
                gridcolor=_T["grid"], zeroline=False, range=safe_range(_fig1_x, margin=0.25)),
     yaxis=dict(title=""),
@@ -2277,7 +2285,7 @@ fig3 = go.Figure(go.Bar(
 ))
 fig3.update_layout(
     **make_layout(THEME, height=CHART_H, margin=dict(l=20, r=auto_right_margin(_fig3_text), t=50, b=40),
-                  title="Median percentile rank by SmartNews channel — with article volume"),
+                  title="Median percentile rank by SmartNews channel (with article volume)"),
     xaxis=dict(title="Median percentile within monthly cohort (0=lowest, 1=highest)", gridcolor=_T["grid"],
                zeroline=False, tickformat=".0%"),
     yaxis=dict(title=""),
@@ -2335,7 +2343,7 @@ fig5.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Platform median", annotation_position="top")
 fig5.update_layout(
     **make_layout(THEME, height=480, margin=dict(l=20, r=40, t=50, b=80),
-                  title="Topic performance by platform — percentile rank vs. platform median"),
+                  title="Topic performance by platform: percentile rank vs. platform median"),
     barmode="group",
     xaxis=dict(title="Percentile index (1.0 = platform median)", gridcolor=_T["grid"], zeroline=False),
     yaxis=dict(title=""),
@@ -2365,7 +2373,7 @@ fig6.add_trace(go.Bar(
 ))
 fig6.update_layout(
     **make_layout(THEME, height=480, margin=dict(l=20, r=140, t=50, b=80),
-                  title="Outcome spread by topic — where headline choice has the most room to move performance"),
+                  title="Outcome spread by topic (where headline choice has the most room to move performance)"),
     barmode="group",
     xaxis=dict(title="IQR ÷ median percentile (higher = wider spread between top and bottom articles)",
                gridcolor=_T["grid"], zeroline=False),
@@ -2396,7 +2404,7 @@ fig7.add_trace(go.Scatter(
 ))
 fig7.update_layout(
     **make_layout(THEME, height=460, margin=dict(l=20, r=40, t=50, b=80),
-                  title=f"Views vs. average active time — Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})"),
+                  title=f"Views vs. average active time; Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f})"),
     xaxis=dict(title="Total views (log scale)", type="log", gridcolor=_T["grid"]),
     yaxis=dict(title="Avg. active time (seconds)", gridcolor=_T["grid"],
                range=safe_range(q6_sample[AT_COL].dropna(), margin=0.1, floor=0.0)),
@@ -2455,7 +2463,7 @@ fig8.add_annotation(x=len(_period_order_8)-0.75, y=1.0, text="Baseline (1.0×)",
 
 fig8.update_layout(
     **make_layout(THEME, height=420, margin=dict(l=20, r=180, t=50, b=60),
-                  title="Headline formula lift vs. unclassified baseline — Q1 2025 through Q1 2026"),
+                  title="Headline formula lift vs. unclassified baseline, Q1 2025 through Q1 2026"),
     xaxis=dict(
         title="",
         gridcolor=_T["grid"],
@@ -2572,7 +2580,7 @@ if HAS_TRACKER and N_TRACKED > 0:
       </table>
       <h3>Top 20 articles by percentile rank</h3>
       <table class="findings">
-        <thead><tr><th>Article</th><th>Platform — Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+        <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
         <tbody>{_t_team}</tbody>
       </table>
       <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
@@ -2600,7 +2608,7 @@ if NL_PARSED >= 10:
     <summary class="finding-header">
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
-        <p class="section-label">Finding 1b · Number Leads — Deep Dive</p>
+        <p class="section-label">Finding 1b · Number Leads: Deep Dive</p>
         <h2>Specific numbers outperform round numbers. Count/list formats lead; years and dollar amounts lag.</h2>
       </div>
     </summary>
@@ -2612,11 +2620,11 @@ if NL_PARSED >= 10:
       <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
       <div class="two-col">
         <div>
-          <p><strong>Top performers — specific numbers</strong></p>
+          <p><strong>Top performers: specific numbers</strong></p>
           <ul class="headline-list">{_nl_specific_examples}</ul>
         </div>
         <div>
-          <p><strong>Top performers — round numbers</strong></p>
+          <p><strong>Top performers: round numbers</strong></p>
           <ul class="headline-list">{_nl_round_examples}</ul>
         </div>
       </div>
@@ -2899,7 +2907,7 @@ html = f"""<!DOCTYPE html>
 </div>
 
 <main>
-  <p class="grid-label">9 findings — click any card to expand</p>
+  <p class="grid-label">CLICK ON ANY FINDING TO EXPAND</p>
   <div class="tile-grid">
 
     <div class="tile" onclick="showDetail('formulas', this)">
@@ -3004,7 +3012,7 @@ html = f"""<!DOCTYPE html>
       {"" if NL_PARSED < 10 else f"""
       <!-- DETAIL: NUMLEADS -->
       <div class="detail-panel" id="detail-numleads">
-        <h2>Finding 1b · Number Leads — Deep Dive</h2>
+        <h2>Finding 1b · Number Leads: Deep Dive</h2>
         <div class="callout">
           <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
         </div>
@@ -3012,11 +3020,11 @@ html = f"""<!DOCTYPE html>
         <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
         <div class="two-col">
           <div>
-            <p><strong>Top performers — specific numbers</strong></p>
+            <p><strong>Top performers: specific numbers</strong></p>
             <ul class="headline-list">{_nl_specific_examples}</ul>
           </div>
           <div>
-            <p><strong>Top performers — round numbers</strong></p>
+            <p><strong>Top performers: round numbers</strong></p>
             <ul class="headline-list">{_nl_round_examples}</ul>
           </div>
         </div>
@@ -3216,7 +3224,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <h3>Top 20 articles by percentile rank</h3>
         <table class="findings">
-          <thead><tr><th>Article</th><th>Platform — Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
+          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
           <tbody>{_t_team}</tbody>
         </table>
         <h3>Article length and syndication performance ({WC_MATCHED_N} matched articles with word count)</h3>
@@ -3237,6 +3245,64 @@ html = f"""<!DOCTYPE html>
 </main>
 
 <script>
+/* ── Chart re-theming ──────────────────────────────────────────────────────
+   Charts are built with --theme dark (transparent bg + neon trace colors).
+   When the user toggles to light mode, this function updates Plotly layout
+   properties (text/grid colors) and swaps trace colors neon ↔ normal.
+   Built as function declarations so they are hoisted above the IIFE below. */
+
+var _NEON_COLORS  = ['#60a5fa','#4ade80','#f87171','#fb923c','#94a3b8'];
+var _NORM_COLORS  = ['#2563eb','#16a34a','#dc2626','#f59e0b','#64748b'];
+
+function _swapColor(c, toDark) {{
+  if (!c) return c;
+  var from = toDark ? _NORM_COLORS : _NEON_COLORS;
+  var to   = toDark ? _NEON_COLORS : _NORM_COLORS;
+  var i    = from.indexOf(typeof c === 'string' ? c.toLowerCase() : c);
+  return i >= 0 ? to[i] : c;
+}}
+function _remapTraceColor(c, toDark) {{
+  if (Array.isArray(c)) return c.map(function(v) {{ return _swapColor(v, toDark); }});
+  return _swapColor(c, toDark);
+}}
+
+function _rethemeCharts(isDark) {{
+  if (typeof Plotly === 'undefined') return;
+  var text  = isDark ? '#f1f5f9' : '#374151';
+  var grid  = isDark ? '#334155' : '#e2e8f0';
+  var zero  = isDark ? '#64748b' : '#9ca3af';
+  document.querySelectorAll('.js-plotly-plot').forEach(function(div) {{
+    try {{
+      Plotly.relayout(div, {{
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor:  'rgba(0,0,0,0)',
+        'font.color':              text,
+        'title.font.color':        text,
+        'legend.font.color':       text,
+        'xaxis.gridcolor':         grid,  'yaxis.gridcolor':         grid,
+        'xaxis2.gridcolor':        grid,  'yaxis2.gridcolor':        grid,
+        'xaxis.zerolinecolor':     zero,  'yaxis.zerolinecolor':     zero,
+        'xaxis.tickfont.color':    text,  'yaxis.tickfont.color':    text,
+        'xaxis2.tickfont.color':   text,  'yaxis2.tickfont.color':   text,
+        'xaxis.title.font.color':  text,  'yaxis.title.font.color':  text,
+        'xaxis2.title.font.color': text,  'yaxis2.title.font.color': text,
+      }});
+      (div.data || []).forEach(function(trace, i) {{
+        var upd = {{}};
+        if (trace.marker && trace.marker.color !== undefined) {{
+          var mc = _remapTraceColor(trace.marker.color, isDark);
+          if (JSON.stringify(mc) !== JSON.stringify(trace.marker.color)) upd['marker.color'] = mc;
+        }}
+        if (trace.line && trace.line.color) {{
+          var lc = _swapColor(trace.line.color, isDark);
+          if (lc !== trace.line.color) upd['line.color'] = lc;
+        }}
+        if (Object.keys(upd).length) Plotly.restyle(div, upd, [i]);
+      }});
+    }} catch(e) {{ /* panel may be hidden; colors applied next time it opens */ }}
+  }});
+}}
+
 /* ── Theme toggle ── */
 (function () {{
   var stored = localStorage.getItem('theme') || '{THEME}';
@@ -3248,6 +3314,7 @@ function applyTheme(t) {{
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
   localStorage.setItem('theme', t);
+  _rethemeCharts(t === 'dark');
 }}
 
 function toggleTheme() {{
@@ -3264,7 +3331,11 @@ function showDetail(id, tile) {{
   if (panel) panel.style.display = 'block';
   const area = document.getElementById('detail-area');
   area.style.display = 'block';
-  setTimeout(() => area.scrollIntoView({{ behavior: 'smooth', block: 'start' }}), 50);
+  // Re-apply chart theme now that the panel (and its charts) are visible
+  setTimeout(function() {{
+    _rethemeCharts(document.body.classList.contains('theme-dark'));
+    area.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+  }}, 50);
 }}
 
 function closeDetail() {{
@@ -3420,6 +3491,9 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
 out = Path("docs/index.html")
 out.parent.mkdir(exist_ok=True)
+# Strip AI-style em-dash constructions from all output — catches both hardcoded
+# and dynamically computed instances (chart titles, computed strings, etc.)
+html = html.replace(" \u2014 ", "\u2014")
 out.write_text(html, encoding="utf-8")
 print(f"Site written to {out}  ({len(html):,} chars)")
 
@@ -3937,6 +4011,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
 playbook_out = Path("docs/playbook/index.html")
 playbook_out.parent.mkdir(exist_ok=True)
+playbook_html = playbook_html.replace(" \u2014 ", "\u2014")
 playbook_out.write_text(playbook_html, encoding="utf-8")
 print(f"Playbooks written to {playbook_out}  ({len(playbook_html):,} chars)")
 
