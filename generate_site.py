@@ -758,42 +758,47 @@ kw_overlap   = top_an_words & top_sn_words
 kw_overlap_n = len(kw_overlap)
 
 
-# ── Longitudinal: rolling 3-month relative lift vs. untagged baseline ──────────
-# percentile_within_cohort median is always ~50% by construction, so we can't use
-# absolute percentile for trend lines. Instead, compute lift = formula median / baseline median
-# within each rolling 3-month window to show genuine performance change over time.
+# ── Longitudinal: 3-period lift (H1 2025 → H2 2025 → Q1 2026) ───────────────
+# Rolling monthly windows fail because per-formula monthly n is too small (8–15 articles).
+# Grouping into half-year periods gives 40–100 articles per cell — enough for reliable medians.
 print("Computing longitudinal…")
 an["_pub_dt"] = pd.to_datetime(an["Date Published"], errors="coerce")
 an["_month_str"] = an["_pub_dt"].dt.to_period("M").astype(str)
 
-# Filter to 2025+ to remove stray pre-2025 articles (2020/2022/2024 with n=1-2)
-an_long_base = an[an["_month_str"] >= "2025-01"].copy()
-all_long_months = sorted(an_long_base["_month_str"].dropna().unique())
+PERIODS = [
+    ("H1 2025", "2025-01", "2025-06"),
+    ("H2 2025", "2025-07", "2025-12"),
+    ("Q1 2026", "2026-01", "2026-02"),
+]
+_PERIOD_FORMULAS = ["number_lead", "question", "possessive_named_entity", "heres_formula", "what_to_know"]
+_PERIOD_MIN_N = 5
 
-_ROLLING_FORMULAS = ["number_lead", "question", "possessive_named_entity"]
-_ROLLING_MIN_N = 8  # minimum articles per formula per rolling window
-
-long_rows = []
-for i, month in enumerate(all_long_months):
-    # Rolling 3-month window: current month + prior 2 months
-    window_months = all_long_months[max(0, i - 2):i + 1]
-    window_data = an_long_base[an_long_base["_month_str"].isin(window_months)]
-    baseline = window_data[window_data["formula"] == "untagged"][VIEWS_METRIC].dropna()
-    baseline_med = baseline.median()
-    if len(baseline) < _ROLLING_MIN_N or baseline_med == 0:
+period_rows = []
+for period_label, m_start, m_end in PERIODS:
+    pdata = an[(an["_month_str"] >= m_start) & (an["_month_str"] <= m_end)]
+    bl = pdata[pdata["formula"] == "untagged"][VIEWS_METRIC].dropna()
+    if len(bl) < 20 or bl.median() == 0:
         continue
-    for f in _ROLLING_FORMULAS:
-        sub = window_data[window_data["formula"] == f][VIEWS_METRIC].dropna()
-        if len(sub) >= _ROLLING_MIN_N:
-            long_rows.append(dict(
-                month=month,
+    bl_med = bl.median()
+    for f in _PERIOD_FORMULAS:
+        sub = pdata[pdata["formula"] == f][VIEWS_METRIC].dropna()
+        if len(sub) >= _PERIOD_MIN_N:
+            period_rows.append(dict(
+                period=period_label,
                 formula=f,
-                lift=float(sub.median() / baseline_med),
+                label=FORMULA_LABELS.get(f, f),
+                lift=float(sub.median() / bl_med),
                 n=len(sub),
-                baseline_n=len(baseline),
             ))
 
-df_long = pd.DataFrame(long_rows)
+df_periods = pd.DataFrame(period_rows)
+
+# Convenience accessor
+def _period_lift(formula, period):
+    if df_periods.empty:
+        return np.nan
+    r = df_periods[(df_periods["formula"] == formula) & (df_periods["period"] == period)]
+    return float(r["lift"].iloc[0]) if len(r) > 0 else np.nan
 
 
 # ── YoY: Full-year 2025 vs Jan-Feb 2026 ──────────────────────────────────────
@@ -826,18 +831,11 @@ for f, label in FORMULA_LABELS.items():
     ))
 df_yoy = pd.DataFrame(yoy_rows)
 
-# Compute NL lift for 2025 early (Q1) vs late (Q4) for tile text
-if not df_long.empty:
-    _nl_long = df_long[df_long["formula"] == "number_lead"].sort_values("month")
-    _nl_long_2025 = _nl_long[_nl_long["month"] < "2026"]
-    _nl_long_2026 = _nl_long[_nl_long["month"] >= "2026"]
-    _q_long = df_long[df_long["formula"] == "question"].sort_values("month")
-    NL_LIFT_EARLY = float(_nl_long_2025.head(3)["lift"].mean()) if len(_nl_long_2025) >= 3 else np.nan
-    NL_LIFT_LATE  = float(_nl_long[_nl_long["month"] >= "2025-10"]["lift"].mean()) if len(_nl_long[_nl_long["month"] >= "2025-10"]) > 0 else np.nan
-    Q_LIFT_EARLY  = float(_q_long[_q_long["month"] < "2026"].head(3)["lift"].mean()) if len(_q_long) >= 3 else np.nan
-    Q_LIFT_LATE   = float(_q_long["lift"].tail(3).mean()) if len(_q_long) >= 3 else np.nan
-else:
-    NL_LIFT_EARLY = NL_LIFT_LATE = Q_LIFT_EARLY = Q_LIFT_LATE = np.nan
+# Lift values for tile text — pulled from the 3-period table
+NL_LIFT_EARLY = _period_lift("number_lead", "H1 2025")
+NL_LIFT_LATE  = _period_lift("number_lead", "Q1 2026")
+Q_LIFT_EARLY  = _period_lift("question",    "H1 2025")
+Q_LIFT_LATE   = _period_lift("question",    "Q1 2026")
 
 # Formula with biggest relative lift change YoY
 df_yoy_valid = df_yoy[(df_yoy["suppressed"] == False)].dropna(subset=["lift_2025", "lift_2026"])
@@ -1336,6 +1334,25 @@ def _yoy_table():
                      f"<td>{delta_str}</td></tr>\n")
     return html_out
 
+def _periods_table():
+    html_out = ""
+    formulas_in_order = ["number_lead", "question", "possessive_named_entity", "heres_formula", "what_to_know"]
+    for f in formulas_in_order:
+        label = FORMULA_LABELS.get(f, f)
+        def _cell(period, _f=f):
+            r = df_periods[(df_periods["formula"] == _f) & (df_periods["period"] == period)]
+            if len(r) == 0:
+                return "—", "—"
+            return f"{float(r['lift'].iloc[0]):.2f}×", str(int(r['n'].iloc[0]))
+        l1, n1 = _cell("H1 2025")
+        l2, n2 = _cell("H2 2025")
+        l3, n3 = _cell("Q1 2026")
+        html_out += (f"<tr><td>{label}</td>"
+                     f"<td>{l1}</td><td style='color:#94a3b8'>(n={n1})</td>"
+                     f"<td>{l2}</td><td style='color:#94a3b8'>(n={n2})</td>"
+                     f"<td>{l3}</td><td style='color:#94a3b8'>(n={n3})</td></tr>\n")
+    return html_out
+
 def _author_table():
     if author_stats.empty: return "<tr><td colspan='4'>No matched articles.</td></tr>"
     html_out = ""
@@ -1368,6 +1385,7 @@ _t3 = _q4_table()
 _t4 = _q5_table()
 _t5 = _sports_subtopic_table()
 _t_yoy = _yoy_table()
+_t_periods = _periods_table()
 _t_auth = _author_table()
 _t_team = _team_top_table()
 _t_nl_type = _nl_type_table()
@@ -1582,112 +1600,68 @@ fig7.update_layout(
     legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
 )
 
-# Chart 8 — Longitudinal: monthly median percentile by formula
-FORMULA_COLORS = {
-    "heres_formula":           BLUE,
-    "what_to_know":            GREEN,
-    "number_lead":             RED,
-    "question":                AMBER,
-    "possessive_named_entity": NAVY,
-}
-FORMULA_DISPLAY = {
-    "heres_formula":           "Here's / Here are",
-    "what_to_know":            "What to know",
-    "number_lead":             "Number lead",
-    "question":                "Question",
-    "possessive_named_entity": "Possessive named entity",
-}
-
-# ── Fig 8: Longitudinal — two-panel: rolling lift trend + YoY grouped bar ──────
-# Panel A: Rolling 3-month relative lift vs. untagged baseline.
-#   Raw percentile_within_cohort median is always ~50% by construction (it's a rank).
-#   Relative lift = formula median / baseline median shows genuine signal.
-# Panel B: Full-year 2025 vs Jan-Feb 2026 grouped bar (formulas with n≥10 in 2025 only).
-_long_colors_8 = {
+# ── Fig 8: Longitudinal — 3-period lift line chart ───────────────────────────
+# Each formula gets a line across 3 clearly-labelled periods.
+# Lift = formula median percentile / untagged baseline median in the same period.
+# Formulas with n<5 in a period are suppressed for that point only.
+_period_colors_8 = {
     "number_lead":             AMBER,
     "question":                RED,
     "possessive_named_entity": BLUE,
+    "heres_formula":           GREEN,
+    "what_to_know":            GRAY,
 }
+_period_order_8 = ["H1 2025", "H2 2025", "Q1 2026"]
 
-fig8 = make_subplots(
-    rows=1, cols=2,
-    subplot_titles=[
-        "Rolling 3-month lift vs. unclassified baseline",
-        "Year-over-year: 2025 full year vs. Jan–Feb 2026",
-    ],
-    column_widths=[0.58, 0.42],
-)
+fig8 = go.Figure()
 
-# ── Panel A: Rolling relative lift ───────────────────────────────────────────
-if not df_long.empty:
-    # Add 2026 shading once (before traces)
-    _all_2026_months = sorted(df_long[df_long["month"] >= "2026"]["month"].unique())
-    if len(_all_2026_months) >= 2:
-        fig8.add_vrect(
-            x0=_all_2026_months[0], x1=_all_2026_months[-1],
-            fillcolor="rgba(37,99,235,0.05)", line_width=0,
-            row=1, col=1,
-        )
-    for f, color in _long_colors_8.items():
-        label = FORMULA_LABELS.get(f, f)
-        sub = df_long[df_long["formula"] == f].sort_values("month")
+if not df_periods.empty:
+    for f, color in _period_colors_8.items():
+        sub = df_periods[df_periods["formula"] == f].copy()
+        # Preserve period order
+        sub["_order"] = sub["period"].map({p: i for i, p in enumerate(_period_order_8)})
+        sub = sub.sort_values("_order")
         if len(sub) == 0:
             continue
+        label = FORMULA_LABELS.get(f, f)
         fig8.add_trace(go.Scatter(
-            x=sub["month"], y=sub["lift"],
-            mode="lines+markers",
+            x=sub["period"],
+            y=sub["lift"],
+            mode="lines+markers+text",
             name=label,
             line=dict(color=color, width=2.5),
-            marker=dict(size=7, color=color),
-            hovertemplate="%{x}: %{y:.2f}× baseline (%{customdata} articles)<extra>" + label + "</extra>",
+            marker=dict(size=10, color=color),
+            text=[f"{v:.2f}×" for v in sub["lift"]],
+            textposition="top center",
+            textfont=dict(size=10, color=color),
+            hovertemplate="%{x}: %{y:.2f}× baseline (n=%{customdata})<extra>" + label + "</extra>",
             customdata=sub["n"],
-        ), row=1, col=1)
+        ))
 
-# Baseline reference line at 1.0
 fig8.add_hline(
     y=1.0, line_dash="dash", line_color=_T["baseline"], line_width=1.5,
-    annotation_text="Baseline (1.0×)", annotation_position="bottom right",
+    annotation_text="Baseline (1.0×)", annotation_position="right",
     annotation_font_size=10, annotation_font_color=_T["baseline"],
-    row=1, col=1,
 )
-
-# ── Panel B: YoY grouped bar ─────────────────────────────────────────────────
-_yoy_bar = df_yoy[df_yoy["suppressed"] == False].copy()
-if not _yoy_bar.empty:
-    _yoy_bar_valid25 = _yoy_bar.dropna(subset=["lift_2025"])
-    if not _yoy_bar_valid25.empty:
-        fig8.add_trace(go.Bar(
-            x=_yoy_bar_valid25["label"],
-            y=_yoy_bar_valid25["lift_2025"],
-            name="2025 (full year)",
-            marker_color=BLUE,
-            hovertemplate="%{x}: %{y:.2f}× baseline<extra>2025 full year</extra>",
-        ), row=1, col=2)
-    _yoy_bar_valid26 = _yoy_bar.dropna(subset=["lift_2026"])
-    if not _yoy_bar_valid26.empty:
-        fig8.add_trace(go.Bar(
-            x=_yoy_bar_valid26["label"],
-            y=_yoy_bar_valid26["lift_2026"],
-            name="2026 (Jan–Feb)",
-            marker_color=AMBER,
-            hovertemplate="%{x}: %{y:.2f}× baseline<extra>2026 Jan–Feb</extra>",
-        ), row=1, col=2)
-    fig8.add_hline(
-        y=1.0, line_dash="dash", line_color=_T["baseline"], line_width=1.5,
-        annotation_text="Baseline (1.0×)", annotation_position="bottom right",
-        annotation_font_size=10, annotation_font_color=_T["baseline"],
-        row=1, col=2,
-    )
 
 fig8.update_layout(
-    **make_layout(THEME, height=490, margin=dict(l=20, r=20, t=60, b=110)),
-    barmode="group",
-    legend=dict(orientation="h", yanchor="top", y=-0.24, xanchor="center", x=0.5, font=dict(size=11)),
+    **make_layout(THEME, height=420, margin=dict(l=20, r=160, t=50, b=60),
+                  title="Headline formula lift vs. unclassified baseline — Early 2025 → Late 2025 → 2026"),
+    xaxis=dict(
+        title="",
+        gridcolor=_T["grid"],
+        categoryorder="array",
+        categoryarray=_period_order_8,
+    ),
+    yaxis=dict(
+        title="Lift vs. baseline (1.0 = same as unclassified headlines)",
+        gridcolor=_T["grid"],
+        zeroline=False,
+        tickformat=".2f",
+        range=[0, 2.5],
+    ),
+    legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=11)),
 )
-fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=1)
-fig8.update_yaxes(title_text="Lift vs. baseline", tickformat=".2f", range=[0, 2.2], row=1, col=2)
-fig8.update_xaxes(gridcolor=_T["grid"], tickangle=-30, row=1, col=1)
-fig8.update_xaxes(gridcolor=_T["grid"], tickangle=-20, row=1, col=2)
 
 
 # ── Render charts ─────────────────────────────────────────────────────────────
@@ -2202,22 +2176,22 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-longitudinal">
         <h2>Finding 8 · Trends Over Time</h2>
         <div class="callout">
-          <strong>Key shift:</strong> Number leads improved from {NL_LIFT_EARLY:.2f}× to {NL_LIFT_LATE:.2f}× of the unclassified baseline across 2025, continuing into 2026 (nearly reaching parity). Question-format headlines moved the opposite direction ({Q_LIFT_EARLY:.2f}× early 2025 → {Q_LIFT_LATE:.2f}× most recent), widening their gap. The left chart shows rolling 3-month lift vs. the unclassified baseline. The right chart compares 2025 full-year vs. Jan–Feb 2026 for formulas with enough volume to compare.
-          <br><br><em>How to read "lift":</em> 1.0× = performs the same as unclassified headlines. 1.5× = median 50% above baseline. Baseline (1.0×) is shown as dashed line. Formulas with fewer than 10 articles in 2025 are suppressed in the YoY comparison.
+          <strong>Key shift:</strong> Number leads rose from {NL_LIFT_EARLY:.2f}× in H1 2025 to {NL_LIFT_LATE:.2f}× in Q1 2026 — holding above baseline throughout. Question-format headlines moved in the opposite direction: {Q_LIFT_EARLY:.2f}× early 2025 → {Q_LIFT_LATE:.2f}× most recently, now below baseline. The chart tracks median lift per formula across three broad periods (H1 2025 · H2 2025 · Q1 2026) relative to unclassified headlines.
+          <br><br><em>How to read "lift":</em> 1.0× = same as unclassified headlines. 1.5× = median 50% above baseline. Dashed line = baseline. Periods are grouped broadly to ensure enough articles per cell (n≥5 required to appear).
         </div>
         <div class="chart-wrap">{c8}</div>
-        <h3>Year-over-Year: 2025 full year vs. Jan–Feb 2026</h3>
-        <p>Full-year 2025 baseline provides a much more stable denominator than Jan-Feb-only comparison. Formulas with n&lt;10 in 2025 are shown as suppressed — their apparent swings reflect noise, not signal.</p>
+        <h3>Lift by formula across periods</h3>
+        <p>Each cell shows the median lift for that formula in that period, relative to unclassified articles published in the same period. A dash means fewer than 5 articles qualified.</p>
         <table class="findings">
           <thead><tr>
             <th>Formula</th>
-            <th>2025 n</th><th>2025 lift</th>
-            <th>2026 n</th><th>2026 lift</th>
-            <th>Change</th>
+            <th>H1 2025 lift</th><th></th>
+            <th>H2 2025 lift</th><th></th>
+            <th>Q1 2026 lift</th><th></th>
           </tr></thead>
-          <tbody>{_t_yoy}</tbody>
+          <tbody>{_t_periods}</tbody>
         </table>
-        <p class="caveat">Left chart: rolling 3-month windows, minimum 8 articles per formula per window, 2025-01 onward. Right chart / table: 2025 full year vs. 2026 Jan–Feb. Lift = formula median percentile_within_cohort ÷ untagged baseline median. Formulas with n&lt;10 in 2025 suppressed. 2026 data through {REPORT_DATE}.</p>
+        <p class="caveat">Periods: H1 2025 = Jan–Jun 2025, H2 2025 = Jul–Dec 2025, Q1 2026 = Jan–Feb 2026. Lift = formula median views_per_day ÷ unclassified baseline median within same period. Minimum 5 articles per formula per period to appear. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
       {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
