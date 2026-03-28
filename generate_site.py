@@ -1808,45 +1808,114 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
         _best_plat_m = float(_best_p_row["med_pct"])   if _best_p_row is not None else _med
 
         # ── Tile claim + action ────────────────────────────────────
-        # Performance tier
-        _pct_rank = 1.0 - (_rank - 1) / max(_total_auth - 1, 1)
-        if _pct_rank >= 0.75:
-            _tier = "top quartile on the team"
-        elif _med >= _team_med_pct:
-            _tier = "above team median"
-        elif _pct_rank >= 0.25:
-            _tier = "below team median"
-        else:
-            _tier = "bottom quartile on the team"
+        # Additional signals needed for richer copy
+        _delta_pts_signed = (_med - _team_med_pct) * 100
+        _above_below      = "above" if _delta_pts_signed >= 0 else "below"
+        _delta_pts        = abs(_delta_pts_signed)
 
-        if _dom_formula == "untagged":
-            _formula_sentence = (f"{_dom_pct:.0%} of articles use no tracked formula—"
-                                 "adding one would create a clearer performance signal")
-        elif _dom_vs_self >= 0.05:
-            _formula_sentence = (f"{_dom_label} ({_dom_pct:.0%} of articles) "
-                                 "is this author's strongest format")
-        elif _dom_vs_self <= -0.05:
-            _formula_sentence = (f"{_dom_label} ({_dom_pct:.0%} of articles) "
-                                 "is dragging the median down")
-        else:
-            _formula_sentence = (f"{_dom_label} makes up {_dom_pct:.0%} of articles "
-                                 "with a neutral effect on percentile rank")
+        # Worst platform (for platform-gap signal)
+        _worst_p_row  = _ap.iloc[-1] if len(_ap) >= 2 else None
+        _worst_plat   = str(_worst_p_row["platform"])  if _worst_p_row is not None else None
+        _worst_plat_m = float(_worst_p_row["med_pct"]) if _worst_p_row is not None else None
 
-        _claim = (f"Ranks {_rank} of {_total_auth} matched authors "
-                  f"({_med:.0%} median percentile, {_tier}). "
-                  f"{_formula_sentence[0].upper()}{_formula_sentence[1:]}.")
+        # Best alternative formula that isn't the dominant one (≥3 articles)
+        _best_alt_row = None
+        for _, _frow in _af_tagged.sort_values("med_pct", ascending=False).iterrows():
+            if str(_frow["formula"]) != _dom_formula and int(_frow["n"]) >= 3:
+                _best_alt_row = _frow
+                break
 
-        if (_best_f_row is not None
-                and str(_best_f_row["formula"]) != _dom_formula
-                and float(_best_f_row["med_pct"]) > _dom_med + 0.05):
-            _best_f_label = _FORMULA_LABELS.get(str(_best_f_row["formula"]),
-                                                 str(_best_f_row["formula"]).replace("_"," "))
-            _action = (f"Best results from {_best_f_label} "
-                       f"({float(_best_f_row['med_pct']):.0%}ile), not the most-used format. "
-                       f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile).")
+        # Signal flags — pick the most interesting signal to lead the tile
+        _formula_mismatch = (                          # unused format outperforms dominant by ≥10 pts
+            _best_f_row is not None
+            and str(_best_f_row["formula"]) != _dom_formula
+            and (float(_best_f_row["med_pct"]) - _dom_med) * 100 >= 10
+        )
+        _formula_dragging = (_dom_vs_self * 100 <= -8) # dominant formula ≥8 pts below author median
+        _platform_split   = (                          # best/worst platform gap ≥20 pts
+            _worst_p_row is not None
+            and (float(_best_p_row["med_pct"]) - float(_worst_p_row["med_pct"])) * 100 >= 20
+        )
+
+        if _formula_mismatch:
+            _bfl = _FORMULA_LABELS.get(str(_best_f_row["formula"]),
+                                       str(_best_f_row["formula"]).replace("_", " "))
+            _gap_pts = (float(_best_f_row["med_pct"]) - _dom_med) * 100
+            _claim = (
+                f"{_dom_label} is {_dom_pct:.0%} of output ({_dom_med:.0%}ile) but "
+                f"{_bfl} yields {float(_best_f_row['med_pct']):.0%}ile "
+                f"— a {_gap_pts:.0f}-pt gap in favor of the less-used format."
+            )
+            _action = (
+                f"Shift toward {_bfl} — shows {float(_best_f_row['med_pct']):.0%}ile "
+                f"in this author's own data vs. {_dom_med:.0%}ile for {_dom_label}. "
+                f"Route through {_best_plat} first ({_best_plat_m:.0%}ile)."
+            )
+        elif _formula_dragging:
+            _drag_pts = abs(_dom_vs_self * 100)
+            if _best_alt_row is not None:
+                _alt_lbl = _FORMULA_LABELS.get(str(_best_alt_row["formula"]),
+                                               str(_best_alt_row["formula"]).replace("_", " "))
+                _claim = (
+                    f"{_dom_label} is {_dom_pct:.0%} of output but sits {_drag_pts:.0f} pts "
+                    f"below this author's overall median ({_dom_med:.0%}ile vs. {_med:.0%}ile) "
+                    f"— the most-used format is the weakest."
+                )
+                _action = (
+                    f"Cut {_dom_label} volume; test {_alt_lbl} "
+                    f"({float(_best_alt_row['med_pct']):.0%}ile in this author's data). "
+                    f"{_best_plat} is the highest-ROI platform ({_best_plat_m:.0%}ile)."
+                )
+            else:
+                _claim = (
+                    f"{_dom_label} is {_dom_pct:.0%} of output but sits {_drag_pts:.0f} pts "
+                    f"below this author's overall median — the most-used format is underperforming."
+                )
+                _action = (
+                    f"Diversify beyond {_dom_label}. "
+                    f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile)."
+                )
+        elif _platform_split:
+            _plat_gap = (float(_best_p_row["med_pct"]) - float(_worst_p_row["med_pct"])) * 100
+            _claim = (
+                f"{_best_plat} specialist: {_best_plat_m:.0%}ile on {_best_plat} vs. "
+                f"{_worst_plat_m:.0%}ile on {_worst_plat} "
+                f"— a {_plat_gap:.0f}-pt platform split."
+            )
+            _action = (
+                f"Concentrate output on {_best_plat}; reformat or reduce {_worst_plat} volume. "
+                f"{_dom_label} is the dominant format ({_dom_pct:.0%} of articles)."
+            )
         else:
-            _action = (f"Lean into {_dom_label} where it's working. "
-                       f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile).")
+            # Default: lead with the clearest performance fact
+            _verb = "Sits" if _dom_formula != "untagged" else "Uses no tracked formula —"
+            if _dom_formula == "untagged":
+                _claim = (
+                    f"{_dom_pct:.0%} of articles use no tracked formula. "
+                    f"Overall median: {_med:.0%}ile, {_delta_pts:.0f} pts {_above_below} team."
+                )
+                _action = (
+                    f"Add a consistent headline format to create a measurable signal. "
+                    f"{_best_plat} is the highest-ROI platform ({_best_plat_m:.0%}ile)."
+                )
+            elif _delta_pts_signed >= 0:
+                _claim = (
+                    f"{_delta_pts:.0f} pts above team median ({_med:.0%}ile). "
+                    f"{_dom_label} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile."
+                )
+                _action = (
+                    f"Maintain {_dom_label} approach where it's working. "
+                    f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile)."
+                )
+            else:
+                _claim = (
+                    f"{_delta_pts:.0f} pts below team median ({_med:.0%}ile). "
+                    f"{_dom_label} is {_dom_pct:.0%} of output at {_dom_med:.0%}ile."
+                )
+                _action = (
+                    f"Rebalance formula mix — {_dom_label} at {_dom_med:.0%}ile isn't moving the needle. "
+                    f"Platform sweet spot: {_best_plat} ({_best_plat_m:.0%}ile)."
+                )
 
         # ── Build detail HTML tables ───────────────────────────────
         _formula_rows = []
@@ -1904,15 +1973,13 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                     f'\n  </tbody></table>'
                 )
 
-        _delta_pts  = abs(_med - _team_med_pct) * 100
-        _above_below = "above" if _med >= _team_med_pct else "below"
         _n_plats     = len(_ap)
 
         # ── Assemble tile + detail HTML ────────────────────────────
         _ap_id = f"ap-{_ai}"
 
         _safe_auth   = html_module.escape(_auth)
-        _safe_claim  = html_module.escape(_claim)
+        _safe_claim  = html_module.escape(_claim[:1].upper() + _claim[1:] if _claim else _claim)
         _safe_action = html_module.escape(_action)
 
         _tile_html = (
