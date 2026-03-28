@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="2026-03">
 <title>T1 Headline Analysis · Playbooks</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -102,6 +104,21 @@
   table thead th:hover { color: #f1f5f9; }
   .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }
   table thead th[data-sort] .sort-icon { opacity: 1; color: #60a5fa; }
+
+  /* ── Export button (hardcoded dark — playbook page is always dark) ── */
+  .export-btn-wrap { float: right; position: relative; margin: 0 0 10px 16px; }
+  .export-btn { font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+                border: 1px solid #334155; background: #0f172a; color: #94a3b8;
+                font-family: inherit; transition: background 0.15s; }
+  .export-btn:hover { background: #1e293b; color: #e2e8f0; }
+  .export-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 3px);
+                     min-width: 130px; border-radius: 8px; z-index: 200;
+                     border: 1px solid #334155; background: #0f172a;
+                     box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; }
+  .export-dropdown button { display: block; width: 100%; text-align: left; padding: 8px 14px;
+                             font-size: 0.75rem; font-family: inherit; cursor: pointer;
+                             border: none; background: transparent; color: #cbd5e1; }
+  .export-dropdown button:hover { background: #1e293b; }
 </style>
 </head>
 <body>
@@ -372,6 +389,80 @@ function togglePb(tile, id) {
         th.querySelector('.sort-icon').textContent = asc ? '↑' : '↓';
         sortBy(table, idx, asc);
       });
+    });
+  });
+})();
+
+// ── Export (PNG / PDF) ──────────────────────────────────────────────────────
+function _exportPanel(panelEl, format, dropdownEl) {
+  if (dropdownEl) dropdownEl.style.display = 'none';
+  var heading = panelEl.querySelector('h2');
+  var title   = heading ? heading.textContent.trim() : (panelEl.id || 'export');
+  var slug    = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '');
+  var date    = new Date().toISOString().slice(0, 10);
+  var fname   = 'headline-analysis-' + slug + '-' + date;
+
+  html2canvas(panelEl, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+  }).then(function(canvas) {
+    if (format === 'png') {
+      canvas.toBlob(function(blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname + '.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(a.href); }, 100);
+      });
+    } else {
+      var jsPDF = window.jspdf && window.jspdf.jsPDF;
+      if (!jsPDF) { alert('PDF library not loaded — try PNG instead.'); return; }
+      var w = canvas.width / 2, h = canvas.height / 2;
+      var pdf = new jsPDF({
+        orientation: w > h ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [w, h],
+        hotfixes: ['px_scaling']
+      });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
+      pdf.save(fname + '.pdf');
+    }
+  }).catch(function(err) {
+    console.error('Export failed:', err);
+    alert('Export failed — see browser console for details.');
+  });
+}
+
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.pb-detail').forEach(function(panel) {
+      var wrap = document.createElement('div');
+      wrap.className = 'export-btn-wrap';
+      var btn = document.createElement('button');
+      btn.className = 'export-btn';
+      btn.title = 'Export this playbook';
+      btn.textContent = '↓ Export';
+      var dd = document.createElement('div');
+      dd.className = 'export-dropdown';
+      var pngBtn = document.createElement('button');
+      pngBtn.textContent = 'PNG image';
+      var pdfBtn = document.createElement('button');
+      pdfBtn.textContent = 'PDF document';
+      pngBtn.addEventListener('click', function(e) { e.stopPropagation(); _exportPanel(panel, 'png', dd); });
+      pdfBtn.addEventListener('click', function(e) { e.stopPropagation(); _exportPanel(panel, 'pdf', dd); });
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+      });
+      document.addEventListener('click', function() { dd.style.display = 'none'; });
+      dd.appendChild(pngBtn); dd.appendChild(pdfBtn);
+      wrap.appendChild(btn); wrap.appendChild(dd);
+      panel.insertBefore(wrap, panel.firstChild);
     });
   });
 })();
