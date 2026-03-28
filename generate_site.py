@@ -3596,11 +3596,14 @@ function closeDetail() {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-// PNG: html2canvas at 3× scale, full scrollWidth/scrollHeight — high-res capture
-//      of the entire panel including content below the fold.
-// PDF: browser native print (window.print()) with a @media print clone that
-//      shows only the target panel. Correct colors, vector text, no distortion.
-//      User saves as PDF from the browser print dialog (File → Save as PDF).
+// PDF: browser native print — correct colors, vector text, no distortion.
+//      User saves as PDF from browser print dialog (File → Save as PDF).
+// PNG: html2canvas at 3× scale into an off-screen fixed-width container.
+//      Container includes the tile summary (finding + takeaway) above the
+//      detail panel so the export is self-contained without the user having
+//      to annotate context. No windowWidth/width/height overrides — avoids
+//      the text-reflow garbling that happens when the canvas viewport
+//      diverges from the element's actual rendered layout.
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
@@ -3609,13 +3612,21 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {{
-    // Clone panel; strip interactive controls before printing
-    var clone = panelEl.cloneNode(true);
-    clone.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    var wrap = document.createElement('div');
-    wrap.id = '_exp_print';
-    wrap.appendChild(clone);
-    document.body.appendChild(wrap);
+    // Find the associated tile so the PDF includes the summary header too
+    var _pdfTile = _findTileForPanel(panelEl);
+    var _pdfWrap = document.createElement('div');
+    _pdfWrap.id = '_exp_print';
+    if (_pdfTile) {{
+      var _tc = _pdfTile.cloneNode(true);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0 0 0 0;';
+      _tc.querySelectorAll('.tile-more').forEach(function(el) {{ el.remove(); }});
+      _tc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      _pdfWrap.appendChild(_tc);
+    }}
+    var _pc = panelEl.cloneNode(true);
+    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    _pdfWrap.appendChild(_pc);
+    document.body.appendChild(_pdfWrap);
 
     var style = document.createElement('style');
     style.id = '_exp_style';
@@ -3628,43 +3639,79 @@ function _exportPanel(panelEl, format, dropdownEl) {{
       '}}'
     ].join('\\n');
     document.head.appendChild(style);
-
     function _cleanup() {{
-      var w = document.getElementById('_exp_print');
-      var s = document.getElementById('_exp_style');
-      if (w) w.remove();
-      if (s) s.remove();
+      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+      if (w) w.remove(); if (s) s.remove();
       window.removeEventListener('afterprint', _cleanup);
     }}
     window.addEventListener('afterprint', _cleanup);
     window.print();
 
   }} else {{
-    // PNG — 3× scale, full content dimensions (not just visible viewport)
-    html2canvas(panelEl, {{
+    // PNG — render into an off-screen container at fixed width (1100px).
+    // No windowWidth/width/height overrides: those cause text to reflow in a
+    // different viewport context, collapsing inter-word spacing and garbling text.
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_png';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
+
+    // Prepend the tile summary (finding number + claim + action) as context
+    var tileEl = _findTileForPanel(panelEl);
+    if (tileEl) {{
+      var tc = tileEl.cloneNode(true);
+      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;' +
+        'width:100%;box-sizing:border-box;border-bottom:none;';
+      tc.querySelectorAll('.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      // Reset label back to default in case tile is in open state
+      var more = tc.querySelector('.tile-more');
+      if (more) more.textContent = 'Details \u2193';
+      container.appendChild(tc);
+    }}
+
+    var pc = panelEl.cloneNode(true);
+    pc.style.display = 'block';
+    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    container.appendChild(pc);
+
+    document.body.appendChild(container);
+
+    html2canvas(container, {{
       scale: 3,
       useCORS: true,
       allowTaint: true,
       logging: false,
-      width:       panelEl.scrollWidth,
-      height:      panelEl.scrollHeight,
-      windowWidth: document.documentElement.scrollWidth,
-      backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+      backgroundColor: bg
     }}).then(function(canvas) {{
+      var c = document.getElementById('_exp_png');
+      if (c) c.remove();
       canvas.toBlob(function(blob) {{
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
       }}, 'image/png');
     }}).catch(function(err) {{
+      var c = document.getElementById('_exp_png');
+      if (c) c.remove();
       console.error('PNG export failed:', err);
-      alert('PNG export failed — see browser console for details.');
     }});
   }}
+}}
+
+// Find the tile element (summary card) associated with a given detail panel.
+// Main page: panel id="detail-formulas" → tile with onclick containing 'formulas'
+// Playbook:  panel id="pb-1"           → tile with onclick containing 'pb-1'
+function _findTileForPanel(panelEl) {{
+  var pid = panelEl.id || '';
+  var shortId = pid.indexOf('detail-') === 0 ? pid.replace('detail-', '') : pid;
+  var tileEl = null;
+  document.querySelectorAll('.tile,.pb-tile').forEach(function(t) {{
+    if ((t.getAttribute('onclick') || '').indexOf(shortId) >= 0) tileEl = t;
+  }});
+  return tileEl;
 }}
 
 (function() {{
@@ -4154,9 +4201,18 @@ function togglePb(tile, id) {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-// PDF: browser native print — correct colors, vector text, no library needed.
-//      User saves as PDF from browser print dialog (File → Save as PDF).
-// PNG: html2canvas at 3× scale, full scrollWidth/scrollHeight — high-res.
+// Shared with main page — same _findTileForPanel + _exportPanel pattern.
+// PDF: browser native print. PNG: off-screen fixed-width container capture.
+function _findTileForPanel(panelEl) {{
+  var pid = panelEl.id || '';
+  var shortId = pid.indexOf('detail-') === 0 ? pid.replace('detail-', '') : pid;
+  var tileEl = null;
+  document.querySelectorAll('.tile,.pb-tile').forEach(function(t) {{
+    if ((t.getAttribute('onclick') || '').indexOf(shortId) >= 0) tileEl = t;
+  }});
+  return tileEl;
+}}
+
 function _exportPanel(panelEl, format, dropdownEl) {{
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
@@ -4165,12 +4221,19 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {{
-    var clone = panelEl.cloneNode(true);
-    clone.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
-    var wrap = document.createElement('div');
-    wrap.id = '_exp_print';
-    wrap.appendChild(clone);
-    document.body.appendChild(wrap);
+    var _pdfTile = _findTileForPanel(panelEl);
+    var _pdfWrap = document.createElement('div');
+    _pdfWrap.id = '_exp_print';
+    if (_pdfTile) {{
+      var _tc = _pdfTile.cloneNode(true);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      _pdfWrap.appendChild(_tc);
+    }}
+    var _pc = panelEl.cloneNode(true);
+    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    _pdfWrap.appendChild(_pc);
+    document.body.appendChild(_pdfWrap);
     var style = document.createElement('style');
     style.id = '_exp_style';
     style.textContent = [
@@ -4183,35 +4246,45 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     ].join('\\n');
     document.head.appendChild(style);
     function _cleanup() {{
-      var w = document.getElementById('_exp_print');
-      var s = document.getElementById('_exp_style');
-      if (w) w.remove();
-      if (s) s.remove();
+      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+      if (w) w.remove(); if (s) s.remove();
       window.removeEventListener('afterprint', _cleanup);
     }}
     window.addEventListener('afterprint', _cleanup);
     window.print();
   }} else {{
-    html2canvas(panelEl, {{
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      width:       panelEl.scrollWidth,
-      height:      panelEl.scrollHeight,
-      windowWidth: document.documentElement.scrollWidth,
-      backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_png';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
+    var tileEl = _findTileForPanel(panelEl);
+    if (tileEl) {{
+      var tc = tileEl.cloneNode(true);
+      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;width:100%;box-sizing:border-box;border-bottom:none;';
+      tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+      container.appendChild(tc);
+    }}
+    var pc = panelEl.cloneNode(true);
+    pc.style.display = 'block';
+    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
+    container.appendChild(pc);
+    document.body.appendChild(container);
+    html2canvas(container, {{
+      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: bg
     }}).then(function(canvas) {{
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
       canvas.toBlob(function(blob) {{
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
       }}, 'image/png');
-    }}).catch(function(err) {{ console.error('PNG export failed:', err); }});
+    }}).catch(function(err) {{
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      console.error('PNG export failed:', err);
+    }});
   }}
 }}
 
