@@ -2215,11 +2215,16 @@ html = f"""<!DOCTYPE html>
   .callout-inline {{ font-size: 12px; color: var(--text-muted); background: var(--bg-muted); border-left: 2px solid var(--border); padding: 8px 12px; margin: 8px 0 16px; border-radius: 0 4px 4px 0; }}
 
   /* ── Tables ── */
-  table.findings {{ width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0 20px; }}
-  table.findings th {{ text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }}
-  table.findings td {{ padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; color: var(--text-secondary); }}
-  table.findings tr:last-child td {{ border-bottom: none; }}
-  table.findings tr:hover td {{ background: var(--bg-muted); }}
+  table.findings {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:0.5rem 0 1.25rem;
+                    background:var(--bg); border-radius:8px; overflow:hidden;
+                    box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.2); }}
+  table.findings th {{ text-align:left; padding:8px 12px; background:var(--nav-bg); color:var(--text-muted);
+                       font-weight:600; font-size:0.62rem; text-transform:uppercase;
+                       letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
+  table.findings td {{ padding:8px 12px; border-bottom:1px solid var(--bg-card);
+                       vertical-align:top; color:var(--text-secondary); }}
+  table.findings tr:last-child td {{ border-bottom:none; }}
+  table.findings tr:hover td {{ background:var(--bg-muted); }}
 
   /* ── Tags (semantic status colors stay fixed) ── */
   .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; margin-right: 6px; }}
