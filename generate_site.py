@@ -2652,20 +2652,70 @@ if _pb_path.exists():
         shutil.copy2(str(_pb_path), str(_arch_dir / "index.html"))
         print(f"Archived {_pb_old_slug} playbook → {_arch_dir}/index.html")
 
-# Collect past archived runs (newest first)
+def _slug_age_months(slug):
+    """Months between slug (YYYY-MM) and today. Returns large number on parse failure."""
+    try:
+        from datetime import datetime as _dt, date as _date
+        then = _dt.strptime(slug, "%Y-%m").date().replace(day=1)
+        now  = _date.today().replace(day=1)
+        return (now.year - then.year) * 12 + (now.month - then.month)
+    except Exception:
+        return 999
+
+def _extract_compact_tiles(html_path):
+    """Return the tile-grid inner HTML from an archived playbook, stripped of expand behaviour."""
+    try:
+        content = Path(html_path).read_text(encoding="utf-8")
+        m = _re.search(r'<div class="tile-grid">(.*?)</div>\s*\n\s*\n\s*<!--', content, _re.DOTALL)
+        if not m:
+            return None
+        tiles = m.group(1)
+        tiles = _re.sub(r' onclick="[^"]*"', '', tiles)          # remove expand handlers
+        tiles = _re.sub(r'\s*<span class="tile-toggle">[^<]*</span>', '', tiles)  # remove toggle
+        return tiles.strip()
+    except Exception:
+        return None
+
+# Collect past archived runs (newest first), capped at 12 months
 _archived_runs = []
 if _archive_dir.exists():
     for _d in sorted(_archive_dir.iterdir(), reverse=True):
         if _d.is_dir() and (_d / "index.html").exists():
-            _archived_runs.append(_d.name)
+            if _slug_age_months(_d.name) <= 12:
+                _archived_runs.append(_d.name)
 
+# Split: last 2 archived → inline collapsed sections; remainder → link list
+_inline_slugs = _archived_runs[:2]   # months 2 and 3 most recent
+_link_slugs   = _archived_runs[2:]   # months 4–12
+
+# Build inline collapsed sections for the 2 most recent archived runs
+_inline_sections_html = ""
+for _s in _inline_slugs:
+    _tiles = _extract_compact_tiles(_archive_dir / _s / "index.html")
+    if _tiles is None:
+        continue
+    _label = _slug_to_label(_s)
+    _inline_sections_html += f"""
+<details class="past-run-details">
+  <summary class="past-run-summary">
+    <span class="run-label">{_label}</span>
+    <span class="run-meta">Tarrow T1 data · Apple News, SmartNews, Push Notifications</span>
+    <span class="run-expand-hint">Show playbooks \u25be</span>
+  </summary>
+  <div class="past-run-body">
+    <div class="tile-grid tile-grid-compact">{_tiles}</div>
+    <p class="past-run-link"><a href="archive/{_s}/">Open full {_label} playbook with data \u2192</a></p>
+  </div>
+</details>"""
+
+# Build link-only list for months 4–12
 _past_runs_html = ""
-if _archived_runs:
+if _link_slugs:
     _lis = "".join(
         f'<li><a href="archive/{s}/">{_slug_to_label(s)}</a></li>'
-        for s in _archived_runs
+        for s in _link_slugs
     )
-    _past_runs_html = f'<section class="past-section"><h3 class="section-eyebrow">Past runs</h3><ul class="past-list">{_lis}</ul></section>'
+    _past_runs_html = f'<section class="past-section"><h3 class="section-eyebrow">Older runs</h3><ul class="past-list">{_lis}</ul></section>'
 
 _pb_run_label = _slug_to_label(REPORT_DATE_SLUG)
 
@@ -2737,7 +2787,26 @@ playbook_html = f"""<!DOCTYPE html>
             line-height:1.85; color:#cbd5e1; }}
   .rules li {{ margin-bottom:0.15rem; }}
   .caveat {{ font-size:0.74rem; color:#64748b; margin-top:1rem; line-height:1.6; }}
-  .past-section {{ margin-top:3rem; padding-top:1.5rem; border-top:1px solid #1e293b; }}
+  .past-run-details {{ margin-top:1.5rem; border:1px solid #1e293b; border-radius:10px;
+                       overflow:hidden; }}
+  .past-run-summary {{ display:flex; align-items:baseline; gap:12px; padding:0.85rem 1.25rem;
+                       cursor:pointer; list-style:none; user-select:none;
+                       background:#111827; }}
+  .past-run-summary::-webkit-details-marker {{ display:none; }}
+  .past-run-summary:hover {{ background:#1a2438; }}
+  details.past-run-details[open] .past-run-summary {{ border-bottom:1px solid #1e293b; }}
+  .past-run-summary .run-label {{ font-size:0.95rem; font-weight:700; color:#f1f5f9;
+                                   letter-spacing:-0.01em; }}
+  .past-run-summary .run-meta {{ font-size:0.78rem; color:#64748b; flex:1; }}
+  .run-expand-hint {{ font-size:0.7rem; color:#475569; margin-left:auto; flex-shrink:0; }}
+  details[open] .run-expand-hint {{ visibility:hidden; }}
+  .past-run-body {{ padding:1.25rem 1.25rem 1rem; background:#0f172a; }}
+  .tile-grid-compact {{ margin-bottom:0.75rem; pointer-events:none; }}
+  .tile-grid-compact .pb-tile {{ cursor:default; }}
+  .past-run-link {{ font-size:0.8rem; margin-top:0.75rem; }}
+  .past-run-link a {{ color:#60a5fa; text-decoration:none; }}
+  .past-run-link a:hover {{ color:#93c5fd; }}
+  .past-section {{ margin-top:2rem; padding-top:1.5rem; border-top:1px solid #1e293b; }}
   .section-eyebrow {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em;
                       text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem;
                       display:block; }}
@@ -2893,6 +2962,8 @@ playbook_html = f"""<!DOCTYPE html>
   </table>
   <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
 </div>
+
+{_inline_sections_html}
 
 {_past_runs_html}
 

@@ -65,7 +65,26 @@
             line-height:1.85; color:#cbd5e1; }
   .rules li { margin-bottom:0.15rem; }
   .caveat { font-size:0.74rem; color:#64748b; margin-top:1rem; line-height:1.6; }
-  .past-section { margin-top:3rem; padding-top:1.5rem; border-top:1px solid #1e293b; }
+  .past-run-details { margin-top:1.5rem; border:1px solid #1e293b; border-radius:10px;
+                       overflow:hidden; }
+  .past-run-summary { display:flex; align-items:baseline; gap:12px; padding:0.85rem 1.25rem;
+                       cursor:pointer; list-style:none; user-select:none;
+                       background:#111827; }
+  .past-run-summary::-webkit-details-marker { display:none; }
+  .past-run-summary:hover { background:#1a2438; }
+  details.past-run-details[open] .past-run-summary { border-bottom:1px solid #1e293b; }
+  .past-run-summary .run-label { font-size:0.95rem; font-weight:700; color:#f1f5f9;
+                                   letter-spacing:-0.01em; }
+  .past-run-summary .run-meta { font-size:0.78rem; color:#64748b; flex:1; }
+  .run-expand-hint { font-size:0.7rem; color:#475569; margin-left:auto; flex-shrink:0; }
+  details[open] .run-expand-hint { visibility:hidden; }
+  .past-run-body { padding:1.25rem 1.25rem 1rem; background:#0f172a; }
+  .tile-grid-compact { margin-bottom:0.75rem; pointer-events:none; }
+  .tile-grid-compact .pb-tile { cursor:default; }
+  .past-run-link { font-size:0.8rem; margin-top:0.75rem; }
+  .past-run-link a { color:#60a5fa; text-decoration:none; }
+  .past-run-link a:hover { color:#93c5fd; }
+  .past-section { margin-top:2rem; padding-top:1.5rem; border-top:1px solid #1e293b; }
   .section-eyebrow { font-size:0.65rem; font-weight:700; letter-spacing:0.1em;
                       text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem;
                       display:block; }
@@ -261,6 +280,8 @@
   </table>
   <p class="caveat">No formal significance test on length quartiles. Treat as orientation, not prescription.</p>
 </div>
+
+
 
 
 
