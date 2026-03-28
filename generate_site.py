@@ -19,14 +19,18 @@ import argparse
 import html as html_module
 import json
 import math
-import shutil
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 import warnings
 from datetime import datetime
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 from scipy import stats
 
 warnings.filterwarnings("ignore")
@@ -36,7 +40,6 @@ warnings.filterwarnings("ignore")
 try:
     import statsmodels.api as sm
     from statsmodels.discrete.discrete_model import Logit
-    from statsmodels.stats.multitest import multipletests as sm_multipletests
     HAS_STATSMODELS = True
 except ImportError:
     HAS_STATSMODELS = False
@@ -49,7 +52,6 @@ except ImportError:
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.preprocessing import LabelEncoder
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -853,7 +855,13 @@ def rank_biserial(u_stat: float, n1: int, n2: int) -> float:
     """Compute rank-biserial r effect size from a Mann-Whitney U statistic. Range: -1 to 1."""
     return 1.0 - (2.0 * u_stat) / (n1 * n2)
 
-def bootstrap_ci_lift(grp_vals: np.ndarray, base_vals: np.ndarray, n_boot: int = 1000, seed: int = 42, ci: float = 0.95) -> "tuple[float, float]":
+def bootstrap_ci_lift(
+    grp_vals: np.ndarray,
+    base_vals: np.ndarray,
+    n_boot: int = 1000,
+    seed: int = 42,
+    ci: float = 0.95,
+) -> "tuple[float, float]":
     """Bootstrap 95% CI on the median ratio (group_b / group_a). Returns (ci_lo, ci_hi)."""
     rng = np.random.default_rng(seed)
     boot = []
@@ -867,6 +875,7 @@ def bootstrap_ci_lift(grp_vals: np.ndarray, base_vals: np.ndarray, n_boot: int =
     return float(np.percentile(boot, alpha / 2 * 100)), float(np.percentile(boot, (1 - alpha / 2) * 100))
 
 def required_n_80pct(effect_r: float, alpha: float = 0.05) -> "int | None":
+    """Estimate per-group n needed for 80% power given a rank-biserial effect size."""
     r_rb = effect_r
     if r_rb is None or r_rb == 0: return None
     r = abs(r_rb)
@@ -879,9 +888,15 @@ def required_n_80pct(effect_r: float, alpha: float = 0.05) -> "int | None":
 _RIGOR_WARNINGS: list = []
 
 def _rigor_warn(section: str, msg: str) -> None:
+    """Append a rigor warning for the named analysis section to the build report."""
     _RIGOR_WARNINGS.append(f"[{section}] {msg}")
 
-def _conf_level(p_adj: "float | None" = None, n: "int | None" = None, n_platforms: int = 1, p_raw: "float | None" = None) -> "tuple[str, str]":
+def _conf_level(
+    p_adj: "float | None" = None,
+    n: "int | None" = None,
+    n_platforms: int = 1,
+    p_raw: "float | None" = None,
+) -> "tuple[str, str]":
     """Return (css_class, label) for a confidence badge. Criteria: High = p_adj<0.05 AND n≥100
     AND n_platforms≥2; Moderate = p_adj<0.05 AND n≥20; Directional = p<0.10 or untested AND n≥10."""
     if n is not None and n < 10:
@@ -903,7 +918,12 @@ def _require_test(section: str, p_adj: "float | None", n_a: int, n_b: int = 0) -
 
 
 # ── normalize() ───────────────────────────────────────────────────────────────
-def normalize(df: pd.DataFrame, views_col: str, date_col: "str | None" = None, group_col: "str | None" = None) -> pd.DataFrame:
+def normalize(
+    df: pd.DataFrame,
+    views_col: str,
+    date_col: "str | None" = None,
+    group_col: "str | None" = None,
+) -> pd.DataFrame:
     """Add views_per_day and percentile_within_cohort columns. percentile_within_cohort is the
     primary metric — percentile rank within the same publication-month cohort, controlling for
     temporal view accumulation."""
@@ -962,7 +982,8 @@ if "Date" in an_2026.columns:
 an_2026["year"] = 2026
 
 # Fix MacRoman/UTF-8 double-encoding in 2026 headline text (2025 file is unaffected)
-def _fix_mac_encoding(text):
+def _fix_mac_encoding(text: str) -> str:
+    """Repair MacRoman/UTF-8 double-encoding in 2026 Apple News headline text."""
     try:
         return str(text).encode("mac_roman").decode("utf-8")
     except (UnicodeEncodeError, UnicodeDecodeError):
@@ -988,6 +1009,7 @@ yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
 
 # ── Column validation — friendly errors instead of KeyError crashes ───────────
 def _require_col(df: pd.DataFrame, col: str, sheet_label: str) -> None:
+    """Raise SystemExit with a friendly error if col is missing from df."""
     if col not in df.columns:
         raise SystemExit(
             f"\n✗  Missing column '{col}' in {sheet_label}.\n"
@@ -1040,7 +1062,8 @@ an_2025_norm = an[an["year"] == 2025].copy()
 an_2026_norm = an[an["year"] == 2026].copy()
 
 # ── Platform exclusivity ──────────────────────────────────────────────────────
-def _norm(t):
+def _norm(t: str) -> str:
+    """Normalize text to lowercase alphanumeric for fuzzy title-deduplication."""
     return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
 
 an_t    = set(an["Article"].dropna().apply(_norm))
@@ -1276,7 +1299,8 @@ df_q4["lift"] = df_q4["median_pct"] / top_median_sn_pct
 
 # ── Q5: Notification CTR features ─────────────────────────────────────────────
 print("Computing Q5…")
-def extract_features(text):
+def extract_features(text: str) -> dict:
+    """Extract boolean notification features used in Q5 CTR analysis."""
     t  = str(text).strip()
     tl = t.lower()
     return {
@@ -1353,7 +1377,8 @@ an_eng = cap_engagement_seconds(an_eng, [AT_COL, SUB_AT_COL, NSUB_AT_COL])
 r_views_at,    p_views_at    = stats.pearsonr(an_eng["Total Views"], an_eng[AT_COL])
 r_views_at_sp, p_views_at_sp = stats.spearmanr(an_eng["Total Views"], an_eng[AT_COL])
 
-def _r(col):
+def _r(col: str) -> float:
+    """Pearson r between Total Views and col in the engagement-filtered Apple News subset."""
     sub = an_eng.dropna(subset=[col])
     return stats.pearsonr(sub["Total Views"], sub[col])[0]
 
@@ -1548,7 +1573,14 @@ HL_SN_Q4Q1_P = _hl_adj_map.get("sn", np.nan)
 
 
 # ── Top/bottom headline examples ──────────────────────────────────────────────
-def top_bottom_html(df, text_col, views_col, topic, n=6):
+def top_bottom_html(
+    df: pd.DataFrame,
+    text_col: str,
+    views_col: str,
+    topic: str,
+    n: int = 6,
+) -> "tuple[str, str]":
+    """Return (top_html, bottom_html) li-item strings for the top/bottom n headlines in a topic."""
     subset = df[df["topic"] == topic].dropna(subset=[views_col, text_col])
     q75 = subset[views_col].quantile(0.75)
     q25 = subset[views_col].quantile(0.25)
@@ -1711,7 +1743,8 @@ for period_label, m_start, m_end in PERIODS:
 df_periods = pd.DataFrame(period_rows)
 
 # Convenience accessor
-def _period_lift(formula, period):
+def _period_lift(formula: str, period: str) -> float:
+    """Return the lift value for a formula/period row in df_periods, or NaN if not found."""
     if df_periods.empty:
         return np.nan
     r = df_periods[(df_periods["formula"] == formula) & (df_periods["period"] == period)]
@@ -1822,7 +1855,8 @@ _ft_untagged_share = 0.0
 _ft_top_formula    = "untagged"
 _ft_top_formula_pct = 0.0
 
-def _hn(t):
+def _hn(t: str) -> str:
+    """Normalize a headline to lowercase alphanumeric for tracker join matching."""
     return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
 
 try:
@@ -2050,6 +2084,7 @@ _FORMULA_LABELS: dict[str, str] = {
 # Uses slicing rather than .capitalize() to preserve casing in the rest of the string
 # (e.g. '"What to know"' must stay as-is, not become '"what to know"').
 def _cap_lbl(s: str) -> str:
+    """Capitalize first character of a label without lowercasing the rest."""
     return s[:1].upper() + s[1:] if s else s
 
 if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
@@ -2140,20 +2175,18 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             _ftb = _adf[_adf["formula"] == _dom_formula]["percentile"].dropna()
             if len(_fta) >= 3 and len(_ftb) >= 3:
                 try:
-                    from scipy.stats import mannwhitneyu as _mwu_ap
-                    _, _formula_test_p = _mwu_ap(_fta, _ftb, alternative="greater")
-                except Exception:
-                    pass
+                    _, _formula_test_p = stats.mannwhitneyu(_fta, _ftb, alternative="greater")
+                except (ValueError, TypeError):
+                    pass  # Graceful degradation: test result stays None, chart still renders
 
         if _platform_split and _worst_p_row is not None:
             _pta = _adf[_adf["platform"] == _best_plat]["percentile"].dropna()
             _ptb = _adf[_adf["platform"] == _worst_plat]["percentile"].dropna()
             if len(_pta) >= 3 and len(_ptb) >= 3:
                 try:
-                    from scipy.stats import mannwhitneyu as _mwu_ap
-                    _, _platform_test_p = _mwu_ap(_pta, _ptb, alternative="greater")
-                except Exception:
-                    pass
+                    _, _platform_test_p = stats.mannwhitneyu(_pta, _ptb, alternative="greater")
+                except (ValueError, TypeError):
+                    pass  # Graceful degradation: test result stays None, chart still renders
 
         _formula_sig  = _formula_test_p  is not None and _formula_test_p  < 0.05
         _formula_dir  = _formula_test_p  is not None and _formula_test_p  < 0.10
@@ -2518,7 +2551,8 @@ EXCL_CI_STR = (f"[{_excl_ci_lo:.1f}×–{_excl_ci_hi:.1f}×]"
 
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
-def _fmt_p(p, adj=False):
+def _fmt_p(p: "float | None", adj: bool = False) -> str:
+    """Format a p-value as HTML with significance stars. Returns '—' for None/NaN."""
     if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
     p = float(p)
     label = "<sub>adj</sub>" if adj else ""
@@ -2527,23 +2561,28 @@ def _fmt_p(p, adj=False):
     if p < 0.01:  return f"p{label}={p:.3f}{sig}"
     return f"p{label}={p:.2f}{sig}"
 
-def _fmt_ci(lo, hi):
+def _fmt_ci(lo: "float | None", hi: "float | None") -> str:
+    """Format a confidence interval as a [lo×–hi×] string. Returns '' if either bound is None."""
     if lo is None or hi is None: return ""
     return f"[{lo:.2f}×–{hi:.2f}×]"
 
-def _q1r(f):
+def _q1r(f: str) -> "pd.Series | None":
+    """Return the Q1 row for formula f, or None if not found."""
     row = df_q1[df_q1["formula"] == f]
     return row.iloc[0] if len(row) else None
 
-def _q2r(f):
+def _q2r(f: str) -> "pd.Series | None":
+    """Return the Q2 row for formula f, or None if not found."""
     row = df_q2[df_q2["formula"] == f]
     return row.iloc[0] if len(row) else None
 
-def _q4r(cat):
+def _q4r(cat: str) -> "pd.Series | None":
+    """Return the Q4 row for SmartNews category cat, or None if not found."""
     row = df_q4[df_q4["category"] == cat]
     return row.iloc[0] if len(row) else None
 
-def _q5r(feat):
+def _q5r(feat: str) -> "pd.Series | None":
+    """Return the Q5 row for notification feature feat, or None if not found."""
     row = df_q5[df_q5["feature"] == feat]
     return row.iloc[0] if len(row) else None
 
@@ -2714,13 +2753,15 @@ for _hc in _hero_cands[:5]:
 
 
 # ── Table generators ──────────────────────────────────────────────────────────
-def _row_tag(lift, is_red=False):
+def _row_tag(lift: float, is_red: bool = False) -> str:
+    """Return an HTML tag span (star or down-arrow) based on the lift value."""
     if is_red:          return '<span class="tag tag-red">↓</span>&nbsp;'
     if lift >= 1.5:     return '<span class="tag tag-green">★</span>&nbsp;'
     if lift < 0.8:      return '<span class="tag tag-red">↓</span>&nbsp;'
     return ""
 
-def _wc_table():
+def _wc_table() -> str:
+    """Return HTML <tr> rows for the word-count quartile table."""
     if df_wc_quartile.empty: return "<tr><td colspan='4'>Insufficient data (need ≥20 matched articles with word count).</td></tr>"
     out = ""
     for _, r in df_wc_quartile.iterrows():
@@ -2787,7 +2828,8 @@ def _vert_plat_table() -> str:
                    f"<td>{int(r['n'])}</td><td>{r['med_pct']:.0%}</td></tr>")
     return "\n".join(out)
 
-def _nl_type_table():
+def _nl_type_table() -> str:
+    """Return HTML <tr> rows for the number-lead type breakdown table."""
     if df_nl_type.empty: return "<tr><td colspan='4'>Insufficient data.</td></tr>"
     out = ""
     for _, r in df_nl_type.iterrows():
@@ -2795,7 +2837,8 @@ def _nl_type_table():
                 f"<td>{r['median']:.0%}</td><td>{r['lift']:.2f}×</td></tr>\n")
     return out
 
-def _nl_size_table():
+def _nl_size_table() -> str:
+    """Return HTML <tr> rows for the number-lead numeric-size breakdown table."""
     if df_nl_size.empty: return "<tr><td colspan='4'>Insufficient data.</td></tr>"
     out = ""
     for _, r in df_nl_size.iterrows():
@@ -2803,7 +2846,8 @@ def _nl_size_table():
                 f"<td>{r['median']:.0%}</td><td>{r['lift']:.2f}×</td></tr>\n")
     return out
 
-def _q1_table():
+def _q1_table() -> str:
+    """Return HTML <tr> rows for the Q1 formula lift table, excluding the untagged baseline."""
     rows = df_q1[df_q1["formula"] != "untagged"].sort_values("lift", ascending=False)
     parts = []
     for _, r in rows.iterrows():
@@ -2821,7 +2865,8 @@ def _q1_table():
                      f'<td>{r_str}</td><td>{p_str}</td><td>{req_n_str}</td></tr>\n')
     return "".join(parts)
 
-def _q2_table():
+def _q2_table() -> str:
+    """Return HTML <tr> rows for the Q2 featured-rate table, excluding the untagged baseline."""
     rows = df_q2[df_q2["formula"] != "untagged"].sort_values("featured_rate", ascending=False)
     parts = []
     for _, r in rows.iterrows():
@@ -2840,7 +2885,8 @@ def _q2_table():
                      f'<td>{wf}</td></tr>\n')
     return "".join(parts)
 
-def _q4_table():
+def _q4_table() -> str:
+    """Return HTML <tr> rows for the Q4 SmartNews category ROI table."""
     rows_sorted = df_q4[df_q4["category"] != "Top"].sort_values("lift", ascending=False)
     parts = []
     for _, r in rows_sorted.iterrows():
@@ -2861,7 +2907,8 @@ def _q4_table():
                      f'<td>{int(_r4_top["median_views"]):,}</td><td>1.00×</td><td>—</td></tr>\n')
     return "".join(parts)
 
-def _q5_table():
+def _q5_table() -> str:
+    """Return HTML <tr> rows for the Q5 notification feature CTR table (significant features only)."""
     sig = df_q5[df_q5.apply(
         lambda r: (r.get("p_adj", r["p"]) if not (isinstance(r.get("p_adj", np.nan), float) and np.isnan(r.get("p_adj", np.nan))) else r["p"]) < 0.05,
         axis=1
@@ -2880,7 +2927,8 @@ def _q5_table():
                      f'<td>{p_str}</td></tr>\n')
     return "".join(parts)
 
-def _sports_subtopic_table():
+def _sports_subtopic_table() -> str:
+    """Return HTML <tr> rows for the sports subtopic breakdown table."""
     html_out = ""
     for _, r in df_sports_subtopic.iterrows():
         an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
@@ -2890,7 +2938,8 @@ def _sports_subtopic_table():
                      f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
     return html_out
 
-def _biz_subtopic_table():
+def _biz_subtopic_table() -> str:
+    """Return HTML <tr> rows for the business subtopic breakdown table."""
     html_out = ""
     for _, r in df_biz_subtopic.iterrows():
         an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
@@ -2900,7 +2949,8 @@ def _biz_subtopic_table():
                      f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
     return html_out
 
-def _pol_subtopic_table():
+def _pol_subtopic_table() -> str:
+    """Return HTML <tr> rows for the politics subtopic breakdown table."""
     html_out = ""
     for _, r in df_pol_subtopic.iterrows():
         an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
@@ -2910,7 +2960,8 @@ def _pol_subtopic_table():
                      f"<td>{int(r['sn_n'])}</td><td>{sn_str}</td></tr>\n")
     return html_out
 
-def _hl_len_table():
+def _hl_len_table() -> str:
+    """Return HTML <tr> rows for the headline length quartile table."""
     html_out = ""
     for _, r in df_hl_len.iterrows():
         an_str = f"{r['an_med']:.0%}" if pd.notna(r['an_med']) else "—"
@@ -2921,7 +2972,8 @@ def _hl_len_table():
                      f"<td>{int(r['sn_n']):,}</td><td>{sn_str}</td></tr>\n")
     return html_out
 
-def _guide_table(df, max_rows=20):
+def _guide_table(df: pd.DataFrame, max_rows: int = 20) -> str:
+    """Return HTML <tr> rows for the formula × topic guide table."""
     if df.empty: return "<tr><td colspan='5'>Insufficient data (need ≥5 articles per formula × topic cell).</td></tr>"
     html_out = ""
     for _, r in df.head(max_rows).iterrows():
@@ -2936,7 +2988,8 @@ def _guide_table(df, max_rows=20):
                      f"<td>{lift_str}</td></tr>\n")
     return html_out
 
-def _yoy_table():
+def _yoy_table() -> str:
+    """Return HTML <tr> rows for the year-over-year formula lift comparison table."""
     html_out = ""
     for _, r in df_yoy.iterrows():
         if r["suppressed"]:
@@ -2956,7 +3009,8 @@ def _yoy_table():
                      f"<td>{delta_str}</td></tr>\n")
     return html_out
 
-def _periods_table():
+def _periods_table() -> str:
+    """Return HTML <tr> rows for the quarterly formula lift longitudinal table."""
     html_out = ""
     formulas_in_order = ["number_lead", "question", "possessive_named_entity", "heres_formula", "what_to_know"]
     _all_periods = ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026"]
@@ -2974,7 +3028,8 @@ def _periods_table():
         html_out += f"<tr><td>{label}</td>{cells}</tr>\n"
     return html_out
 
-def _author_table():
+def _author_table() -> str:
+    """Return HTML <tr> rows for the tracker-joined author performance table."""
     if author_stats.empty: return "<tr><td colspan='4'>No matched articles.</td></tr>"
     html_out = ""
     for _, r in author_stats.iterrows():
@@ -2984,7 +3039,8 @@ def _author_table():
                      f"<td>{r['med_pct']:.0%}</td></tr>\n")
     return html_out
 
-def _team_top_table():
+def _team_top_table() -> str:
+    """Return HTML <tr> rows for the top-performing tracked articles table."""
     if team_top.empty: return "<tr><td colspan='6'>No matched articles.</td></tr>"
     html_out = ""
     for _, r in team_top.iterrows():
@@ -3148,7 +3204,8 @@ REPORT_DATE_SLUG = _args.release or datetime.now().strftime("%Y-%m")
 CHART_H = 400
 _T = get_theme(THEME)   # resolved once; use _T["grid"] / _T["baseline"] in chart code
 
-def bar_color(lift):
+def bar_color(lift: float) -> str:
+    """Map a lift value to a palette color for bar chart markers."""
     if lift >= 1.5:   return GREEN
     if lift >= 1.0:   return BLUE
     if lift >= 0.8:   return AMBER
@@ -3594,19 +3651,19 @@ if NL_PARSED >= 10:
 
 # ── Archive helpers (shared by main page and playbook archive logic) ──────────
 
-def _slug_to_label(slug):
+def _slug_to_label(slug: str) -> str:
+    """Convert a YYYY-MM slug to a human-readable month label. Returns slug unchanged on failure."""
     try:
-        from datetime import datetime as _dt
-        return _dt.strptime(slug, "%Y-%m").strftime("%B %Y")
+        return datetime.strptime(slug, "%Y-%m").strftime("%B %Y")
     except ValueError:
         # Slug doesn't match YYYY-MM format; return as-is
         return slug
 
-def _slug_age_months(slug):
+def _slug_age_months(slug: str) -> int:
     """Months between slug (YYYY-MM) and today. Returns large number on parse failure."""
+    from datetime import date as _date
     try:
-        from datetime import datetime as _dt, date as _date
-        then = _dt.strptime(slug, "%Y-%m").date().replace(day=1)
+        then = datetime.strptime(slug, "%Y-%m").date().replace(day=1)
         now  = _date.today().replace(day=1)
         return (now.year - then.year) * 12 + (now.month - then.month)
     except ValueError:
@@ -5235,11 +5292,10 @@ _meta_slot.mkdir(parents=True, exist_ok=True)
 # Requires node.js on PATH; skips gracefully if unavailable.
 def _validate_js(html_path: str, label: str) -> list[str]:
     """Extract custom <script> blocks and syntax-check with node --check."""
-    import subprocess, tempfile, os, re as _re
     errors: list[str] = []
     try:
         content = Path(html_path).read_text(encoding="utf-8")
-        scripts = _re.findall(r"<script>(.*?)</script>", content, _re.DOTALL)
+        scripts = re.findall(r"<script>(.*?)</script>", content, re.DOTALL)
         for s in scripts:
             # Only check our custom scripts (Plotly inline scripts don't need this)
             if not any(kw in s for kw in ("showDetail", "togglePb", "_exportPanel",

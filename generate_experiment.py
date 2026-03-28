@@ -164,6 +164,7 @@ def parse_spec(path: str) -> dict:
 _cache = {}
 
 def load_platform(platform: str) -> pd.DataFrame:
+    """Load and lightly featurize a platform DataFrame, caching after first load."""
     if platform in _cache:
         return _cache[platform]
     if platform == "apple_news":
@@ -188,7 +189,8 @@ def load_platform(platform: str) -> pd.DataFrame:
     return df
 
 
-def _classify_formula(text):
+def _classify_formula(text: str) -> str:
+    """Classify a notification or headline into one of 7 formula types via regex."""
     t = str(text).strip()
     tl = t.lower()
     if re.match(r"^\d", t): return "number_lead"
@@ -200,7 +202,8 @@ def _classify_formula(text):
     return "untagged"
 
 
-def _classify_topic(text):
+def _classify_topic(text: str) -> str:
+    """Tag a headline with a topic using keyword regex patterns. Returns 'other' if none match."""
     t = str(text).lower()
     for topic, pattern in TOPIC_PATTERNS.items():
         if re.search(pattern, t):
@@ -210,7 +213,16 @@ def _classify_topic(text):
 
 # ── Cohort splitting ──────────────────────────────────────────────────────────
 
-def split_cohorts(df: pd.DataFrame, spec: dict, metric_info: dict) -> "tuple[pd.Series, pd.Series, str, str]":
+def split_cohorts(
+    df: pd.DataFrame,
+    spec: dict,
+    metric_info: dict,
+) -> "tuple[pd.Series, pd.Series, str, str]":
+    """Split df into two comparison groups per the experiment spec.
+
+    Returns (group_a, group_b, label_a, label_b). Supports temporal_cohort
+    (before/after date ranges) and formula_comparison (two formula types).
+    """
     exp_type = spec.get("experiment_type", "temporal_cohort")
 
     # Common filters
@@ -259,6 +271,7 @@ def split_cohorts(df: pd.DataFrame, spec: dict, metric_info: dict) -> "tuple[pd.
 # ── Statistical tests ─────────────────────────────────────────────────────────
 
 def run_test(group_a: pd.Series, group_b: pd.Series, test_type: str) -> dict:
+    """Run a statistical test between two groups. Returns a result dict with n, stat, lift, p, conclusion."""
     n_a, n_b = len(group_a), len(group_b)
 
     if n_a < 5 or n_b < 5:
@@ -372,7 +385,16 @@ def make_timeseries_chart(df, spec, metric_info):
 
 # ── Report HTML ───────────────────────────────────────────────────────────────
 
-def render_report(spec, result, metric_info, chart_html, timeseries_html=None, label_a="A", label_b="B"):
+def render_report(
+    spec: dict,
+    result: dict,
+    metric_info: dict,
+    chart_html: str,
+    timeseries_html: "str | None" = None,
+    label_a: str = "A",
+    label_b: str = "B",
+) -> str:
+    """Render the full experiment report as an HTML string."""
     fmt = metric_info["fmt"]
     slug = spec["_slug"]
     title = spec.get("title", slug)
@@ -587,8 +609,9 @@ def update_experiment_index(specs):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_experiment(spec_path):
-    spec = parse_spec(spec_path)
+def run_experiment(spec_path: "str | Path") -> "dict | None":
+    """Parse a spec file, run the analysis, and write the report HTML. Returns the spec dict."""
+    spec = parse_spec(str(spec_path))
     slug = spec["_slug"]
     status = spec.get("status", "pending")
 
@@ -625,7 +648,7 @@ def run_experiment(spec_path):
         try:
             ts_html = make_timeseries_chart(df, spec, metric_info)
         except Exception:
-            ts_html = None
+            ts_html = None  # Non-critical; comparison chart still renders
 
     report = render_report(spec, result, metric_info, chart_html, ts_html,
                            label_a=label_a, label_b=label_b)
@@ -637,7 +660,8 @@ def run_experiment(spec_path):
     return spec
 
 
-def main():
+def main() -> None:
+    """Entry point: generate reports for one spec file or all specs in a directory."""
     if len(sys.argv) < 2:
         print("Usage: python3 generate_experiment.py experiments/SLUG.md")
         print("       python3 generate_experiment.py experiments/")
