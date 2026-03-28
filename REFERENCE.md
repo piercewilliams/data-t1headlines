@@ -109,7 +109,7 @@ Things to get or build to make the variant allocation model more powerful. Prior
 | Priority | What to ask for | Why it matters |
 |----------|----------------|---------------|
 | 🔴 High | **MSN full year 2025** — current export is December only | Can't do any MSN temporal analysis without the other 11 months |
-| 🔴 High | **Apple News 2026 with engagement columns** — 17 columns (active time, saves, shares, subscriber splits) are empty in the 2026 export | Engagement depth signal lost for 2026; may be an export config issue Tarrow can fix |
+| ✅ Resolved | **Apple News 2026 engagement columns** — now populated; active time, saves, shares, subscriber splits all in use in Finding 7 | — |
 | 🟡 Medium | **SmartNews 2026 category channel breakdown** — 2025 had 32 category columns; 2026 export has 7 | Category-level ROI signal (Local vs. Entertainment etc.) disappears for 2026 |
 | 🟡 Medium | **Apple News Notifications 2025** — if push notification data exists for 2025, that's a full year of CTR signal vs. only Jan–Feb 2026 now | Would let us validate whether the possessive-named-entity CTR lift holds across news cycles |
 | 🟢 Nice to have | **Yahoo Content Viewers 2026** — 82% null in current export | Unique reach metric is unusable for Yahoo 2026 |
@@ -138,12 +138,14 @@ Things to get or build to make the variant allocation model more powerful. Prior
 
 ## Output Files
 
-| File | Location | Contents |
-|------|----------|----------|
-| Chart 1 | `charts/chart1_headline_ctr_lift.png` | Headline feature CTR lift — Apple News Notifications |
-| Chart 2 | `charts/chart2_smartnews_category_roi.png` | SmartNews ROI by content category |
-| Chart 3 | `charts/chart3_views_vs_engagement.png` | Apple News views vs. engagement depth |
-| Chart 4 | `charts/chart4_platform_isolation.png` | Cross-platform content isolation |
+All charts are interactive Plotly figures embedded in the generated HTML — not static files.
+
+| Output | Location | Contents |
+|--------|----------|----------|
+| Main analysis | `docs/index.html` | 9 findings, interactive tiles, 9 Plotly charts |
+| Editorial playbooks | `docs/playbook/index.html` | 5 platform-specific playbook tiles, sortable tables |
+| Monthly archive | `docs/archive/YYYY-MM/index.html` | Full snapshot of each prior run |
+| Experiments | `docs/experiments/index.html` | Before/after experiment index |
 
 ---
 
@@ -153,34 +155,46 @@ Things to get or build to make the variant allocation model more powerful. Prior
 
 ---
 
-## Phase 2 Analysis Pipeline
+## Analysis Pipeline (live)
 
-All skills installed in `~/.claude/skills/`. Pipeline runs in this order:
+The site is fully automated. `ingest.py` is the only entry point needed. See `README.md` for architecture and `PLAYBOOK.md` for scenario guidance.
 
-| # | Skill | Role | When to invoke |
-|---|-------|------|----------------|
-| 0 | `code-data-analysis-scaffolds` | **Planning** — define analytical approach, assumptions, test choices, and success criteria before touching data | Once at session start; skip if method is already fully defined |
-| 1 | `excel-analysis` | **Load + profile** — columns, data types, nulls, cleaning issues | Every new data file |
-| 2 | `data-sleuth` | **Signal detection** — non-obvious patterns, ratio anomalies, absence signals, cross-dataset correlation. Interview-first. | After profiling; before drawing conclusions |
-| 3 | `polars` | **Transformation** — regex classifiers, cross-tabs, group medians, quartile splits, multi-dataset joins | Core layer for all 6 questions |
-| 4 | `data-analysis` | **Chart quality** — McKinsey-quality Plotly charts, action-titled, one insight per chart | After findings are confirmed |
-| 5 | `interactive-report-generator` | **Site output** — generates `docs/index.html` programmatically from DataFrames; commits alongside `generate_site.py` | Final step; produces the Phase 2 site |
-| — | `data-analysis-sql` | **SQL fallback** — 50+ analytics patterns; use only if data moves to DuckDB | Defer unless needed |
+The pipeline answers these 9 questions on every run:
 
-### Phase 2 Questions (6 total)
+| Finding | Question |
+|---------|----------|
+| 1 | Which headline formula types are associated with higher Apple News views? |
+| 1b | Do round vs. specific numbers in number-lead headlines differ in performance? |
+| 2 | Do Featured picks favor certain formula types? |
+| 3 | Which SmartNews categories have the best ROI vs. volume? |
+| 4 | Which notification headline features predict higher CTR? |
+| 5 | How do topic × platform rankings differ (Apple News vs. SmartNews)? |
+| 6 | Where does headline choice matter most? (variance by topic) |
+| 7 | Are views and reading depth independent? |
+| 8 | How have formula lift patterns changed over time? |
+| 9 | How do team/author performance metrics look via tracker join? |
 
-| Q | Question | Primary skills |
-|---|----------|---------------|
-| 1 | Which headline formula types drive above-median Apple News views? | polars (regex classifier + median) |
-| 2 | Do Featured picks favor certain formula types? | polars (cross-tab × Featured flag) |
-| 3 | Which keywords appear in top vs. bottom quartile headlines? | polars (quartile split + TF-IDF via scikit-learn) |
-| 4 | Which SmartNews categories have best ROI vs. volume? | polars (category aggregation + scatter) |
-| 5 | Which notification headline features predict higher CTR? | polars (feature extraction + CTR median split) |
-| 6 | Where does headline choice matter most? (allocation model setup) | polars (views variance by category × platform) |
+### Ad-hoc analysis skills (for Claude Code sessions)
 
-### Reproducibility Note
+For deeper or exploratory analysis beyond the standing pipeline, use these skills:
 
-`generate_site.py` will be committed to the repo alongside Phase 2 analysis. The site regenerates by running the script — no manual HTML editing required. Numbers are always grounded in the source DataFrames.
+| Skill | Role |
+|-------|------|
+| `excel-analysis` | Profile a new or unfamiliar data file |
+| `code-data-analysis-scaffolds` | Plan an analysis before writing code |
+| `data-sleuth` | Detect non-obvious patterns and anomalies |
+| `polars` | Fast DataFrames for group comparisons, classifiers, cross-tabs |
+| `data-analysis` | McKinsey-quality Plotly charts |
+| `interactive-report-generator` | Add a new finding to the site |
+| `data-analysis-sql` | Heavy joins/aggregations (DuckDB fallback) |
+
+### Python environment
+
+All dependencies are in `requirements.txt`. Core: pandas, numpy, scipy, plotly, openpyxl. Extended: statsmodels (logistic regression, Kruskal-Wallis), scikit-learn (TF-IDF), polars (ad-hoc sessions), pingouin (richer stats), xlrd (legacy .xls). Pipeline degrades gracefully if extended packages are absent.
+
+### Reproducibility
+
+`generate_site.py` is the single source of truth. Every number on the site is computed from the raw Excel files on each run — no manual HTML editing. Numbers are always grounded in the source DataFrames.
 
 ## Synthesis Skills (Available in This Claude Code Environment)
 

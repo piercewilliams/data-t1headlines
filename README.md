@@ -93,9 +93,10 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 
 | File | Purpose |
 |------|---------|
-| `generate_site.py` | Full analysis pipeline + site generator (~3,300 lines). Reads Excel files, runs all analyses, writes both HTML outputs. Fully typed and documented. |
+| `generate_site.py` | Full analysis pipeline + site generator (~3,400 lines). Reads Excel files, runs all analyses, writes both HTML outputs. Fully typed and documented. |
 | `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, commits. |
 | `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files. |
+| `requirements.txt` | All Python dependencies. `pip3 install -r requirements.txt` to set up a new machine. |
 | `CLAUDE.md` | Instructions for Claude Code — enables fully autonomous ingest when invoked via Claude. |
 | `PLAYBOOK.md` | Scenario guide: what to do when specific data conditions change (new sheets, columns, platforms, experiments). |
 | `REFERENCE.md` | Stable project facts: team, data sources, validated formulas, data roadmap. Updated in place. |
@@ -212,6 +213,8 @@ Check the `_conf_level()` call for that finding. The criteria are: **High** = p_
 ## Statistical standards
 
 All group comparisons use **Mann-Whitney U** (non-parametric; appropriate for skewed views distributions). Multiple comparisons are corrected using **Benjamini-Hochberg FDR** within each analysis group. Effect sizes are **rank-biserial r**. Confidence intervals are **1,000-iteration bootstrap on median ratio** (seed=42 for reproducibility).
+
+When `statsmodels` is installed (included in `requirements.txt`), the pipeline automatically runs two additional tests each build: a **Kruskal-Wallis omnibus** on formula groups before the pairwise Mann-Whitney tests (confirming there is real signal before decomposing it), and a **logistic regression** for Featured placement controlling for formula, topic, and headline length simultaneously. Results appear in the build report. When `scikit-learn` is installed, keyword extraction upgrades from raw frequency to **TF-IDF** (upweights terms distinctive to top-quartile headlines). All extended analyses degrade gracefully to baseline methods if optional packages are absent.
 
 **Confidence badge criteria** (enforced by `_conf_level()`):
 
