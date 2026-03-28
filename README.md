@@ -14,6 +14,7 @@ Monthly analysis of headline and topic performance signals for McClatchy Tier 1 
 |------|------|---------|
 | Main analysis | `docs/index.html` | 9 findings tiles with expandable detail panels, charts, and statistical tables |
 | Editorial Playbooks | `docs/playbook/index.html` | Per-platform headline guidance synthesized from findings; auto-sorted by confidence level |
+| Author Playbooks | `docs/author-playbooks/index.html` | Per-author formula profiles, performance percentiles, and individual guidance (requires Tracker data) |
 | Experiments | `docs/experiments/index.html` | Before/after formula tests tracked over time |
 | Archive | `docs/archive/YYYY-MM/` | Full monthly snapshots; "Past analyses" link list on main page |
 
@@ -60,7 +61,8 @@ ingest.py
   │       ├─ Build report: row counts, tile confidence breakdown, rigor warnings
   │       ├─ meta.json: saved to docs/archive/{slug}/ for future delta comparison
   │       ├─ docs/index.html (main site)
-  │       └─ docs/playbook/index.html (playbooks, tiles sorted by confidence)
+  │       ├─ docs/playbook/index.html (playbooks, tiles sorted by confidence)
+  │       └─ docs/author-playbooks/index.html (author profiles, requires Tracker)
   └─ 5. git commit (docs/)
 ```
 
@@ -93,9 +95,9 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 
 | File | Purpose |
 |------|---------|
-| `generate_site.py` | Full analysis pipeline + site generator (~3,400 lines). Reads Excel files, runs all analyses, writes both HTML outputs. Fully typed and documented. |
+| `generate_site.py` | Full analysis pipeline + site generator (~5,500 lines). Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Nav is auto-generated via `_build_nav()`. Export JS (PNG/PDF) is auto-generated via `_make_export_js()`. Both are single sources of truth — no manual nav or JS editing needed. |
 | `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, commits. |
-| `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files. |
+| `generate_experiment.py` | Generates individual experiment report pages from `experiments/*.md` spec files AND regenerates the experiments index page. Uses the same `_build_nav()` / `_NAV_PAGES` pattern (copied into the file) for consistent nav across all experiment pages. |
 | `requirements.txt` | All Python dependencies. `pip3 install -r requirements.txt` to set up a new machine. |
 | `CLAUDE.md` | Instructions for Claude Code — enables fully autonomous ingest when invoked via Claude. |
 | `PLAYBOOK.md` | Scenario guide: what to do when specific data conditions change (new sheets, columns, platforms, experiments). |
@@ -103,8 +105,9 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 | `CONTEXT.md` | Current working state: phase, data status, open tasks. Updated each session. |
 | `experiments/` | Experiment spec files (`.md`) and generated report pages. |
 | `sessions/` | Session notes from major analysis work. |
-| `docs/index.html` | Live main analysis page. Regenerated on each run. |
-| `docs/playbook/index.html` | Live playbook page. Regenerated on each run. |
+| `docs/index.html` | Live main analysis page. Regenerated on each run. Tiles have PNG/PDF export buttons. |
+| `docs/playbook/index.html` | Live editorial playbook page. Regenerated on each run. Tiles have PNG/PDF export buttons. |
+| `docs/author-playbooks/index.html` | Live author playbook page. Regenerated on each run (requires Tracker data). Tiles have PNG/PDF export buttons. |
 | `docs/archive/YYYY-MM/` | Monthly snapshot. Contains `index.html` (with orange archived banner), `data_profile.json`, `meta.json`. |
 | `docs/experiments/index.html` | Experiment index page. |
 
@@ -137,7 +140,9 @@ Playbook tiles are built as `(conf_class, panel_id, html)` tuples and sorted by 
 
 ### Classifiers (all regex-based, unvalidated)
 
-**Formula classifier** (`classify_formula()`) — assigns each headline to: `number_lead`, `what_to_know`, `heres_hereare`, `question_format`, `possessive_named_entity`, `quoted_lede`, or `untagged`. Defined near the top of `generate_site.py`.
+**Formula classifier** (`classify_formula()`) — assigns each headline to: `number_lead`, `what_to_know`, `heres_formula`, `question`, `possessive_named_entity`, `quoted_lede`, or `untagged`. Defined near the top of `generate_site.py`.
+
+**Untagged structure classifier** (`_classify_untagged_structure()`) — secondary micro-classifier applied only to `untagged` headlines. Identifies structural sub-patterns (`how_why`, `narrative_lede`, `media_label`, `cited_source`, `named_declarative`, `short_declarative`, `other`) that don't fit the main taxonomy but remain informative for editorial guidance.
 
 **Topic classifier** (`tag_topic()`) — assigns: `sports`, `crime`, `politics`, `business`, `lifestyle`, `nature_wildlife`, `weather`, or `other`.
 

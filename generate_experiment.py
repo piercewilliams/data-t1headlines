@@ -100,6 +100,43 @@ TOPIC_PATTERNS = {
 }
 
 
+# ── Nav generation ────────────────────────────────────────────────────────────
+# Copied from generate_site.py — single source of truth for page names/slugs,
+# with a build-nav helper adapted for the experiment pages' flat nav structure
+# (no .nav-links wrapper div; links are direct children of <nav>).
+
+_NAV_PAGES = [
+    ("Current Analysis",   ""),
+    ("Editorial Playbooks","playbook"),
+    ("Author Playbooks",   "author-playbooks"),
+    ("Experiments",        "experiments"),
+]
+
+def _build_nav(active: str, depth: int) -> str:
+    """Generate consistent nav HTML for experiment pages.
+
+    Args:
+        active: Page name matching a key in _NAV_PAGES.
+        depth:  Directory depth from docs/ root (1 = experiments/, 2 = experiments/slug/).
+    """
+    prefix = "../" * depth
+    links = []
+    for name, slug in _NAV_PAGES:
+        if slug:
+            href = prefix + slug + "/"
+        else:
+            href = prefix if depth > 0 else "./"
+        cls = ' class="nav-active"' if name == active else ""
+        links.append(f'  <a href="{href}"{cls}>{name}</a>')
+    links_html = "\n".join(links)
+    return (
+        f'<nav>\n'
+        f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
+        f'{links_html}\n'
+        f'</nav>'
+    )
+
+
 # ── Spec parsing ──────────────────────────────────────────────────────────────
 
 def parse_spec(path: str) -> dict:
@@ -427,13 +464,7 @@ def render_report(spec, result, metric_info, chart_html, timeseries_html=None, l
 </style>
 </head>
 <body>
-<nav>
-  <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../../">Current Analysis</a>
-  <a href="../../playbook/">Editorial Playbooks</a>
-  <a href="../../author-playbooks/">Author Playbooks</a>
-  <a href="../" class="nav-active">Experiments</a>
-</nav>
+{_build_nav("Experiments", 2)}
 <div class="container">
   <p class="eyebrow">Experiment · {spec.get('platform','').replace('_',' ').title()} · {spec.get('metric','').replace('_',' ').title()}</p>
   <h1>{title}<span class="status status-{status}">{status}</span></h1>
@@ -538,13 +569,7 @@ def update_experiment_index(specs):
 </style>
 </head>
 <body>
-<nav>
-  <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../">Current Analysis</a>
-  <a href="../playbook/">Editorial Playbooks</a>
-  <a href="../author-playbooks/">Author Playbooks</a>
-  <a href="./" class="nav-active">Experiments</a>
-</nav>
+{_build_nav("Experiments", 1)}
 <div class="container">
 <h1>Experiments</h1>
 <p class="sub">Before/after comparisons and formula tests. Add a spec to <code>experiments/</code>
