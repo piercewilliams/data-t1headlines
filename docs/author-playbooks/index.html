@@ -161,8 +161,8 @@
   <div class="pb-tile" onclick="togglePb(this,'ap-3')">
     <span class="conf-badge conf-dir">Directional</span>
     <span class="tile-label">Hanna Wickes</span>
-    <p class="tile-claim">Question shows a 50-pt advantage over no tracked formula in this author&#x27;s data (74%ile vs. 24%ile), but no tracked formula is 87% of output. Directional—small sample.</p>
-    <p class="tile-action">→ Test question on the next 3–5 articles and track cohort percentile. If the gap holds, make it the primary format. Best platform to test on: SmartNews (32%ile).</p>
+    <p class="tile-claim">Question format shows a 50-pt advantage over no tracked formula in this author&#x27;s data (74%ile vs. 24%ile), but no tracked formula is 87% of output. Directional—small sample.</p>
+    <p class="tile-action">→ Test question format on the next 3–5 articles and track cohort percentile. If the gap holds, make it the primary format. Best platform to test on: SmartNews (32%ile).</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -190,6 +190,12 @@
   <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
   <tbody><tr><td>no tracked formula</td><td>5</td><td>100%</td><td>57%</td><td><span class="lift-high">1.69×</span></td></tr></tbody></table>
 <p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">5 of 5 articles (100%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Named-entity declarative</td><td>3</td><td><span class="lift-pos">59%</span></td></tr><tr><td>Other unstructured</td><td>2</td><td><span class="lift-neg">32%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
   <h3 class="rh">Platform breakdown</h3>
   <p class="detail-sub">Cohort percentile vs. overall team median (35%).</p>
   <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
@@ -223,6 +229,12 @@
 <tr><td>possessive named entity</td><td>2</td><td>3%</td><td>69%</td><td><span class="lift-pos">1.00×</span></td></tr>
 <tr><td>quoted lede</td><td>2</td><td>3%</td><td>11%</td><td><span class="lift-neg">0.57×</span></td></tr></tbody></table>
 <p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">51 of 60 articles (85%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Named-entity declarative</td><td>27</td><td><span class="lift-neg">28%</span></td></tr><tr><td>Other unstructured</td><td>20</td><td><span class="lift-pos">46%</span></td></tr><tr><td>Media-type label (Watch, Video, etc.)</td><td>2</td><td><span class="lift-high">84%</span></td></tr><tr><td>How/Why framing</td><td>1</td><td><span class="lift-pos">49%</span></td></tr><tr><td>Narrative / 'Inside' lede</td><td>1</td><td><span class="lift-high">70%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
   <h3 class="rh">Platform breakdown</h3>
   <p class="detail-sub">Cohort percentile vs. overall team median (35%).</p>
   <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
@@ -268,6 +280,12 @@
   <tbody><tr><td>no tracked formula</td><td>10</td><td>77%</td><td>33%</td><td><span class="lift-pos">0.98×</span></td></tr>
 <tr><td>number lead</td><td>3</td><td>23%</td><td>42%</td><td><span class="lift-pos">1.09×</span></td></tr></tbody></table>
 <p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">10 of 13 articles (77%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Named-entity declarative</td><td>5</td><td><span class="lift-neg">35%</span></td></tr><tr><td>How/Why framing</td><td>3</td><td><span class="lift-neg">14%</span></td></tr><tr><td>Other unstructured</td><td>2</td><td><span class="lift-neg">29%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
   <h3 class="rh">Platform breakdown</h3>
   <p class="detail-sub">Cohort percentile vs. overall team median (35%).</p>
   <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
@@ -291,9 +309,9 @@
 <div id="ap-3" class="pb-detail" style="display:none">
   <div style="background:rgba(255,255,255,0.03);border:1px solid #334155;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
     <span class="conf-badge conf-dir" style="margin-bottom:0.6rem">Directional</span>
-    <p style="font-size:0.88rem;color:#e2e8f0;line-height:1.55;margin-bottom:0.75rem">Question shows a 50-pt advantage over no tracked formula in this author&#x27;s data (74%ile vs. 24%ile), but no tracked formula is 87% of output. Directional—small sample.</p>
+    <p style="font-size:0.88rem;color:#e2e8f0;line-height:1.55;margin-bottom:0.75rem">Question format shows a 50-pt advantage over no tracked formula in this author&#x27;s data (74%ile vs. 24%ile), but no tracked formula is 87% of output. Directional—small sample.</p>
     <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:0.35rem">Worth experimenting on</p>
-    <p style="font-size:0.84rem;color:#60a5fa;font-weight:500;line-height:1.45;margin:0">→ Test question on the next 3–5 articles and track cohort percentile. If the gap holds, make it the primary format. Best platform to test on: SmartNews (32%ile).</p>
+    <p style="font-size:0.84rem;color:#60a5fa;font-weight:500;line-height:1.45;margin:0">→ Test question format on the next 3–5 articles and track cohort percentile. If the gap holds, make it the primary format. Best platform to test on: SmartNews (32%ile).</p>
   </div>
   <h3 class="rh">Performance overview</h3>
   <p class="detail-sub">31 matched articles across 3 platform(s) · 24% median cohort percentile · 10.9 pts below team median (35%)</p>
@@ -304,8 +322,14 @@
   <tbody><tr><td>no tracked formula</td><td>27</td><td>87%</td><td>24%</td><td><span class="lift-neg">0.72×</span></td></tr>
 <tr><td>quoted lede</td><td>2</td><td>6%</td><td>34%</td><td><span class="lift-high">1.77×</span></td></tr>
 <tr><td>number lead</td><td>1</td><td>3%</td><td>6%</td><td><span class="lift-neg">0.17×</span></td></tr>
-<tr><td>question</td><td>1</td><td>3%</td><td>74%</td><td><span class="lift-pos">1.00×</span></td></tr></tbody></table>
+<tr><td>question format</td><td>1</td><td>3%</td><td>74%</td><td><span class="lift-pos">1.00×</span></td></tr></tbody></table>
 <p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">27 of 31 articles (87%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Named-entity declarative</td><td>18</td><td><span class="lift-neg">28%</span></td></tr><tr><td>Other unstructured</td><td>9</td><td><span class="lift-neg">24%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
   <h3 class="rh">Platform breakdown</h3>
   <p class="detail-sub">Cohort percentile vs. overall team median (35%).</p>
   <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
@@ -351,6 +375,12 @@
   <tbody><tr><td>no tracked formula</td><td>9</td><td>90%</td><td>13%</td><td><span class="lift-neg">0.40×</span></td></tr>
 <tr><td>number lead</td><td>1</td><td>10%</td><td>8%</td><td><span class="lift-neg">0.21×</span></td></tr></tbody></table>
 <p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">9 of 10 articles (90%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Other unstructured</td><td>4</td><td><span class="lift-neg">27%</span></td></tr><tr><td>How/Why framing</td><td>3</td><td><span class="lift-neg">13%</span></td></tr><tr><td>Named-entity declarative</td><td>2</td><td><span class="lift-neg">13%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
   <h3 class="rh">Platform breakdown</h3>
   <p class="detail-sub">Cohort percentile vs. overall team median (35%).</p>
   <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
