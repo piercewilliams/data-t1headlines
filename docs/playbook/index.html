@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="2026-03">
 <title>T1 Headline Analysis · Playbooks</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -462,17 +462,23 @@ function _exportPanel(panelEl, format, dropdownEl) {
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
     container.appendChild(pc);
     document.body.appendChild(container);
-    html2canvas(container, {
-      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: bg
-    }).then(function(canvas) {
+    var _scale = 3;
+    domtoimage.toPng(container, {
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      },
+      bgcolor: bg
+    }).then(function(dataUrl) {
       var c = document.getElementById('_exp_png'); if (c) c.remove();
-      canvas.toBlob(function(blob) {
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function() { URL.revokeObjectURL(a.href); }, 100);
-      }, 'image/png');
+      var a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'headline-analysis-' + slug + '-' + date + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }).catch(function(err) {
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       console.error('PNG export failed:', err);

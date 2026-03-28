@@ -200,11 +200,15 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   Always write '\\n' to produce a literal \n in the JS output. The post-build
 #   _validate_js() check catches this automatically every run.
 #
-# PNG EXPORT — never set windowWidth or width/height on html2canvas:
-#   Setting windowWidth: document.documentElement.scrollWidth forces html2canvas to
-#   render in a wider viewport than the window, causing text to reflow and
-#   inter-word spacing to collapse (garbled text). Use a fixed-width off-screen
-#   container (position:fixed; left:-9999px; width:1100px) and capture that instead.
+# PNG EXPORT — use dom-to-image-more, NOT html2canvas:
+#   html2canvas measures character widths via canvas 2D measureText(). System fonts
+#   (-apple-system / San Francisco) use contextual kerning that measureText() cannot
+#   replicate, causing word spaces to collapse and text to garble. dom-to-image-more
+#   serializes the DOM to SVG foreignObject and delegates text rendering to the
+#   browser's own engine — output matches exactly what you see on screen.
+#   Render into a fixed-width off-screen container (position:fixed; left:-9999px;
+#   width:1100px) and pass explicit width/height + scale transform in the options.
+#   NEVER switch back to html2canvas for PNG — the garbling will return.
 
 def safe_range(
     values: "Iterable[float]",
@@ -2888,7 +2892,7 @@ html = f"""<!DOCTYPE html>
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Performance Analysis · McClatchy CSA</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
   body.theme-light {{
@@ -3709,22 +3713,27 @@ function _exportPanel(panelEl, format, dropdownEl) {{
 
     document.body.appendChild(container);
 
-    html2canvas(container, {{
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: bg
-    }}).then(function(canvas) {{
+    // dom-to-image-more: serializes DOM → SVG foreignObject → PNG.
+    // Text is rendered by the browser's own engine — no character-measurement
+    // heuristics, so system fonts (SF Pro / -apple-system) render correctly.
+    var _scale = 3;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png');
       if (c) c.remove();
-      canvas.toBlob(function(blob) {{
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
-      }}, 'image/png');
+      var a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'headline-analysis-' + slug + '-' + date + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }}).catch(function(err) {{
       var c = document.getElementById('_exp_png');
       if (c) c.remove();
@@ -3923,7 +3932,7 @@ playbook_html = f"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="data-run" content="{REPORT_DATE_SLUG}">
 <title>T1 Headline Analysis · Playbooks</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.9.0/dist/dom-to-image-more.min.js"></script>
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -4302,17 +4311,23 @@ function _exportPanel(panelEl, format, dropdownEl) {{
     pc.querySelectorAll('.export-btn-wrap').forEach(function(el) {{ el.remove(); }});
     container.appendChild(pc);
     document.body.appendChild(container);
-    html2canvas(container, {{
-      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: bg
-    }}).then(function(canvas) {{
+    var _scale = 3;
+    domtoimage.toPng(container, {{
+      width:  container.offsetWidth  * _scale,
+      height: container.scrollHeight * _scale,
+      style: {{
+        transform: 'scale(' + _scale + ')',
+        transformOrigin: 'top left',
+        width:  container.offsetWidth  + 'px',
+        height: container.scrollHeight + 'px'
+      }},
+      bgcolor: bg
+    }}).then(function(dataUrl) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
-      canvas.toBlob(function(blob) {{
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function() {{ URL.revokeObjectURL(a.href); }}, 100);
-      }}, 'image/png');
+      var a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'headline-analysis-' + slug + '-' + date + '.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }}).catch(function(err) {{
       var c = document.getElementById('_exp_png'); if (c) c.remove();
       console.error('PNG export failed:', err);
