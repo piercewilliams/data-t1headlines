@@ -2026,7 +2026,7 @@ if HAS_TRACKER and N_TRACKED > 0:
         <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
         <tbody>{_t_wc}</tbody>
       </table>
-      <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to Tarrow syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
+      <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
     </div>
   </details>
 """
@@ -2564,7 +2564,7 @@ html = f"""<!DOCTYPE html>
           <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Median percentile</th></tr></thead>
           <tbody>{_t_wc}</tbody>
         </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to Tarrow syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
+        <p class="callout-inline"><strong>Read this table as:</strong> Articles from the content tracker matched to syndication data by URL and headline. Percentile ranks are platform-relative (SmartNews vs. SmartNews, Yahoo vs. Yahoo). Word count is from the tracker, not the syndication data.</p>
       </div><!-- /#detail-team -->
       """}
 
@@ -2616,7 +2616,7 @@ function closeDetail() {{
     <a href="archive/">Past runs</a> &nbsp;·&nbsp;
     <a href="experiments/">Experiments</a> &nbsp;·&nbsp;
     <a href="playbook/">Playbooks</a> &nbsp;·&nbsp;
-    Data: Tarrow T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
+    Data: T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
 </footer>
 
@@ -2699,7 +2699,7 @@ for _s in _inline_slugs:
 <details class="past-run-details">
   <summary class="past-run-summary">
     <span class="run-label">{_label}</span>
-    <span class="run-meta">Tarrow T1 data · Apple News, SmartNews, Push Notifications</span>
+    <span class="run-meta">T1 syndication data · Apple News, SmartNews, Push Notifications</span>
     <span class="run-expand-hint">Show playbooks \u25be</span>
   </summary>
   <div class="past-run-body">
@@ -2829,11 +2829,11 @@ playbook_html = f"""<!DOCTYPE html>
 
 <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
 <h1>Editorial Playbooks</h1>
-<p class="sub">One playbook per monthly Tarrow data run. Click any tile to expand the full guidance.</p>
+<p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
 <div class="run-header">
   <span class="run-label">{_pb_run_label}</span>
-  <span class="run-meta">Tarrow T1 data · {REPORT_DATE} · Apple News, SmartNews, Push Notifications</span>
+  <span class="run-meta">T1 syndication data · {REPORT_DATE}</span>
 </div>
 
 <div class="tile-grid">
