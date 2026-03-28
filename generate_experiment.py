@@ -127,12 +127,20 @@ def _build_nav(active: str, depth: int) -> str:
         else:
             href = prefix if depth > 0 else "./"
         cls = ' class="nav-active"' if name == active else ""
-        links.append(f'  <a href="{href}"{cls}>{name}</a>')
+        links.append(f'    <a href="{href}"{cls}>{name}</a>')
     links_html = "\n".join(links)
+    meta = (
+        '\n  <div class="nav-meta">\n'
+        '    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
+        'aria-label="Toggle dark mode">\U0001f319</button>\n'
+        '  </div>'
+    )
     return (
         f'<nav>\n'
         f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
+        f'  <div class="nav-links">\n'
         f'{links_html}\n'
+        f'  </div>{meta}\n'
         f'</nav>'
     )
 
@@ -440,52 +448,70 @@ def render_report(
 <title>{title} · T1 Experiment</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
+  body.theme-light {{
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+  }}
+  body.theme-dark {{
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+  }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
-          -webkit-font-smoothing:antialiased; }}
-  nav {{ background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
+  nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
          -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:1.5rem; height:46px;
-         border-bottom:1px solid rgba(255,255,255,0.04); }}
-  nav .brand {{ color:#fff; font-weight:700; font-size:0.72rem;
-                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
-  nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
-           font-size:0.73rem; transition:color 0.15s; }}
-  nav a:hover {{ color:rgba(255,255,255,0.85); }}
-  nav a.nav-active {{ color:#fff; font-weight:600; }}
+         display:flex; align-items:center; gap:0; height:46px;
+         border-bottom:1px solid var(--border); }}
+  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
+            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none;
+                  font-size:0.73rem; transition:color 0.15s; }}
+  .nav-links a:hover {{ color:var(--text); }}
+  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
+  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
+  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s; }}
+  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); }}
   .container {{ max-width:800px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
-              color:{BLUE}; font-weight:700; margin-bottom:0.5rem; display:block; }}
+              color:var(--accent); font-weight:700; margin-bottom:0.5rem; display:block; }}
   h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
-        letter-spacing:-0.02em; margin-bottom:0.5rem; }}
-  .meta {{ font-size:0.8rem; color:#64748b; margin-bottom:2rem; line-height:1.6; }}
+        letter-spacing:-0.02em; margin-bottom:0.5rem; color:var(--text); }}
+  .meta {{ font-size:0.8rem; color:var(--text-muted); margin-bottom:2rem; line-height:1.6; }}
   .callout {{ padding:1rem 1.25rem; border-radius:8px; margin:1.5rem 0; font-size:0.875rem; }}
   h3 {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-        color:#64748b; margin:2rem 0 0.6rem; }}
-  p {{ color:#4b5563; margin-bottom:0.9rem; font-size:0.9375rem; }}
+        color:var(--text-muted); margin:2rem 0 0.6rem; }}
+  p {{ color:var(--text-secondary); margin-bottom:0.9rem; font-size:0.9375rem; }}
   p:last-child {{ margin-bottom:0; }}
-  .chart-wrap {{ margin:1.5rem 0; border-radius:10px; overflow:hidden; background:#fff;
+  .chart-wrap {{ margin:1.5rem 0; border-radius:10px; overflow:hidden; background:var(--bg-card);
                  padding:0.5rem;
-                 box-shadow:0 1px 3px rgba(0,0,0,0.06),0 0 0 1px rgba(0,0,0,0.05); }}
+                 box-shadow:0 1px 3px rgba(0,0,0,0.06),0 0 0 1px var(--border); }}
   table {{ width:100%; border-collapse:collapse; font-size:0.84rem; margin:1.25rem 0;
-           background:#fff; border-radius:8px; overflow:hidden;
-           box-shadow:0 0 0 1px #e2e8f0,0 1px 3px rgba(0,0,0,0.04); }}
-  th {{ text-align:left; padding:8px 12px; background:#f8fafc; color:#64748b;
+           background:var(--bg-card); border-radius:8px; overflow:hidden;
+           box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.04); }}
+  th {{ text-align:left; padding:8px 12px; background:var(--bg-muted); color:var(--text-muted);
         font-weight:600; font-size:0.62rem; text-transform:uppercase;
-        letter-spacing:0.08em; border-bottom:1px solid #e2e8f0; }}
-  td {{ padding:8px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; color:#4b5563; }}
+        letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
+  td {{ padding:8px 12px; border-bottom:1px solid var(--border-subtle); vertical-align:top; color:var(--text-secondary); }}
   tr:last-child td {{ border-bottom:none; }}
-  .caveat {{ font-size:0.74rem; color:#94a3b8; margin-top:0.75rem; line-height:1.6; }}
+  .caveat {{ font-size:0.74rem; color:var(--text-muted); margin-top:0.75rem; line-height:1.6; }}
   .status {{ display:inline-block; font-size:0.6rem; font-weight:700;
              text-transform:uppercase; letter-spacing:0.07em; padding:2px 6px;
              border-radius:3px; margin-left:0.5rem; vertical-align:middle; }}
   .status-complete {{ background:#f0fdf4; color:#15803d; }}
   .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
-  .status-pending  {{ background:#f8fafc; color:#94a3b8; }}
+  .status-pending  {{ background:var(--bg-muted); color:var(--text-muted); }}
+  body.theme-dark .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
+  body.theme-dark .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
 </style>
 </head>
-<body>
+<body class="theme-dark">
 {_build_nav("Experiments", 2)}
 <div class="container">
   <p class="eyebrow">Experiment · {spec.get('platform','').replace('_',' ').title()} · {spec.get('metric','').replace('_',' ').title()}</p>
@@ -525,6 +551,21 @@ def render_report(
     α = 0.05.
   </p>
 </div>
+<script>
+(function() {{
+  var stored = localStorage.getItem('theme') || 'dark';
+  applyTheme(stored);
+}})();
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
+  localStorage.setItem('theme', t);
+}}
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
+</script>
 </body>
 </html>"""
 
@@ -557,40 +598,58 @@ def update_experiment_index(specs):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
+  body.theme-light {{
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+  }}
+  body.theme-dark {{
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+  }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
-          -webkit-font-smoothing:antialiased; }}
-  nav {{ background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
+  nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
          -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:1.5rem; height:46px;
-         border-bottom:1px solid rgba(255,255,255,0.04); }}
-  nav .brand {{ color:#fff; font-weight:700; font-size:0.72rem;
-                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
-  nav a {{ color:rgba(255,255,255,0.45); text-decoration:none;
-           font-size:0.73rem; transition:color 0.15s; }}
-  nav a:hover {{ color:rgba(255,255,255,0.85); }}
-  nav a.nav-active {{ color:#fff; font-weight:600; }}
+         display:flex; align-items:center; gap:0; height:46px;
+         border-bottom:1px solid var(--border); }}
+  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
+            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none;
+                  font-size:0.73rem; transition:color 0.15s; }}
+  .nav-links a:hover {{ color:var(--text); }}
+  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
+  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
+  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s; }}
+  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); }}
   .container {{ max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }}
   h1 {{ font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
-        margin-bottom:0.4rem; line-height:1.25; }}
-  .sub {{ color:#64748b; font-size:0.875rem; margin-bottom:2.5rem; }}
-  code {{ font-size:0.8rem; background:#f1f5f9; padding:1px 5px; border-radius:3px; }}
-  ul {{ list-style:none; padding:0; margin:0; border-top:1px solid #e2e8f0; }}
-  li {{ padding:1rem 0; border-bottom:1px solid #e2e8f0; }}
-  li a {{ font-size:0.9375rem; font-weight:500; color:#0f172a;
+        margin-bottom:0.4rem; line-height:1.25; color:var(--text); }}
+  .sub {{ color:var(--text-muted); font-size:0.875rem; margin-bottom:2.5rem; }}
+  code {{ font-size:0.8rem; background:var(--bg-muted); padding:1px 5px; border-radius:3px; }}
+  ul {{ list-style:none; padding:0; margin:0; border-top:1px solid var(--border); }}
+  li {{ padding:1rem 0; border-bottom:1px solid var(--border); }}
+  li a {{ font-size:0.9375rem; font-weight:500; color:var(--text);
           text-decoration:none; display:block; margin-bottom:0.25rem;
           transition:color 0.15s; }}
-  li a:hover {{ color:#2563eb; }}
-  .meta {{ display:block; font-size:0.74rem; color:#94a3b8; letter-spacing:0.01em; }}
+  li a:hover {{ color:var(--accent); }}
+  .meta {{ display:block; font-size:0.74rem; color:var(--text-muted); letter-spacing:0.01em; }}
   .status {{ display:inline-block; font-size:0.6rem; font-weight:700; text-transform:uppercase;
              letter-spacing:0.07em; padding:1px 5px; border-radius:3px; margin-left:4px; }}
   .status-complete {{ background:#f0fdf4; color:#15803d; }}
   .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
-  .status-pending  {{ background:#f8fafc; color:#94a3b8; }}
+  .status-pending  {{ background:var(--bg-muted); color:var(--text-muted); }}
+  body.theme-dark .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
+  body.theme-dark .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
 </style>
 </head>
-<body>
+<body class="theme-dark">
 {_build_nav("Experiments", 1)}
 <div class="container">
 <h1>Experiments</h1>
@@ -599,6 +658,21 @@ def update_experiment_index(specs):
 <ul>
 {rows}</ul>
 </div>
+<script>
+(function() {{
+  var stored = localStorage.getItem('theme') || 'dark';
+  applyTheme(stored);
+}})();
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
+  localStorage.setItem('theme', t);
+}}
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
+</script>
 </body>
 </html>"""
 

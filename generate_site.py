@@ -582,13 +582,13 @@ _NAV_PAGES = [
     ("Experiments",         "experiments"),
 ]
 
-def _build_nav(active: str, depth: int, theme_toggle: bool = False) -> str:
+def _build_nav(active: str, depth: int, theme_toggle: bool = True) -> str:
     """Generate consistent nav HTML for any page.
 
     Args:
         active:       Page name matching a key in _NAV_PAGES (e.g. "Current Analysis").
         depth:        Directory depth from docs/ root.  0 = root, 1 = subdirectory.
-        theme_toggle: True only for the main page; emits the dark-mode toggle button.
+        theme_toggle: Always True; kept for backwards compatibility but no longer conditional.
 
     Returns:
         A fully-formed <nav>...</nav> HTML string.
@@ -603,14 +603,12 @@ def _build_nav(active: str, depth: int, theme_toggle: bool = False) -> str:
         cls = ' class="nav-active"' if name == active else ""
         links.append(f'    <a href="{href}"{cls}>{name}</a>')
     links_html = "\n".join(links)
-    meta = ""
-    if theme_toggle:
-        meta = (
-            '\n  <div class="nav-meta">\n'
-            '    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
-            'aria-label="Toggle dark mode">\U0001f319</button>\n'
-            '  </div>'
-        )
+    meta = (
+        '\n  <div class="nav-meta">\n'
+        '    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
+        'aria-label="Toggle dark mode">\U0001f319</button>\n'
+        '  </div>'
+    )
     return (
         f'<nav>\n'
         f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
@@ -4656,121 +4654,142 @@ playbook_html = f"""<!DOCTYPE html>
 <title>T1 Headline Analysis · Editorial Playbooks</title>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
+  /* ── Theme tokens ── */
+  body.theme-light {{
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+  }}
+  body.theme-dark {{
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+  }}
+
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:#0f172a; color:#e2e8f0; font-size:15px; line-height:1.7;
-          -webkit-font-smoothing:antialiased; }}
-  nav {{ background:rgba(15,23,42,0.95); backdrop-filter:blur(20px);
+          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
+  nav {{ background:var(--nav-bg); backdrop-filter:blur(20px);
          -webkit-backdrop-filter:blur(20px); padding:0 2rem;
          display:flex; align-items:center; gap:0; height:44px;
-         border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }}
-  .brand {{ color:#f1f5f9; font-weight:700; font-size:0.72rem;
+         border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }}
+  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
             letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
-  .nav-links a {{ color:#94a3b8; text-decoration:none; font-size:12px; transition:color 0.15s; }}
-  .nav-links a:hover {{ color:#f1f5f9; }}
-  .nav-links a.nav-active {{ color:#f1f5f9; font-weight:600; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:12px; transition:color 0.15s; }}
+  .nav-links a:hover {{ color:var(--text); }}
+  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
+  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
+  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s,border-color 0.15s; }}
+  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); border-color:var(--text-muted); }}
   .container {{ max-width:920px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
-              color:#60a5fa; font-weight:700; margin-bottom:0.5rem; display:block; }}
+              color:var(--accent); font-weight:700; margin-bottom:0.5rem; display:block; }}
   h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
-        letter-spacing:-0.02em; margin-bottom:0.4rem; color:#f1f5f9; }}
-  .sub {{ color:#94a3b8; font-size:0.875rem; margin-bottom:1.5rem; }}
+        letter-spacing:-0.02em; margin-bottom:0.4rem; color:var(--text); }}
+  .sub {{ color:var(--text-muted); font-size:0.875rem; margin-bottom:1.5rem; }}
   .run-header {{ display:flex; align-items:baseline; gap:12px; margin:2rem 0 1.25rem;
-                 padding-bottom:0.75rem; border-bottom:1px solid #1e293b; }}
-  .run-label {{ font-size:1.05rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; }}
-  .run-meta {{ font-size:0.8rem; color:#64748b; }}
+                 padding-bottom:0.75rem; border-bottom:1px solid var(--border-subtle); }}
+  .run-label {{ font-size:1.05rem; font-weight:700; color:var(--text); letter-spacing:-0.01em; }}
+  .run-meta {{ font-size:0.8rem; color:var(--text-muted); }}
   .tile-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1rem; }}
   @media (max-width:720px) {{ .tile-grid {{ grid-template-columns:1fr; }} }}
   @media (max-width:1000px) and (min-width:721px) {{ .tile-grid {{ grid-template-columns:repeat(2,1fr); }} }}
-  .pb-tile {{ background:#1e293b; border:1px solid #334155; border-radius:10px;
+  .pb-tile {{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
               padding:1.1rem 1.25rem; cursor:pointer;
-              transition:border-color 0.15s, box-shadow 0.15s; user-select:none; }}
-  .pb-tile:hover {{ border-color:#475569; box-shadow:0 0 0 1px #475569 inset; }}
-  .pb-tile.open {{ border-color:#3b82f6; box-shadow:0 0 0 1px #3b82f6 inset; }}
+              transition:border-color 0.15s,box-shadow 0.15s,background 0.2s; user-select:none; }}
+  .pb-tile:hover {{ border-color:var(--bg-subtle); box-shadow:0 0 0 1px var(--bg-subtle) inset; }}
+  .pb-tile.open {{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }}
   .conf-badge {{ display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase;
                  letter-spacing:0.07em; padding:2px 6px; border-radius:3px; margin-bottom:8px; }}
   .conf-high {{ background:rgba(22,163,74,0.2); color:#4ade80; }}
   .conf-mod  {{ background:rgba(37,99,235,0.2);  color:#60a5fa; }}
   .conf-dir  {{ background:rgba(100,116,139,0.15); color:#94a3b8; }}
-  .tile-label {{ display:block; font-size:0.78rem; font-weight:700; color:#f1f5f9;
+  body.theme-light .conf-high {{ background:rgba(22,163,74,0.12); color:#15803d; }}
+  body.theme-light .conf-mod  {{ background:rgba(37,99,235,0.12); color:#1d4ed8; }}
+  body.theme-light .conf-dir  {{ background:rgba(100,116,139,0.10); color:#475569; }}
+  .tile-label {{ display:block; font-size:0.78rem; font-weight:700; color:var(--text);
                  letter-spacing:0.01em; margin-bottom:0.5rem; }}
-  .tile-claim {{ font-size:0.84rem; color:#cbd5e1; margin-bottom:0.5rem; line-height:1.55; }}
-  .tile-action {{ font-size:0.8rem; color:#60a5fa; font-weight:500; margin-bottom:0.5rem; line-height:1.45; }}
-  .tile-toggle {{ font-size:0.7rem; color:#64748b; display:block; margin-top:0.5rem; }}
-  .pb-detail {{ background:#1e293b; border:1px solid #334155; border-radius:10px;
+  .tile-claim {{ font-size:0.84rem; color:var(--text-secondary); margin-bottom:0.5rem; line-height:1.55; }}
+  .tile-action {{ font-size:0.8rem; color:var(--accent); font-weight:500; margin-bottom:0.5rem; line-height:1.45; }}
+  .tile-toggle {{ font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.5rem; }}
+  .pb-detail {{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
                 padding:1.5rem 1.75rem; margin-bottom:1rem; }}
   h3.rh {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-           color:#94a3b8; margin:1.5rem 0 0.6rem; }}
+           color:var(--text-muted); margin:1.5rem 0 0.6rem; }}
   h3.rh:first-child {{ margin-top:0; }}
-  p.detail-sub {{ font-size:0.8rem; color:#64748b; margin-bottom:0.6rem; }}
+  p.detail-sub {{ font-size:0.8rem; color:var(--text-muted); margin-bottom:0.6rem; }}
   .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;
                  border-radius:8px; margin:0.5rem 0 1.25rem;
-                 box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.2); }}
+                 box-shadow:0 0 0 1px var(--border),0 1px 3px rgba(0,0,0,0.2); }}
   table {{ width:100%; border-collapse:collapse; font-size:0.78rem; margin:0;
-           background:#0f172a; border-radius:8px; overflow:hidden; }}
-  th {{ text-align:left; padding:6px 10px; background:#0a1120; color:#94a3b8;
+           background:var(--bg); border-radius:8px; overflow:hidden; }}
+  th {{ text-align:left; padding:6px 10px; background:var(--bg-muted); color:var(--text-muted);
         font-weight:600; font-size:0.6rem; text-transform:uppercase; white-space:nowrap;
-        letter-spacing:0.08em; border-bottom:1px solid #334155; }}
-  td {{ padding:6px 10px; border-bottom:1px solid #1e293b; vertical-align:middle; color:#cbd5e1;
-        white-space:nowrap; }}
+        letter-spacing:0.08em; border-bottom:1px solid var(--border); }}
+  td {{ padding:6px 10px; border-bottom:1px solid var(--border-subtle); vertical-align:middle;
+        color:var(--text-secondary); white-space:nowrap; }}
   tr:last-child td {{ border-bottom:none; }}
+  tr:hover td {{ background:var(--bg-muted); }}
   .rules {{ padding-left:18px; margin:0.5rem 0 1rem; font-size:0.875rem;
-            line-height:1.85; color:#cbd5e1; }}
+            line-height:1.85; color:var(--text-secondary); }}
   .rules li {{ margin-bottom:0.15rem; }}
-  .caveat {{ font-size:0.74rem; color:#64748b; margin-top:1rem; line-height:1.6; }}
-  .past-run-details {{ margin-top:1.5rem; border:1px solid #1e293b; border-radius:10px;
+  .caveat {{ font-size:0.74rem; color:var(--text-muted); margin-top:1rem; line-height:1.6; }}
+  .past-run-details {{ margin-top:1.5rem; border:1px solid var(--border-subtle); border-radius:10px;
                        overflow:hidden; }}
   .past-run-summary {{ display:flex; align-items:baseline; gap:12px; padding:0.85rem 1.25rem;
                        cursor:pointer; list-style:none; user-select:none;
-                       background:#111827; }}
+                       background:var(--bg-muted); }}
   .past-run-summary::-webkit-details-marker {{ display:none; }}
-  .past-run-summary:hover {{ background:#1a2438; }}
-  details.past-run-details[open] .past-run-summary {{ border-bottom:1px solid #1e293b; }}
-  .past-run-summary .run-label {{ font-size:0.95rem; font-weight:700; color:#f1f5f9;
+  .past-run-summary:hover {{ background:var(--bg-subtle); }}
+  details.past-run-details[open] .past-run-summary {{ border-bottom:1px solid var(--border-subtle); }}
+  .past-run-summary .run-label {{ font-size:0.95rem; font-weight:700; color:var(--text);
                                    letter-spacing:-0.01em; }}
-  .past-run-summary .run-meta {{ font-size:0.78rem; color:#64748b; flex:1; }}
-  .run-expand-hint {{ font-size:0.7rem; color:#475569; margin-left:auto; flex-shrink:0; }}
+  .past-run-summary .run-meta {{ font-size:0.78rem; color:var(--text-muted); flex:1; }}
+  .run-expand-hint {{ font-size:0.7rem; color:var(--text-muted); margin-left:auto; flex-shrink:0; }}
   details[open] .run-expand-hint {{ visibility:hidden; }}
-  .past-run-body {{ padding:1.25rem 1.25rem 1rem; background:#0f172a; }}
+  .past-run-body {{ padding:1.25rem 1.25rem 1rem; background:var(--bg); }}
   .tile-grid-compact {{ margin-bottom:0.75rem; pointer-events:none; }}
   .tile-grid-compact .pb-tile {{ cursor:default; }}
   .past-run-link {{ font-size:0.8rem; margin-top:0.75rem; }}
-  .past-run-link a {{ color:#60a5fa; text-decoration:none; }}
-  .past-run-link a:hover {{ color:#93c5fd; }}
-  .past-section {{ margin-top:2rem; padding-top:1.5rem; border-top:1px solid #1e293b; }}
+  .past-run-link a {{ color:var(--accent); text-decoration:none; }}
+  .past-run-link a:hover {{ opacity:0.8; }}
+  .past-section {{ margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border-subtle); }}
   .section-eyebrow {{ font-size:0.65rem; font-weight:700; letter-spacing:0.1em;
-                      text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem;
+                      text-transform:uppercase; color:var(--text-muted); margin-bottom:0.75rem;
                       display:block; }}
   .past-list {{ list-style:none; padding:0; margin:0; }}
-  .past-list li {{ padding:0.4rem 0; border-bottom:1px solid #1e293b; }}
+  .past-list li {{ padding:0.4rem 0; border-bottom:1px solid var(--border-subtle); }}
   .past-list li:last-child {{ border-bottom:none; }}
-  .past-list a {{ color:#60a5fa; text-decoration:none; font-size:0.875rem; }}
-  .past-list a:hover {{ color:#93c5fd; }}
+  .past-list a {{ color:var(--accent); text-decoration:none; font-size:0.875rem; }}
+  .past-list a:hover {{ opacity:0.8; }}
 
   /* ── Sortable tables ── */
-  table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
-  table thead th:hover {{ color: #f1f5f9; }}
-  .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
-  table thead th[data-sort] .sort-icon {{ opacity: 1; color: var(--accent); }}
+  table thead th {{ cursor:pointer; user-select:none; white-space:nowrap; }}
+  table thead th:hover {{ color:var(--text); }}
+  .sort-icon {{ opacity:0.4; font-size:0.75em; margin-left:4px; font-style:normal; }}
+  table thead th[data-sort] .sort-icon {{ opacity:1; color:var(--accent); }}
 
-  /* ── Export button (hardcoded dark — playbook page is always dark) ── */
-  .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
-  .export-btn {{ font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
-                border: 1px solid #334155; background: #0f172a; color: #94a3b8;
-                font-family: inherit; transition: background 0.15s; }}
-  .export-btn:hover {{ background: #1e293b; color: #e2e8f0; }}
-  .export-dropdown {{ display: none; position: absolute; right: 0; top: calc(100% + 3px);
-                     min-width: 130px; border-radius: 8px; z-index: 200;
-                     border: 1px solid #334155; background: #0f172a;
-                     box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; }}
-  .export-dropdown button {{ display: block; width: 100%; text-align: left; padding: 8px 14px;
-                             font-size: 0.75rem; font-family: inherit; cursor: pointer;
-                             border: none; background: transparent; color: #cbd5e1; }}
-  .export-dropdown button:hover {{ background: #1e293b; }}
+  /* ── Export button ── */
+  .export-btn-wrap {{ float:right; position:relative; margin:0 0 10px 16px; }}
+  .export-btn {{ font-size:0.72rem; padding:5px 10px; border-radius:6px; cursor:pointer;
+                border:1px solid var(--border); background:var(--bg); color:var(--text-muted);
+                font-family:inherit; transition:background 0.15s; }}
+  .export-btn:hover {{ background:var(--bg-muted); color:var(--text); }}
+  .export-dropdown {{ display:none; position:absolute; right:0; top:calc(100% + 3px);
+                     min-width:130px; border-radius:8px; z-index:200;
+                     border:1px solid var(--border); background:var(--bg);
+                     box-shadow:0 4px 16px rgba(0,0,0,0.4); overflow:hidden; }}
+  .export-dropdown button {{ display:block; width:100%; text-align:left; padding:8px 14px;
+                             font-size:0.75rem; font-family:inherit; cursor:pointer;
+                             border:none; background:transparent; color:var(--text-secondary); }}
+  .export-dropdown button:hover {{ background:var(--bg-muted); }}
 </style>
 </head>
-<body>
+<body class="theme-{THEME}">
 {_build_nav("Editorial Playbooks", 1)}
 <div class="container">
 
@@ -4993,6 +5012,21 @@ function togglePb(tile, id) {{
     }});
   }});
 }})();
+
+// ── Theme toggle ───────────────────────────────────────────
+(function() {{
+  var stored = localStorage.getItem('theme') || '{THEME}';
+  applyTheme(stored);
+}})();
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
+  localStorage.setItem('theme', t);
+}}
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
 </script>
 </body>
 </html>"""
@@ -5043,42 +5077,59 @@ author_pb_html = f"""<!DOCTYPE html>
 <title>T1 Headline Analysis \u00b7 Author Playbooks</title>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
+  /* ── Theme tokens ── */
+  body.theme-light {{
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+  }}
+  body.theme-dark {{
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+  }}
+
   /* ── Reset ── */
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-         background: #0f172a; color: #e2e8f0; font-size: 14px; line-height: 1.6;
-         -webkit-font-smoothing: antialiased; }}
-  a {{ color: #60a5fa; text-decoration: none; }}
+         background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6;
+         -webkit-font-smoothing: antialiased; transition: background 0.2s, color 0.2s; }}
+  a {{ color: var(--accent); text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
   code {{ font-family: "SF Mono", Menlo, monospace; font-size: 0.85em;
-          background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; }}
+          background: var(--bg-muted); padding: 1px 5px; border-radius: 3px; }}
 
   /* ── Nav ── */
-  nav {{ position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92);
+  nav {{ position: sticky; top: 0; z-index: 100; background: var(--nav-bg);
         backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        border-bottom: 1px solid #334155; height: 44px;
+        border-bottom: 1px solid var(--border); height: 44px;
         display: flex; align-items: center; padding: 0 28px; gap: 0; }}
   .brand {{ font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
-            text-transform: uppercase; color: #f1f5f9; flex-shrink: 0; }}
+            text-transform: uppercase; color: var(--text); flex-shrink: 0; }}
   .nav-links {{ display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }}
-  .nav-links a {{ font-size: 12px; color: #94a3b8; transition: color 0.15s; }}
-  .nav-links a:hover {{ color: #f1f5f9; text-decoration: none; }}
-  .nav-links a.nav-active {{ color: #f1f5f9; font-weight: 600; }}
+  .nav-links a {{ font-size: 12px; color: var(--text-muted); transition: color 0.15s; }}
+  .nav-links a:hover {{ color: var(--text); text-decoration: none; }}
+  .nav-links a.nav-active {{ color: var(--text); font-weight: 600; }}
+  .nav-meta {{ display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 20px; border-left: 1px solid var(--border); }}
+  .theme-btn {{ background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 3px 9px; transition: background 0.15s, color 0.15s, border-color 0.15s; }}
+  .theme-btn:hover {{ background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }}
 
   /* ── Layout ── */
   .container {{ max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }}
   .eyebrow {{ display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
-              text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; }}
-  h1 {{ font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em;
+              text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }}
+  h1 {{ font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em;
         margin-bottom: 0.6rem; }}
-  .sub {{ font-size: 0.85rem; color: #94a3b8; max-width: 800px; margin-bottom: 1.5rem;
+  .sub {{ font-size: 0.85rem; color: var(--text-muted); max-width: 800px; margin-bottom: 1.5rem;
           line-height: 1.6; }}
   .run-header {{ display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem;
-                 padding: 0.6rem 1rem; background: rgba(255,255,255,0.04);
-                 border: 1px solid #334155; border-radius: 8px; }}
+                 padding: 0.6rem 1rem; background: var(--bg-muted);
+                 border: 1px solid var(--border); border-radius: 8px; }}
   .run-label {{ font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
-                text-transform: uppercase; color: #64748b; }}
-  .run-meta  {{ font-size: 0.78rem; color: #64748b; }}
+                text-transform: uppercase; color: var(--text-muted); }}
+  .run-meta  {{ font-size: 0.78rem; color: var(--text-muted); }}
 
   /* ── Tile grid ── */
   .tile-grid {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 1rem; }}
@@ -5086,71 +5137,76 @@ author_pb_html = f"""<!DOCTYPE html>
   @media (max-width: 1000px) and (min-width: 721px) {{ .tile-grid {{ grid-template-columns: repeat(2,1fr); }} }}
 
   /* ── Tiles ── */
-  .pb-tile {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+  .pb-tile {{ background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
               padding: 1.1rem 1.25rem; cursor: pointer;
-              transition: border-color 0.15s, box-shadow 0.15s; user-select: none; }}
-  .pb-tile:hover {{ border-color: #475569; box-shadow: 0 0 0 1px #475569 inset; }}
-  .pb-tile.open  {{ border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6 inset; }}
+              transition: border-color 0.15s, box-shadow 0.15s, background 0.2s; user-select: none; }}
+  .pb-tile:hover {{ border-color: var(--bg-subtle); box-shadow: 0 0 0 1px var(--bg-subtle) inset; }}
+  .pb-tile.open  {{ border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }}
   .conf-badge {{ display: inline-block; font-size: 9px; font-weight: 700;
                  text-transform: uppercase; letter-spacing: 0.07em;
                  padding: 2px 6px; border-radius: 3px; margin-bottom: 8px; }}
   .conf-high {{ background: rgba(22,163,74,0.2);   color: #4ade80; }}
   .conf-mod  {{ background: rgba(37,99,235,0.2);    color: #60a5fa; }}
   .conf-dir  {{ background: rgba(100,116,139,0.15); color: #94a3b8; }}
-  .tile-label  {{ display: block; font-size: 0.88rem; font-weight: 700; color: #f1f5f9;
+  body.theme-light .conf-high {{ background: rgba(22,163,74,0.12); color: #15803d; }}
+  body.theme-light .conf-mod  {{ background: rgba(37,99,235,0.12); color: #1d4ed8; }}
+  body.theme-light .conf-dir  {{ background: rgba(100,116,139,0.10); color: #475569; }}
+  .tile-label  {{ display: block; font-size: 0.88rem; font-weight: 700; color: var(--text);
                   letter-spacing: 0.01em; margin-bottom: 0.5rem; }}
-  .tile-claim  {{ font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.5rem; line-height: 1.55; }}
-  .tile-action {{ font-size: 0.8rem; color: #60a5fa; font-weight: 500;
+  .tile-claim  {{ font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.55; }}
+  .tile-action {{ font-size: 0.8rem; color: var(--accent); font-weight: 500;
                   margin-bottom: 0.5rem; line-height: 1.45; }}
-  .tile-toggle {{ font-size: 0.7rem; color: #64748b; display: block; margin-top: 0.5rem; }}
+  .tile-toggle {{ font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 0.5rem; }}
 
   /* ── Detail panels ── */
-  .pb-detail {{ background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+  .pb-detail {{ background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
                 padding: 1.5rem 1.75rem; margin-bottom: 1rem; }}
   .pb-detail h3.rh {{ font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
-                      text-transform: uppercase; color: #64748b; margin: 1.4rem 0 0.5rem; }}
+                      text-transform: uppercase; color: var(--text-muted); margin: 1.4rem 0 0.5rem; }}
   .pb-detail h3.rh:first-child {{ margin-top: 0; }}
-  .pb-detail .detail-sub {{ font-size: 0.8rem; color: #64748b; margin-bottom: 0.6rem; }}
-  .pb-detail p {{ font-size: 0.84rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.55; }}
+  .pb-detail .detail-sub {{ font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.6rem; }}
+  .pb-detail p {{ font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.75rem; line-height: 1.55; }}
 
   /* ── Tables ── */
-  .table-wrap {{ overflow-x: auto; border-radius: 8px; border: 1px solid #334155;
+  .table-wrap {{ overflow-x: auto; border-radius: 8px; border: 1px solid var(--border);
                  box-shadow: 0 1px 4px rgba(0,0,0,0.3); margin: 0.5rem 0 1.25rem; }}
   table {{ width: 100%; border-collapse: collapse; font-size: 0.8rem; }}
-  thead th {{ background: #0f172a; color: #94a3b8; font-size: 0.68rem;
+  thead th {{ background: var(--bg-muted); color: var(--text-muted); font-size: 0.68rem;
               font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-              padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #334155; }}
-  tbody tr:nth-child(odd)  {{ background: rgba(255,255,255,0.02); }}
-  tbody tr:nth-child(even) {{ background: transparent; }}
-  tbody tr:hover {{ background: rgba(255,255,255,0.05); }}
-  tbody td {{ padding: 8px 12px; color: #e2e8f0; border-bottom: 1px solid rgba(51,65,85,0.5); white-space: nowrap; }}
+              padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }}
+  tbody tr {{ background: transparent; }}
+  tbody tr:hover {{ background: var(--bg-muted); }}
+  tbody td {{ padding: 8px 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }}
   tbody tr:last-child td {{ border-bottom: none; }}
   table thead th {{ cursor: pointer; user-select: none; }}
   .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; }}
-  table thead th[data-sort] .sort-icon {{ opacity: 1; color: #3b82f6; }}
+  table thead th[data-sort] .sort-icon {{ opacity: 1; color: var(--accent); }}
 
   /* ── Lift colors ── */
   .lift-high {{ color: #4ade80; font-weight: 600; }}
   .lift-pos  {{ color: #60a5fa; font-weight: 600; }}
   .lift-neg  {{ color: #f87171; font-weight: 600; }}
+  body.theme-light .lift-high {{ color: #16a34a; }}
+  body.theme-light .lift-pos  {{ color: var(--accent); }}
+  body.theme-light .lift-neg  {{ color: #dc2626; }}
 
   /* ── Export button ── */
   .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
   .export-btn {{ font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer;
-                 border: 1px solid #334155; background: #0f172a; color: #94a3b8;
+                 border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
                  font-family: inherit; transition: background 0.15s; }}
-  .export-btn:hover {{ background: #1e293b; color: #e2e8f0; }}
+  .export-btn:hover {{ background: var(--bg-muted); color: var(--text); }}
   .export-dropdown {{ display: none; position: absolute; right: 0; top: calc(100% + 3px);
                       min-width: 130px; border-radius: 8px; z-index: 200;
-                      border: 1px solid #334155; background: #0f172a;
+                      border: 1px solid var(--border); background: var(--bg);
                       box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; }}
   .export-dropdown button {{ display: block; width: 100%; text-align: left; padding: 8px 14px;
                               font-size: 0.75rem; font-family: inherit; cursor: pointer;
-                              border: none; background: transparent; color: #e2e8f0; }}
-  .export-dropdown button:hover {{ background: #1e293b; }}
+                              border: none; background: transparent; color: var(--text-secondary); }}
+  .export-dropdown button:hover {{ background: var(--bg-muted); }}
 </style>
 </head>
-<body>
+<body class="theme-{THEME}">
 {_build_nav("Author Playbooks", 1)}
 {_ap_body}
 <script>
@@ -5272,6 +5328,21 @@ function togglePb(tile, id) {{
     }});
   }});
 }})();
+
+// ── Theme toggle ───────────────────────────────────────────
+(function() {{
+  var stored = localStorage.getItem('theme') || '{THEME}';
+  applyTheme(stored);
+}})();
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
+  localStorage.setItem('theme', t);
+}}
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
 </script>
 </body>
 </html>"""

@@ -5,56 +5,92 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
+  body.theme-light {
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+  }
+  body.theme-dark {
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+  }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:#f8fafc; color:#0f172a; font-size:15px; line-height:1.7;
-          -webkit-font-smoothing:antialiased; }
-  nav { background:rgba(15,23,42,0.96); backdrop-filter:blur(10px);
+          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }
+  nav { background:var(--nav-bg); backdrop-filter:blur(10px);
          -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:1.5rem; height:46px;
-         border-bottom:1px solid rgba(255,255,255,0.04); }
-  nav .brand { color:#fff; font-weight:700; font-size:0.72rem;
-                letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }
-  nav a { color:rgba(255,255,255,0.45); text-decoration:none;
-           font-size:0.73rem; transition:color 0.15s; }
-  nav a:hover { color:rgba(255,255,255,0.85); }
-  nav a.nav-active { color:#fff; font-weight:600; }
+         display:flex; align-items:center; gap:0; height:46px;
+         border-bottom:1px solid var(--border); }
+  .brand { color:var(--text); font-weight:700; font-size:0.72rem;
+            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }
+  .nav-links { display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }
+  .nav-links a { color:var(--text-muted); text-decoration:none;
+                  font-size:0.73rem; transition:color 0.15s; }
+  .nav-links a:hover { color:var(--text); }
+  .nav-links a.nav-active { color:var(--text); font-weight:600; }
+  .nav-meta { display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }
+  .theme-btn { background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s; }
+  .theme-btn:hover { background:var(--bg-muted); color:var(--text); }
   .container { max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }
   h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
-        margin-bottom:0.4rem; line-height:1.25; }
-  .sub { color:#64748b; font-size:0.875rem; margin-bottom:2.5rem; }
-  code { font-size:0.8rem; background:#f1f5f9; padding:1px 5px; border-radius:3px; }
-  ul { list-style:none; padding:0; margin:0; border-top:1px solid #e2e8f0; }
-  li { padding:1rem 0; border-bottom:1px solid #e2e8f0; }
-  li a { font-size:0.9375rem; font-weight:500; color:#0f172a;
+        margin-bottom:0.4rem; line-height:1.25; color:var(--text); }
+  .sub { color:var(--text-muted); font-size:0.875rem; margin-bottom:2.5rem; }
+  code { font-size:0.8rem; background:var(--bg-muted); padding:1px 5px; border-radius:3px; }
+  ul { list-style:none; padding:0; margin:0; border-top:1px solid var(--border); }
+  li { padding:1rem 0; border-bottom:1px solid var(--border); }
+  li a { font-size:0.9375rem; font-weight:500; color:var(--text);
           text-decoration:none; display:block; margin-bottom:0.25rem;
           transition:color 0.15s; }
-  li a:hover { color:#2563eb; }
-  .meta { display:block; font-size:0.74rem; color:#94a3b8; letter-spacing:0.01em; }
+  li a:hover { color:var(--accent); }
+  .meta { display:block; font-size:0.74rem; color:var(--text-muted); letter-spacing:0.01em; }
   .status { display:inline-block; font-size:0.6rem; font-weight:700; text-transform:uppercase;
              letter-spacing:0.07em; padding:1px 5px; border-radius:3px; margin-left:4px; }
   .status-complete { background:#f0fdf4; color:#15803d; }
   .status-active   { background:#eff6ff; color:#1d4ed8; }
-  .status-pending  { background:#f8fafc; color:#94a3b8; }
+  .status-pending  { background:var(--bg-muted); color:var(--text-muted); }
+  body.theme-dark .status-complete { background:rgba(22,163,74,0.15); color:#4ade80; }
+  body.theme-dark .status-active   { background:rgba(37,99,235,0.15); color:#60a5fa; }
 </style>
 </head>
-<body>
+<body class="theme-dark">
 <nav>
   <span class="brand">McClatchy CSA · T1 Headlines</span>
-  <a href="../">Current Analysis</a>
-  <a href="../playbook/">Editorial Playbooks</a>
-  <a href="../author-playbooks/">Author Playbooks</a>
-  <a href="../experiments/" class="nav-active">Experiments</a>
+  <div class="nav-links">
+    <a href="../">Current Analysis</a>
+    <a href="../playbook/">Editorial Playbooks</a>
+    <a href="../author-playbooks/">Author Playbooks</a>
+    <a href="../experiments/" class="nav-active">Experiments</a>
+  </div>
+  <div class="nav-meta">
+    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
+  </div>
 </nav>
 <div class="container">
 <h1>Experiments</h1>
 <p class="sub">Before/after comparisons and formula tests. Add a spec to <code>experiments/</code>
   and run <code>python3 generate_experiment.py experiments/SLUG.md</code>.</p>
 <ul>
-<li><a href="possessive-formula-views/index.html">Possessive named entity formula — does it drive more Apple News views than baseline?</a><span class="meta">Apple News · views · <span class="status status-active">active</span></span></li>
-<li><a href="what-to-know-featured-rate/index.html">Does "What to Know" headline formula improve Featured placement rates?</a><span class="meta">Apple News · featured rate · <span class="status status-active">active</span></span></li>
 <li><span style="color:#94a3b8">Do notification CTR patterns from Jan–Feb 2026 hold through H2 2026?</span><span class="meta">Notifications · ctr · <span class="status status-pending">pending</span></span></li>
 </ul>
 </div>
+<script>
+(function() {
+  var stored = localStorage.getItem('theme') || 'dark';
+  applyTheme(stored);
+})();
+function applyTheme(t) {
+  document.body.className = 'theme-' + t;
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
+  localStorage.setItem('theme', t);
+}
+function toggleTheme() {
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}
+</script>
 </body>
 </html>
