@@ -57,12 +57,12 @@ THEME_LIGHT = dict(
     baseline   = GRAY,
 )
 THEME_DARK = dict(
-    paper_bg   = "#0f172a",   # slate-900 (matches NAVY for body bg)
-    plot_bg    = "#1e293b",   # slate-800
-    text       = "#f1f5f9",   # slate-100
-    text_muted = "#94a3b8",   # slate-400
-    grid       = "#334155",   # slate-700
-    baseline   = "#64748b",   # slate-500 (same as GRAY)
+    paper_bg   = "rgba(0,0,0,0)",  # transparent — inherits CSS --bg-card behind the chart
+    plot_bg    = "rgba(0,0,0,0)",  # transparent — no white rectangle in dark mode
+    text       = "#f1f5f9",        # slate-100
+    text_muted = "#94a3b8",        # slate-400
+    grid       = "#334155",        # slate-700
+    baseline   = "#64748b",        # slate-500 (same as GRAY)
 )
 
 def get_theme(theme: str = "light") -> dict:
