@@ -179,7 +179,9 @@ an = pd.concat([an_2025[_common_cols], an_2026[_common_cols]], ignore_index=True
 sn = pd.read_excel(DATA_2025, sheet_name="SmartNews")
 
 # Notifications from 2026
-notif = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
+notif  = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
+sn26   = pd.read_excel(DATA_2026, sheet_name="SmartNews")
+yahoo26 = pd.read_excel(DATA_2026, sheet_name="Yahoo")
 notif = notif.dropna(subset=["CTR"]).copy()
 
 # MSN and Yahoo from 2025
@@ -656,46 +658,110 @@ else:
 
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
-HAS_TRACKER = False
-tracker_df  = None
-an_tracked  = pd.DataFrame()
-author_stats = pd.DataFrame()
-team_top     = pd.DataFrame()
-N_TRACKED_AN = 0
+HAS_TRACKER  = False
+tracker_df   = None
+team_combined = pd.DataFrame()
+author_stats  = pd.DataFrame()
+team_top      = pd.DataFrame()
+N_TRACKED     = 0
+
+def _hn(t):
+    return re.sub(r"[^a-z0-9]", "", str(t).lower().strip())
 
 try:
-    tracker_df = pd.read_excel(TRACKER, sheet_name="Data")
-    tracker_df = tracker_df[["Published URL/Link", "Author", "Vertical", "Word Count"]].copy()
-    tracker_df = tracker_df.dropna(subset=["Published URL/Link"])
-    tracker_df["_url_key"] = tracker_df["Published URL/Link"].str.strip().str.lower()
+    tracker_raw = pd.read_excel(TRACKER, sheet_name="Data")
+    tracker_df  = tracker_raw[["Published URL/Link", "Author", "Vertical",
+                                "Word Count", "Headline"]].copy()
+    tracker_df  = tracker_df.dropna(subset=["Author"])
+    tracker_df["_url"] = tracker_df["Published URL/Link"].fillna("").str.strip().str.lower()
+    tracker_df["_hn"]  = tracker_df["Headline"].apply(_hn)
+    # Rename to avoid column conflicts when merging with datasets that also have Author column
+    tracker_df = tracker_df.rename(columns={"Author": "t_author", "Vertical": "t_vertical"})
     HAS_TRACKER = True
 except Exception as e:
     print(f"Tracker not loaded: {e}")
 
 if HAS_TRACKER:
-    an_url = an.copy()
-    an_url["_url_key"] = an_url["Publisher Article ID"].fillna("").str.strip().str.lower()
-    an_tracked = an_url[an_url["_url_key"] != ""].merge(tracker_df, on="_url_key", how="inner")
-    N_TRACKED_AN = len(an_tracked)
-    print(f"Tracker join: {N_TRACKED_AN} Apple News articles matched ({N_TRACKED_AN/len(an):.1%} of {len(an)} total)")
+    rows = []
 
-    if N_TRACKED_AN > 0:
-        author_stats = (an_tracked.groupby("Author_x")
-            .agg(
-                n=("Article", "count"),
-                med_views=("Total Views", "median"),
-                med_pct=(VIEWS_METRIC, "median"),
-                feat_rate=("is_featured", "mean"),
-            )
+    # ── 1. Apple News: URL join + headline join (combined, deduplicated) ──────
+    an_work = an.copy()
+    an_work["_url"] = an_work["Publisher Article ID"].fillna("").str.strip().str.lower()
+    an_work["_hn"]  = an_work["Article"].apply(_hn)
+    # URL join
+    an_url_j = (an_work[an_work["_url"] != ""]
+                .merge(tracker_df[["_url","t_author","t_vertical"]], on="_url", how="inner"))
+    # Headline join (fallback for articles where URL format differs)
+    an_hn_j  = (an_work[an_work["_hn"].str.len() > 10]
+                .merge(tracker_df[["_hn","t_author","t_vertical"]], on="_hn", how="inner"))
+    an_joined = pd.concat([an_url_j, an_hn_j]).drop_duplicates(subset=["Article ID"])
+    for _, r in an_joined.iterrows():
+        rows.append(dict(
+            platform="Apple News",
+            headline=r["Article"],
+            brand=r.get("Brand", ""),
+            author=r["t_author"],
+            vertical=r.get("t_vertical", ""),
+            pub_date=r["Date Published"],
+            views=r["Total Views"],
+            percentile=r[VIEWS_METRIC],
+            featured=r.get("is_featured", False),
+        ))
+
+    # ── 2. SmartNews 2026: URL join ───────────────────────────────────────────
+    sn26_work = sn26.copy()
+    sn26_work["_url"] = sn26_work["url"].fillna("").str.strip().str.lower()
+    sn26_work["percentile"] = sn26_work["article_view"].rank(pct=True)
+    sn26_j = (sn26_work[sn26_work["_url"] != ""]
+              .merge(tracker_df[["_url","t_author","t_vertical"]], on="_url", how="inner"))
+    for _, r in sn26_j.iterrows():
+        rows.append(dict(
+            platform="SmartNews",
+            headline=r["title"],
+            brand=r.get("domain", ""),
+            author=r["t_author"],
+            vertical=r.get("t_vertical", ""),
+            pub_date=r.get("date", pd.NaT),
+            views=r["article_view"],
+            percentile=r["percentile"],
+            featured=False,
+        ))
+
+    # ── 3. Yahoo 2026: headline join ──────────────────────────────────────────
+    yahoo26_work = yahoo26.copy()
+    yahoo26_work["_hn"] = yahoo26_work["Content Title"].apply(_hn)
+    yahoo26_work["percentile"] = yahoo26_work["Content Views"].rank(pct=True)
+    yahoo26_j = (yahoo26_work[yahoo26_work["_hn"].str.len() > 10]
+                 .merge(tracker_df[["_hn","t_author","t_vertical"]], on="_hn", how="inner"))
+    for _, r in yahoo26_j.iterrows():
+        rows.append(dict(
+            platform="Yahoo",
+            headline=r["Content Title"],
+            brand=r.get("Provider Name", ""),
+            author=r["t_author"],
+            vertical=r.get("t_vertical", ""),
+            pub_date=r.get("Publish Date", pd.NaT),
+            views=r["Content Views"],
+            percentile=r["percentile"],
+            featured=False,
+        ))
+
+    team_combined = pd.DataFrame(rows)
+    N_TRACKED = len(team_combined)
+    print(f"Tracker join: {N_TRACKED} total matched articles "
+          f"(AN={len(an_joined)}, SN={len(sn26_j)}, Yahoo={len(yahoo26_j)})")
+
+    if N_TRACKED > 0:
+        author_stats = (team_combined.groupby(["author", "platform"])
+            .agg(n=("headline", "count"),
+                 med_views=("views", "median"),
+                 med_pct=("percentile", "median"))
             .reset_index()
-            .rename(columns={"Author_x": "Author"})
-            .sort_values("med_pct", ascending=False)
-            .head(15))
+            .sort_values("med_pct", ascending=False))
 
-        team_top = (an_tracked.sort_values(VIEWS_METRIC, ascending=False)
-            [["Article", "Brand", "Author_x", "Date Published", "Total Views", VIEWS_METRIC, "is_featured"]]
-            .rename(columns={"Author_x": "Author"})
-            .head(15))
+        team_top = (team_combined.sort_values("percentile", ascending=False)
+                    [["headline","platform","brand","author","pub_date","views","percentile","featured"]]
+                    .head(20))
 
 
 # ── Key stats ─────────────────────────────────────────────────────────────────
@@ -887,27 +953,28 @@ def _yoy_table():
     return html_out
 
 def _author_table():
-    if author_stats.empty: return "<tr><td colspan='5'>No matched articles.</td></tr>"
+    if author_stats.empty: return "<tr><td colspan='4'>No matched articles.</td></tr>"
     html_out = ""
     for _, r in author_stats.iterrows():
-        html_out += (f"<tr><td>{html_module.escape(str(r['Author']))}</td>"
+        html_out += (f"<tr><td>{html_module.escape(str(r['author']))}</td>"
+                     f"<td>{html_module.escape(str(r['platform']))}</td>"
                      f"<td>{int(r['n'])}</td>"
-                     f"<td>{int(r['med_views']):,}</td>"
-                     f"<td>{r['med_pct']:.0%}</td>"
-                     f"<td>{r['feat_rate']:.0%}</td></tr>\n")
+                     f"<td>{r['med_pct']:.0%}</td></tr>\n")
     return html_out
 
 def _team_top_table():
     if team_top.empty: return "<tr><td colspan='6'>No matched articles.</td></tr>"
     html_out = ""
     for _, r in team_top.iterrows():
-        title = html_module.escape(str(r['Article'])[:80])
-        feat_str = "Yes" if r['is_featured'] else "No"
+        title = html_module.escape(str(r['headline'])[:80])
+        feat_str = "Yes" if r.get('featured') else "No"
+        views_val = r.get('views', 0)
+        views_str = f"{int(views_val):,}" if pd.notna(views_val) else "—"
         html_out += (f"<tr><td>{title}</td>"
-                     f"<td>{html_module.escape(str(r['Brand']))}</td>"
-                     f"<td>{html_module.escape(str(r['Author']))}</td>"
-                     f"<td>{r[VIEWS_METRIC]:.0%}</td>"
-                     f"<td>{int(r['Total Views']):,}</td>"
+                     f"<td>{html_module.escape(str(r.get('platform','')))} — {html_module.escape(str(r.get('brand','')))}</td>"
+                     f"<td>{html_module.escape(str(r.get('author','')))}</td>"
+                     f"<td>{r['percentile']:.0%}</td>"
+                     f"<td>{views_str}</td>"
                      f"<td>{feat_str}</td></tr>\n")
     return html_out
 
@@ -1210,7 +1277,7 @@ c8 = chart_html(fig8)
 
 # ── Conditional sections ──────────────────────────────────────────────────────
 _finding9_html = ""
-if HAS_TRACKER and N_TRACKED_AN > 0:
+if HAS_TRACKER and N_TRACKED > 0:
     _finding9_html = f"""
   <!-- TEAM PERFORMANCE -->
   <details id="team" class="finding-card">
@@ -1218,21 +1285,21 @@ if HAS_TRACKER and N_TRACKED_AN > 0:
       <span class="finding-chevron">▶</span>
       <div class="finding-summary">
         <p class="section-label">Finding 9 · Team Performance (Tracker)</p>
-        <h2>Author-level breakdown for {N_TRACKED_AN} tracked articles matched to Apple News data.</h2>
+        <h2>{N_TRACKED} tracked articles matched across Apple News, SmartNews, and Yahoo.</h2>
       </div>
     </summary>
     <div class="finding-body">
       <div class="callout">
-        <strong>Note:</strong> {N_TRACKED_AN} Apple News articles ({N_TRACKED_AN/len(an):.1%} of {len(an)} total) matched to tracker via Publisher Article ID. Results are directional; match rate limits coverage.
+        <strong>Note:</strong> {N_TRACKED} articles from the content tracker matched to syndication data via URL or headline. Results are directional; match rate limits coverage.
       </div>
-      <h3>Author performance (top 15 by median percentile)</h3>
+      <h3>Author performance by platform (sorted by median percentile)</h3>
       <table class="findings">
-        <thead><tr><th>Author</th><th>n articles</th><th>Median views</th><th>Median percentile</th><th>Featured rate</th></tr></thead>
+        <thead><tr><th>Author</th><th>Platform</th><th>n articles</th><th>Median percentile</th></tr></thead>
         <tbody>{_t_auth}</tbody>
       </table>
-      <h3>Top 15 articles by percentile rank</h3>
+      <h3>Top 20 articles by percentile rank</h3>
       <table class="findings">
-        <thead><tr><th>Article</th><th>Brand</th><th>Author</th><th>Percentile</th><th>Total Views</th><th>Featured</th></tr></thead>
+        <thead><tr><th>Article</th><th>Platform — Brand</th><th>Author</th><th>Percentile</th><th>Views</th><th>Featured</th></tr></thead>
         <tbody>{_t_team}</tbody>
       </table>
     </div>
@@ -1473,7 +1540,7 @@ html = f"""<!DOCTYPE html>
     <a href="#allocation">Allocation</a>
     <a href="#engagement">Engagement</a>
     <a href="#trends">Trends</a>
-    {"<a href='#team'>Team</a>" if HAS_TRACKER and N_TRACKED_AN > 0 else ""}
+    {"<a href='#team'>Team</a>" if HAS_TRACKER and N_TRACKED > 0 else ""}
   </div>
   <span class="spacer"></span>
   <button class="nav-toggle" id="expand-btn" onclick="toggleAll()">Expand all</button>
