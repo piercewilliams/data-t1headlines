@@ -393,9 +393,18 @@ function togglePb(tile, id) {
 })();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-// PDF: browser native print—correct colors, vector text, no library needed.
-//      User saves as PDF from browser print dialog (File → Save as PDF).
-// PNG: html2canvas at 3× scale, full scrollWidth/scrollHeight—high-res.
+// Shared with main page—same _findTileForPanel + _exportPanel pattern.
+// PDF: browser native print. PNG: off-screen fixed-width container capture.
+function _findTileForPanel(panelEl) {
+  var pid = panelEl.id || '';
+  var shortId = pid.indexOf('detail-') === 0 ? pid.replace('detail-', '') : pid;
+  var tileEl = null;
+  document.querySelectorAll('.tile,.pb-tile').forEach(function(t) {
+    if ((t.getAttribute('onclick') || '').indexOf(shortId) >= 0) tileEl = t;
+  });
+  return tileEl;
+}
+
 function _exportPanel(panelEl, format, dropdownEl) {
   if (dropdownEl) dropdownEl.style.display = 'none';
   var heading = panelEl.querySelector('h2');
@@ -404,12 +413,19 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var date    = new Date().toISOString().slice(0, 10);
 
   if (format === 'pdf') {
-    var clone = panelEl.cloneNode(true);
-    clone.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
-    var wrap = document.createElement('div');
-    wrap.id = '_exp_print';
-    wrap.appendChild(clone);
-    document.body.appendChild(wrap);
+    var _pdfTile = _findTileForPanel(panelEl);
+    var _pdfWrap = document.createElement('div');
+    _pdfWrap.id = '_exp_print';
+    if (_pdfTile) {
+      var _tc = _pdfTile.cloneNode(true);
+      _tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;';
+      _tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
+      _pdfWrap.appendChild(_tc);
+    }
+    var _pc = panelEl.cloneNode(true);
+    _pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+    _pdfWrap.appendChild(_pc);
+    document.body.appendChild(_pdfWrap);
     var style = document.createElement('style');
     style.id = '_exp_style';
     style.textContent = [
@@ -422,35 +438,45 @@ function _exportPanel(panelEl, format, dropdownEl) {
     ].join('\n');
     document.head.appendChild(style);
     function _cleanup() {
-      var w = document.getElementById('_exp_print');
-      var s = document.getElementById('_exp_style');
-      if (w) w.remove();
-      if (s) s.remove();
+      var w = document.getElementById('_exp_print'); var s = document.getElementById('_exp_style');
+      if (w) w.remove(); if (s) s.remove();
       window.removeEventListener('afterprint', _cleanup);
     }
     window.addEventListener('afterprint', _cleanup);
     window.print();
   } else {
-    html2canvas(panelEl, {
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      width:       panelEl.scrollWidth,
-      height:      panelEl.scrollHeight,
-      windowWidth: document.documentElement.scrollWidth,
-      backgroundColor: getComputedStyle(panelEl).backgroundColor || '#1e293b'
+    var bg = getComputedStyle(panelEl).backgroundColor || '#1e293b';
+    var container = document.createElement('div');
+    container.id = '_exp_png';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;' +
+      'background:' + bg + ';box-sizing:border-box;font-family:inherit;overflow:hidden;';
+    var tileEl = _findTileForPanel(panelEl);
+    if (tileEl) {
+      var tc = tileEl.cloneNode(true);
+      tc.style.cssText = 'cursor:default;border-radius:12px 12px 0 0;margin:0;width:100%;box-sizing:border-box;border-bottom:none;';
+      tc.querySelectorAll('.tile-toggle,.tile-more,.export-btn-wrap').forEach(function(el) { el.remove(); });
+      container.appendChild(tc);
+    }
+    var pc = panelEl.cloneNode(true);
+    pc.style.display = 'block';
+    pc.querySelectorAll('.export-btn-wrap').forEach(function(el) { el.remove(); });
+    container.appendChild(pc);
+    document.body.appendChild(container);
+    html2canvas(container, {
+      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: bg
     }).then(function(canvas) {
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
       canvas.toBlob(function(blob) {
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'headline-analysis-' + slug + '-' + date + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function() { URL.revokeObjectURL(a.href); }, 100);
       }, 'image/png');
-    }).catch(function(err) { console.error('PNG export failed:', err); });
+    }).catch(function(err) {
+      var c = document.getElementById('_exp_png'); if (c) c.remove();
+      console.error('PNG export failed:', err);
+    });
   }
 }
 
