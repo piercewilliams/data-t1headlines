@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — all 9 findings live, playbook, author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-28 (charts, tooltips, author tiles, finding framing, experiment automation)
+**Last session:** 2026-03-28 (README rewrite — priority-ordered structure, full roadmap coverage, non-technical entry path)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -56,6 +56,14 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads
 
 ## Session Log
+
+**2026-03-28: README rewrite**
+- Full rewrite of README.md for clarity, completeness, and priority-ordered structure
+- Added table of contents with 10 sections; moved "Why this exists" + variant allocation model to section 2 (was last)
+- Added post-build verification checklist (5 checks with expected values) — previously only in PLAYBOOK.md
+- Added key thresholds to watch table (where findings will shift significance as data grows) — previously only in PLAYBOOK.md
+- Expanded future roadmap: full data gaps table (with priorities), instrumentation roadmap (canon article ID, variant count, formula/platform tags), and analytical enrichments we can do now
+- Architecture and design decisions moved behind operational sections — non-technical stakeholders now have a clean entry path
 
 **2026-03-28: Charts, tooltips, author tiles, finding framing, experiment automation**
 - Wired build report display for `_audit_warnings`, `_palette_warnings`, `_formula_warnings`
