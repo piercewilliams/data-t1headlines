@@ -15,13 +15,14 @@ Monthly analysis of headline and topic performance across Apple News, SmartNews,
 1. [What this site shows](#what-this-site-shows)
 2. [Where we're headed — the variant allocation model](#where-were-headed--the-variant-allocation-model)
 3. [Monthly update — the only command you need](#monthly-update--the-only-command-you-need)
-4. [Site structure](#site-structure)
-5. [The analyses](#the-analyses)
-6. [Statistical standards](#statistical-standards)
-7. [Architecture](#architecture)
-8. [Developer: adding analyses and experiments](#developer-adding-analyses-and-experiments)
-9. [File reference](#file-reference)
-10. [Triage guide](#triage-guide)
+4. [Version history and rollback](#version-history-and-rollback)
+5. [Site structure](#site-structure)
+6. [The analyses](#the-analyses)
+7. [Statistical standards](#statistical-standards)
+8. [Architecture](#architecture)
+9. [Developer: adding analyses and experiments](#developer-adding-analyses-and-experiments)
+10. [File reference](#file-reference)
+11. [Triage guide](#triage-guide)
 
 ---
 
@@ -129,6 +130,45 @@ For scenario-specific guidance (new sheets, engagement columns, MSN full year, S
 | Exclusive CTR lift | 2.49× (n=16) | May dilute as Guthrie story ages |
 | Sports #1 Apple News | 2.13× | Check monthly — topic ranking can shift |
 | Local/Civic #1 SmartNews | 1.99× | Check monthly |
+
+---
+
+## Version history and rollback
+
+A row of version pills appears in the footer of the main page. Each pill represents a complete snapshot of `docs/index.html` — the full rendered site, frozen exactly as it was — taken automatically every Monday at 8 AM.
+
+### Browsing a past version
+
+1. Scroll to the footer of the main page and click a version pill (e.g. "Mar 31, 2026").
+2. The complete historical page opens in a **new browser tab** — every chart, table, finding, and annotation exactly as it existed at that point in time.
+3. Browse freely. The snapshot is a self-contained HTML file.
+4. Close the tab to return to the live site.
+
+> Snapshot pages do not show their own snapshot bar, so there is no confusion about which version you are viewing.
+
+### Restoring a past version to the live site
+
+Use this only if the current `docs/index.html` is corrupted, broken, or was incorrectly rebuilt and needs to be rolled back to a known-good state.
+
+1. Open the version you want to restore (step 1–2 above).
+2. In the footer of the live page (not the snapshot tab), click the same version pill to activate it, then click **Restore this version** in the banner that appears.
+3. A modal appears. Enter the passkey: **8812**
+4. Click **Download & Restore** — two files download automatically:
+   - `index.html` — the complete historical page. Place it at `docs/index.html`, replacing the current file.
+   - `snapshots-index.json` — rename to `index.json` and place at `docs/snapshots/index.json`.
+5. Push via GitHub Desktop.
+
+> **Note:** Restoring removes snapshot history newer than the version you restored to. The modal tells you how many versions will be removed.
+>
+> **Important:** Restoring replaces the live site with the snapshot page. Any data updates made since that snapshot — new Tarrow exports, new analyses, new findings — will not be present. Only restore if the current version is genuinely broken and needs to be replaced.
+
+### How snapshots are maintained
+
+- Snapshots are taken automatically. You do not need to do anything.
+- The trigger runs every **Monday at 8 AM Dallas time**.
+- A maximum of **5 snapshots** are kept. When a 6th is taken, the oldest is deleted automatically.
+- The snapshot bar does **not** appear inside snapshot files — only on the live `docs/index.html`.
+- If the snapshot bar shows no pills, the trigger has not yet run — check [claude.ai/code/scheduled](https://claude.ai/code/scheduled) and look for "Weekly Snapshots - All Sites."
 
 ---
 
