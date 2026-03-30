@@ -182,6 +182,36 @@
                              font-size: 0.75rem; font-family: inherit; cursor: pointer;
                              border: none; background: transparent; color: var(--text); }
   .export-dropdown button:hover { background: var(--nav-bg); }
+
+  /* ── Snapshot bar ── */
+  #snapshot-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+  .snap-bar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-right: 2px; flex-shrink: 0; }
+  .snap-btn { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; }
+  .snap-btn:hover { background: var(--bg-muted); border-color: var(--text-muted); color: var(--text-secondary); }
+  .snap-btn.active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); color: var(--accent); }
+  #snapshot-banner { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 28px; background: color-mix(in srgb, var(--accent) 8%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); font-size: 12px; color: var(--accent); }
+  .snap-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .snap-banner-btn { background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); border-radius: 5px; padding: 3px 10px; font-size: 11px; cursor: pointer; transition: background 0.12s; font-family: inherit; }
+  .snap-banner-btn:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+  .snap-banner-exit { background: var(--bg-muted) !important; border-color: var(--border) !important; color: var(--text-secondary) !important; }
+  .snap-banner-exit:hover { color: var(--text) !important; border-color: var(--text-muted) !important; }
+  #snap-restore-modal { display: none; position: fixed; inset: 0; z-index: 500; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); }
+  #snap-restore-modal.visible { display: flex; }
+  .srm-inner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; width: 400px; max-width: calc(100vw - 40px); box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
+  .srm-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+  .srm-success { color: #34d399; }
+  .srm-body { font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.55; }
+  .srm-body code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; background: var(--bg-muted); padding: 1px 5px; border-radius: 3px; color: var(--text); }
+  .srm-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 12px; letter-spacing: 0.15em; margin-bottom: 6px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+  .srm-input:focus { border-color: var(--accent); }
+  .srm-error { font-size: 11.5px; color: #ef4444; min-height: 18px; margin-bottom: 10px; }
+  .srm-btns { display: flex; gap: 8px; }
+  .srm-confirm { background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); color: var(--accent); border-radius: 5px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .srm-confirm:hover { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .srm-dismiss { background: none; border: 1px solid var(--border); color: var(--text-muted); border-radius: 5px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .srm-dismiss:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+  @keyframes srm-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+  .srm-shake { animation: srm-shake 0.35s ease; }
 </style>
 </head>
 <body class="theme-dark">
@@ -1146,7 +1176,9 @@ function _exportPanel(panelEl, format, dropdownEl) {
     <a href="playbook/">Playbooks</a> &nbsp;·&nbsp;
     Data: T1 Headline Performance Sheet · Apple News, SmartNews, MSN, Yahoo
   </p>
+  <div id="snapshot-bar"></div>
 </footer>
 
+<script src="js/snapshot-bar.js"></script>
 </body>
 </html>
