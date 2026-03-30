@@ -57,6 +57,15 @@ For session history: see [sessions/](sessions/)
 
 ## Session Log
 
+**2026-03-30: Snapshot version bar**
+Added version history system to `docs/index.html`. Weekly trigger (Mon 8am Dallas) copies `docs/index.html` → `docs/snapshots/snap-NNN.html` (snapshot bar script tag stripped). Clicking a pill opens the full historical page in a new tab. Passkey `8812` gates restore (downloads snapshot HTML + pruned `index.json`). Max 5 snapshots. URL guard in `snapshot-bar.js` prevents the bar from rendering inside snapshot files. `generate_site.py` updated with same snapshot bar so all future generated pages include it.
+
+Files changed: `docs/index.html` (bar div + script tag + CSS), `docs/js/snapshot-bar.js` (new), `docs/snapshots/index.json` (scaffold), `generate_site.py` (snapshot bar injected into template).
+
+**Known pre-existing warning:** `generate_site.py` emits a `SyntaxWarning: "\(" is an invalid escape sequence` at build time (Python 3.14) due to a JS regex pattern embedded in the HTML f-string at line 4524. This is pre-existing, does not affect output, and does not affect our snapshot code.
+
+**Trigger:** `trig_01Qze9PVrNErCEYa1fMXxF2U` — shared with csa-dashboard and csa-content-standards. Details in ops-hub REFERENCE.md.
+
 **2026-03-28: README rewrite**
 - Full rewrite of README.md for clarity, completeness, and priority-ordered structure
 - Added table of contents with 10 sections; moved "Why this exists" + variant allocation model to section 2 (was last)
