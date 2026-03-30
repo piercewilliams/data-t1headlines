@@ -14,6 +14,15 @@
   var _activeSnapFile = null;
   var _activeSnapLabel = '';
 
+  // Escape HTML special chars before inserting untrusted strings into innerHTML.
+  function esc(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   // ── Render snapshot bar ──────────────────────────────────────────────────────
 
   function renderSnapshotBar() {
@@ -26,8 +35,8 @@
         _snapIndex = snaps;
         var html = '<span class="snap-bar-label">Page versions</span>';
         snaps.forEach(function (s) {
-          html += '<button class="snap-btn" data-snap-id="' + s.id +
-            '" data-snap-file="' + s.filename + '">' + s.label + '</button>';
+          html += '<button class="snap-btn" data-snap-id="' + esc(s.id) +
+            '" data-snap-file="' + esc(s.filename) + '">' + esc(s.label) + '</button>';
         });
         bar.innerHTML = html;
         bar.querySelectorAll('.snap-btn').forEach(function (btn) {
@@ -153,12 +162,19 @@
 
     // Download the snapshot HTML as index.html
     fetch('./snapshots/' + _activeSnapFile)
-      .then(function (r) { return r.blob(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.blob();
+      })
       .then(function (blob) {
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url; a.download = 'index.html'; a.click();
         URL.revokeObjectURL(url);
+      })
+      .catch(function (err) {
+        var errEl = document.getElementById('srm-error');
+        if (errEl) errEl.textContent = 'Download failed: ' + err.message;
       });
 
     // Download pruned index.json — keep only from restored snapshot onward
