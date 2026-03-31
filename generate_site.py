@@ -956,7 +956,7 @@ VIEWS_METRIC = "percentile_within_cohort"
 
 
 # ── Sheet discovery — warn about unrecognized sheets in new exports ───────────
-_KNOWN_SHEETS_2025 = {"Apple News", "SmartNews", "Yahoo", "MSN"}
+_KNOWN_SHEETS_2025 = {"Apple News", "SmartNews", "Yahoo", "MSN", "Apple News notifications"}
 _KNOWN_SHEETS_2026 = {"Apple News", "Apple News Notifications", "SmartNews", "Yahoo", "MSN",
                       "MSN Video", "MSN video", "Yahoo Video", "Yahoo video",
                       "MSN (minumum 10k PV)", "Notifications summary"}
@@ -1008,8 +1008,16 @@ an = pd.concat([an_2025[_common_cols], an_2026[_common_cols]], ignore_index=True
 # SmartNews — 2025 primary (has category columns)
 sn = pd.read_excel(DATA_2025, sheet_name="SmartNews")
 
-# Notifications from 2026
-notif  = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
+# Notifications: 2025 full year (news brands activated June 2025; Us Weekly all year) + 2026 Jan–Feb
+_notif_2025 = pd.read_excel(DATA_2025, sheet_name="Apple News notifications")
+_notif_2025 = _notif_2025.rename(columns={"Click-Through Rate": "CTR"})
+notif = pd.read_excel(DATA_2026, sheet_name="Apple News Notifications")
+_notif_shared_cols = [c for c in ["Article ID", "Channel", "Notification ID",
+                                   "Notification Text", "Notification Type",
+                                   "Sent At", "Territories", "CTR"]
+                      if c in _notif_2025.columns and c in notif.columns]
+notif = pd.concat([_notif_2025[_notif_shared_cols], notif[_notif_shared_cols]],
+                  ignore_index=True)
 sn26   = pd.read_excel(DATA_2026, sheet_name="SmartNews")
 yahoo26 = pd.read_excel(DATA_2026, sheet_name="Yahoo")
 notif = notif.dropna(subset=["CTR"]).copy()
@@ -1033,8 +1041,8 @@ for _col in ["Article", "Date Published", "Total Views", "Featured by Apple"]:
     _require_col(an_2026, _col, "Apple News 2026")
 for _col in ["title", "article_view"]:
     _require_col(sn, _col, "SmartNews 2025")
-_require_col(notif, "CTR", "Apple News Notifications 2026")
-_require_col(notif, "Notification Text", "Apple News Notifications 2026")
+_require_col(notif, "CTR", "Apple News Notifications")
+_require_col(notif, "Notification Text", "Apple News Notifications")
 
 # ── Feature engineering ───────────────────────────────────────────────────────
 an["is_featured"] = an["Featured by Apple"].fillna("No") == "Yes"
@@ -1055,13 +1063,22 @@ yahoo["_pub_month"] = pd.to_datetime(yahoo["Publish Date"], errors="coerce").dt.
 
 CATS = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
         "Technology","Science","Politics","Health","Local","Football","LGBTQ"]
+# Categories present in both 2025 and 2026 exports (used for combined Q4 analysis)
+CATS_COMMON = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
+               "Technology","Science","Politics","Health","Local"]
 for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
+
+# Prep sn26 for category analysis (Tarrow rebuilt with full breakdown)
+sn26["_sn_month"] = sn26["date"].astype(str)
+for _cat in CATS_COMMON:
+    sn26[_cat] = pd.to_numeric(sn26.get(_cat, 0), errors="coerce").fillna(0)
 
 # ── Normalize ────────────────────────────────────────────────────────────────
 print("Normalizing…")
 an    = normalize(an,    views_col="Total Views",   date_col="Date Published", group_col="_pub_month")
 sn    = normalize(sn,    views_col="article_view",  date_col=None,             group_col="_sn_month")
+sn26  = normalize(sn26,  views_col="article_view",  date_col=None,             group_col="_sn_month")
 yahoo = normalize(yahoo, views_col="Content Views", date_col="Publish Date",   group_col="_pub_month")
 
 # Subtopics
@@ -1268,27 +1285,32 @@ if HAS_STATSMODELS:
 
 # ── Q4: SmartNews category ROI ────────────────────────────────────────────────
 print("Computing Q4…")
-top_median_sn_pct = sn[sn["Top"] > 0][VIEWS_METRIC].median()
-top_pct_vals = sn[sn["Top"] > 0][VIEWS_METRIC].values
-top_median_sn_raw = sn[sn["Top"] > 0]["article_view"].median()
+# Combined 2025+2026; percentiles computed within each year separately, then pooled
+_sn_cat_cols = [VIEWS_METRIC, "article_view"] + CATS_COMMON
+sn_all = pd.concat([sn[_sn_cat_cols], sn26[_sn_cat_cols]], ignore_index=True)
+N_SN26_CAT = len(sn26)
 
-_cat_hits = (sn[CATS] > 0).sum(axis=1)
+top_median_sn_pct = sn_all[sn_all["Top"] > 0][VIEWS_METRIC].median()
+top_pct_vals = sn_all[sn_all["Top"] > 0][VIEWS_METRIC].values
+top_median_sn_raw = sn_all[sn_all["Top"] > 0]["article_view"].median()
+
+_cat_hits = (sn_all[CATS_COMMON] > 0).sum(axis=1)
 SN_MULTI_CAT_N   = int((_cat_hits > 1).sum())
-SN_MULTI_CAT_PCT = SN_MULTI_CAT_N / len(sn)
+SN_MULTI_CAT_PCT = SN_MULTI_CAT_N / len(sn_all)
 
-SHOW_CATS = ["Local","U.S.","Football","Business","Health","Science",
+SHOW_CATS = ["Local","U.S.","Technology","Business","Health","Science",
              "Politics","World","Lifestyle","Entertainment","Top"]
 
 q4_rows = []
 _q4_raw_p = []
 _q4_indices = []
 for cat in SHOW_CATS:
-    in_cat = sn[sn[cat] > 0]
+    in_cat = sn_all[sn_all[cat] > 0]
     n = len(in_cat)
     med_pct = in_cat[VIEWS_METRIC].median()
     med_raw = in_cat["article_view"].median()
     row = dict(category=cat, n=n, median_pct=med_pct, median_views=med_raw,
-               pct_share=n/len(sn))
+               pct_share=n/len(sn_all))
     if cat != "Top" and len(in_cat) >= 5 and len(top_pct_vals) >= 5:
         u_res = stats.mannwhitneyu(in_cat[VIEWS_METRIC].values, top_pct_vals, alternative="two-sided")
         row["p_mw"] = u_res.pvalue
@@ -4313,7 +4335,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t3}</tbody>
         </table>
         <p class="callout-inline"><strong>Read this table as:</strong> "Lift" compares each channel's median percentile to the Top feed baseline (88.9% of articles). Values above 1.0× mean that channel's articles outperform the overall Top-feed median. High lift + low volume share = underused channel.</p>
-        <p class="caveat">SmartNews 2025 (n={N_SN:,} articles). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category. 2026 export lacks category breakdown — 2025 data only.</p>
+        <p class="caveat">SmartNews 2025+2026 (n={N_SN:,} 2025 articles + {N_SN26_CAT:,} 2026 articles; 11 categories common to both years — Football and LGBTQ are 2025-only and excluded). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Percentiles computed within each year separately, then pooled. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category.</p>
       </div><!-- /#detail-smartnews -->
 
       <!-- DETAIL: NOTIFICATIONS -->
@@ -4322,7 +4344,7 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Two signals dominate:</strong> "Exclusive" tag ({F4_EXCL_LIFT_STR} CTR lift, {F4_EXCL_P_STR}) and named person + possessive construction ({F4_POSS_LIFT_STR}, {F4_POSS_P_STR}). The counter-intuitive result: short notifications (≤80 chars) get {F4_SHORT_PCT_STR} fewer clicks. Longer, more descriptive notification text outperforms across the board.
         </div>
-        <p>Across {N_NOTIF} Apple News push notifications (Jan–Feb 2026, median CTR {CTR_MED}), {N_SIG_NOTIF_FEATURES} features show statistically significant effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+        <p>Across {N_NOTIF} Apple News push notifications (Jan 2025–Feb 2026, median CTR {CTR_MED}), {N_SIG_NOTIF_FEATURES} features show statistically significant effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
         <div class="chart-wrap">{c4}</div>
         <table class="findings">
           <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
@@ -4333,7 +4355,7 @@ html = f"""<!DOCTYPE html>
         <h3>The serial/escalating story as a content type</h3>
         <p>The top 10 notifications by CTR are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
         <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction.</p>
-        <p class="caveat">Apple News Notifications, Jan–Feb 2026 (n={N_NOTIF} with valid CTR). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. N=2 months only — findings are directional. Feature classifier unvalidated.</p>
+        <p class="caveat">Apple News push notifications Jan 2025–Feb 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, other news brands from June 2025 only). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. Feature classifier unvalidated.</p>
       </div><!-- /#detail-notifications -->
 
       <!-- DETAIL: TOPICS -->
