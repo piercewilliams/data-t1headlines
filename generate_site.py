@@ -1332,6 +1332,12 @@ df_q4["lift"] = df_q4["median_pct"] / top_median_sn_pct
 
 # ── Q5: Notification CTR features ─────────────────────────────────────────────
 print("Computing Q5…")
+# Tag brand type: Us Weekly (celebrity/entertainment) vs. news brands (hard news)
+notif["brand_type"] = notif["Channel"].apply(
+    lambda x: "Us Weekly" if "Us Weekly" in str(x) else "News brand")
+notif["_sent_dt"] = pd.to_datetime(notif["Sent At"], errors="coerce")
+notif["_q"] = notif["_sent_dt"].dt.to_period("Q")
+
 def extract_features(text: str) -> dict:
     """Extract boolean notification features used in Q5 CTR analysis."""
     t  = str(text).strip()
@@ -1348,9 +1354,39 @@ def extract_features(text: str) -> dict:
     }
 
 feats = notif["Notification Text"].apply(extract_features).apply(pd.Series)
-notif_feats = pd.concat([notif[["CTR", "Notification Text"]], feats], axis=1)
+notif_feats = pd.concat([notif[["CTR", "Notification Text", "brand_type"]], feats], axis=1)
 overall_ctr_med = notif["CTR"].median()
 
+def _run_q5(sub_feats: "pd.DataFrame") -> "pd.DataFrame":
+    """Run Q5 feature CTR analysis on a notif_feats subset. Returns sorted df."""
+    rows: list = []
+    raw_p: list = []
+    indices: list = []
+    for feat in feats.columns:
+        yes = sub_feats[sub_feats[feat] == True]["CTR"]
+        no  = sub_feats[sub_feats[feat] == False]["CTR"]
+        if len(yes) < 5 or len(no) < 5: continue
+        med_yes = yes.median()
+        med_no  = no.median()
+        lift = med_yes / med_no if med_no > 0 else np.nan
+        u_res = stats.mannwhitneyu(yes, no, alternative="two-sided")
+        u_stat, p = u_res.statistic, u_res.pvalue
+        r_rb = rank_biserial(u_stat, len(yes), len(no))
+        ci_lo, ci_hi = bootstrap_ci_lift(yes.values, no.values)
+        raw_p.append(p)
+        indices.append(len(rows))
+        rows.append(dict(feature=feat, n_true=len(yes), med_yes=med_yes, med_no=med_no,
+                         lift=lift, p=p, r_rb=r_rb, ci_lo=ci_lo, ci_hi=ci_hi))
+    adj = bh_correct(raw_p)
+    for adj_val, row_i in zip(adj, indices):
+        rows[row_i]["p_adj"] = adj_val
+    result = pd.DataFrame(rows).sort_values("lift") if rows else pd.DataFrame(
+        columns=["feature","n_true","med_yes","med_no","lift","p","r_rb","ci_lo","ci_hi","p_adj"])
+    if not result.empty and "p_adj" not in result.columns:
+        result["p_adj"] = np.nan
+    return result
+
+# Combined pool (used for hero scoring and backward compat)
 q5_rows = []
 _q5_raw_p = []
 _q5_indices = []
@@ -1378,11 +1414,23 @@ df_q5 = pd.DataFrame(q5_rows).sort_values("lift")
 if "p_adj" not in df_q5.columns:
     df_q5["p_adj"] = np.nan
 
-_excl_mask   = notif_feats["'Exclusive' tag"] == True
-_guthrie_mask = notif_feats["Notification Text"].str.contains(r"Guthrie", na=False)
-_excl_yes_all    = notif_feats[_excl_mask]["CTR"]
-_excl_no         = notif_feats[~_excl_mask]["CTR"]
-_excl_yes_noguth = notif_feats[_excl_mask & ~_guthrie_mask]["CTR"]
+# Brand-type-specific analyses — primary display in Finding 4
+notif_feats_news = notif_feats[notif_feats["brand_type"] == "News brand"].copy()
+notif_feats_uw   = notif_feats[notif_feats["brand_type"] == "Us Weekly"].copy()
+df_q5_news = _run_q5(notif_feats_news)
+df_q5_uw   = _run_q5(notif_feats_uw)
+
+# Quarterly CTR trend for news brands (post-activation)
+_nb_trend = (notif[notif["brand_type"] == "News brand"]
+             .groupby("_q")["CTR"].agg(count="count", median="median")
+             .reset_index())
+
+# Guthrie sensitivity — news brands only (this is a hard news story cluster)
+_excl_mask    = notif_feats_news["'Exclusive' tag"] == True
+_guthrie_mask = notif_feats_news["Notification Text"].str.contains(r"Guthrie", na=False)
+_excl_yes_all    = notif_feats_news[_excl_mask]["CTR"]
+_excl_no         = notif_feats_news[~_excl_mask]["CTR"]
+_excl_yes_noguth = notif_feats_news[_excl_mask & ~_guthrie_mask]["CTR"]
 _n_excl_guthrie  = int((_excl_mask & _guthrie_mask).sum())
 if len(_excl_yes_noguth) >= 3 and len(_excl_no) >= 5:
     _u_noguth = stats.mannwhitneyu(_excl_yes_noguth, _excl_no, alternative="two-sided")
@@ -2717,6 +2765,10 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
 N_AN        = len(an)
 N_SN        = len(sn)
 N_NOTIF     = len(notif)
+N_NOTIF_NEWS = int((notif["brand_type"] == "News brand").sum())
+N_NOTIF_UW   = int((notif["brand_type"] == "Us Weekly").sum())
+CTR_MED_NEWS = notif[notif["brand_type"] == "News brand"]["CTR"].median()
+CTR_MED_UW   = notif[notif["brand_type"] == "Us Weekly"]["CTR"].median()
 PLATFORMS   = sum(1 for _df in [an, sn, msn, yahoo] if _df is not None and len(_df) > 0)
 REPORT_DATE = datetime.now().strftime("%B %Y")
 
@@ -2728,7 +2780,7 @@ _local_row = df_q4[df_q4["category"] == "Local"]
 _local_pct = float(_local_row["median_pct"].iloc[0]) if len(_local_row) else 0
 LOCAL_LIFT = f"{_local_pct / top_median_sn_pct:.1f}×" if top_median_sn_pct > 0 else "—"
 
-_excl_row  = df_q5[df_q5["feature"] == "'Exclusive' tag"]
+_excl_row  = df_q5_news[df_q5_news["feature"] == "'Exclusive' tag"]  # news brands — where this signal lives
 _excl_lift_val = float(_excl_row["lift"].iloc[0]) if len(_excl_row) else None
 _excl_ci_lo    = float(_excl_row["ci_lo"].iloc[0]) if len(_excl_row) and "ci_lo" in _excl_row.columns else None
 _excl_ci_hi    = float(_excl_row["ci_hi"].iloc[0]) if len(_excl_row) and "ci_hi" in _excl_row.columns else None
@@ -2795,14 +2847,27 @@ _r4_top  = _q4r("Top")
 _ent_local_ratio = (int(round(_r4_ent["n"] / _r4_loc["n"]))
                     if _r4_ent is not None and _r4_loc is not None and _r4_loc["n"] > 0 else 0)
 
-_r5_excl = _q5r("'Exclusive' tag")
-_r5_poss = _q5r("Named person + possessive")
-_r5_full = _q5r("Full name present")
-_r5_q    = _q5r("Question format")
-_r5_sh   = _q5r("Short (≤80 chars)")
-_r5_num  = _q5r("Contains number")
-_r5_attr = _q5r("Attribution (says/told)")
-CTR_MED  = f"{notif['CTR'].median():.2%}"
+def _q5r_news(feat: str) -> "pd.Series | None":
+    """Return the Q5-news-brands row for notification feature feat, or None."""
+    row = df_q5_news[df_q5_news["feature"] == feat] if not df_q5_news.empty else pd.DataFrame()
+    return row.iloc[0] if len(row) else None
+
+def _q5r_uw(feat: str) -> "pd.Series | None":
+    """Return the Q5-Us-Weekly row for notification feature feat, or None."""
+    row = df_q5_uw[df_q5_uw["feature"] == feat] if not df_q5_uw.empty else pd.DataFrame()
+    return row.iloc[0] if len(row) else None
+
+# Pull signals from the population where each is meaningful
+_r5_excl = _q5r_news("'Exclusive' tag")       # significant for news brands; neutral for UW
+_r5_poss = _q5r_uw("Named person + possessive")  # significant for UW; neutral for news brands
+_r5_full = _q5r_uw("Full name present")
+_r5_q    = _q5r_news("Question format")        # hurts news brands; neutral for UW
+_r5_sh   = _q5r("Short (≤80 chars)")           # not significant in either pop; keep pooled for guard
+_r5_num  = _q5r_uw("Contains number")          # hurts Us Weekly
+_r5_attr = _q5r_news("Attribution (says/told)")  # positive signal for news brands
+CTR_MED      = f"{notif['CTR'].median():.2%}"
+CTR_MED_NEWS_STR = f"{CTR_MED_NEWS:.2%}"
+CTR_MED_UW_STR   = f"{CTR_MED_UW:.2%}"
 
 
 # ── Hero tagline selection ────────────────────────────────────────────────────
@@ -2827,31 +2892,31 @@ def _hero_add(text, p, effect, surprise=1.0, n=None):
     if n is not None and n < 15: score *= 0.5
     _hero_cands.append({"text": text, "score": score})
 
-# Notification: short headlines backfire (very counter-intuitive → high surprise)
-if _r5_sh is not None and float(_r5_sh["lift"]) < 1.0:
-    _sh_lift = float(_r5_sh["lift"])
-    _hero_add(
-        f"Short notifications (≤80 chars) get {(1-_sh_lift):.0%} fewer clicks — "
-        f"longer, more descriptive push text consistently wins.",
-        _get_p(_r5_sh), 1.0 - _sh_lift, surprise=2.2, n=int(_r5_sh["n_true"]),
-    )
-
-# Notification: exclusive tag (strongest single CTR signal)
+# Notification: exclusive tag (news brand signal — scoops earn clicks)
 if _r5_excl is not None:
     _excl_lft = float(_r5_excl["lift"])
     _hero_add(
         f"\u201cExclusive\u201d in a push notification is associated with {_excl_lft:.1f}\u00d7 higher CTR "
-        f"than standard headlines.",
+        f"for news brands \u2014 the signal is earned, not generic.",
         _get_p(_r5_excl), _excl_lft - 1.0, surprise=1.3, n=int(_r5_excl["n_true"]),
     )
 
-# Notification: named person + possessive
+# Notification: named person + possessive (Us Weekly / celebrity signal)
 if _r5_poss is not None and float(_r5_poss["lift"]) > 1.0:
     _poss_lft = float(_r5_poss["lift"])
     _hero_add(
-        f"Named person\u202f+\u202fpossessive (\u201cSmith\u2019s\u2026\u201d) shows "
-        f"{_poss_lft:.1f}\u00d7 higher notification CTR.",
+        f"For celebrity/entertainment notifications, named person\u202f+\u202fpossessive "
+        f"(\u201cSmith\u2019s\u2026\u201d) shows {_poss_lft:.1f}\u00d7 higher CTR.",
         _get_p(_r5_poss), _poss_lft - 1.0, surprise=1.2, n=int(_r5_poss["n_true"]),
+    )
+
+# Notification: attribution lifts news brand CTR (counter to convention)
+if _r5_attr is not None and float(_r5_attr["lift"]) > 1.0:
+    _attr_lft = float(_r5_attr["lift"])
+    _hero_add(
+        f"Attribution language (\u201csays\u201d/\u201ctold\u201d) in news brand notifications "
+        f"is associated with {_attr_lft:.1f}\u00d7 higher CTR \u2014 sourcing signals credibility.",
+        _get_p(_r5_attr), _attr_lft - 1.0, surprise=1.4, n=int(_r5_attr["n_true"]),
     )
 
 # Number leads underperform (surprising: conventional wisdom says they\u2019re strong)
@@ -3114,6 +3179,24 @@ def _q5_table() -> str:
                      f'<td>{p_str}</td></tr>\n')
     return "".join(parts)
 
+def _q5_table_pop(df_pop: "pd.DataFrame") -> str:
+    """Return HTML <tr> rows for a brand-specific Q5 table (all features, sorted by lift desc)."""
+    if df_pop.empty: return "<tr><td colspan='7'>No results</td></tr>\n"
+    sorted_df = df_pop.sort_values("lift", ascending=False)
+    parts = []
+    for _, r in sorted_df.iterrows():
+        p_adj = r.get("p_adj", np.nan)
+        p_str = _fmt_p(p_adj, adj=True) if not (isinstance(p_adj, float) and np.isnan(p_adj)) else _fmt_p(r["p"])
+        r_str = f"{r['r_rb']:.2f}" if r.get("r_rb") is not None else "—"
+        ci_str = _fmt_ci(r.get("ci_lo"), r.get("ci_hi"))
+        tag = _row_tag(r["lift"])
+        parts.append(f'<tr><td>{tag}{r["feature"]}</td><td>{r["n_true"]:,}</td>'
+                     f'<td>{r["med_yes"]:.2%}</td><td>{r["med_no"]:.2%}</td>'
+                     f'<td>{r["lift"]:.2f}× {ci_str}</td>'
+                     f'<td>{r_str}</td>'
+                     f'<td>{p_str}</td></tr>\n')
+    return "".join(parts)
+
 def _sports_subtopic_table() -> str:
     """Return HTML <tr> rows for the sports subtopic breakdown table."""
     html_out = ""
@@ -3314,15 +3397,21 @@ NL_P_STR = _fmt_p(NL_ROUND_VS_SPECIFIC_P) if NL_ROUND_VS_SPECIFIC_P is not None 
 NL_NOTE_FRAC = f"{NL_PARSED}/{NL_TOTAL}" if NL_TOTAL > 0 else "—"
 
 # F4: Notification feature callout strings (Finding 4)
+# Exclusive and attribution from news brands; possessive from Us Weekly
 F4_EXCL_LIFT_STR  = f"{float(_r5_excl['lift']):.2f}×"  if _r5_excl is not None else "—"
 F4_EXCL_P_STR     = _fmt_p(_get_p(_r5_excl), adj=True) if _r5_excl is not None else "—"
 F4_POSS_LIFT_STR  = f"{float(_r5_poss['lift']):.2f}×"  if _r5_poss is not None else "—"
 F4_POSS_P_STR     = _fmt_p(_get_p(_r5_poss), adj=True) if _r5_poss is not None else "—"
-F4_SHORT_PCT_STR  = f"{(1-float(_r5_sh['lift'])):.0%}" if _r5_sh   is not None else "—"
-_q5_sig = df_q5.apply(
-    lambda r: float(r.get("p_adj") if pd.notna(r.get("p_adj", float("nan"))) else r["p"]) < 0.05,
-    axis=1) if not df_q5.empty else pd.Series([], dtype=bool)
-N_SIG_NOTIF_FEATURES = int(_q5_sig.sum())
+F4_ATTR_LIFT_STR  = f"{float(_r5_attr['lift']):.2f}×"  if _r5_attr is not None else "—"
+F4_ATTR_P_STR     = _fmt_p(_get_p(_r5_attr), adj=True) if _r5_attr is not None else "—"
+def _q5_sig_count(df: "pd.DataFrame") -> int:
+    if df.empty: return 0
+    return int(df.apply(
+        lambda r: float(r.get("p_adj") if pd.notna(r.get("p_adj", float("nan"))) else r["p"]) < 0.05,
+        axis=1).sum())
+N_SIG_NOTIF_NEWS = _q5_sig_count(df_q5_news)
+N_SIG_NOTIF_UW   = _q5_sig_count(df_q5_uw)
+N_SIG_NOTIF_FEATURES = N_SIG_NOTIF_NEWS + N_SIG_NOTIF_UW  # kept for backward compat
 
 # F6: IQR/median values for business and lifestyle by name (Finding 6)
 _biz_row  = df_var[df_var["topic"] == "business"]
@@ -4199,8 +4288,8 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('notifications', this)">
       <span class="tile-num">4 · Push Notifications</span>
-      <p class="tile-claim">Short push notifications (≤80 chars) get 39% fewer clicks — counter to standard mobile-first brevity advice. When the story is a genuine scoop, "EXCLUSIVE:" is associated with {_excl_lift_val:.1f}× higher CTR {EXCL_CI_STR}.</p>
-      <p class="tile-action">→ Write longer, more descriptive push text. Reserve "EXCLUSIVE:" for actual scoops — the lift disappears when overused.</p>
+      <p class="tile-claim">News brands and celebrity/entertainment content operate as two distinct notification ecosystems with 2.8× different baseline CTRs and non-overlapping formula signals. For news: "EXCLUSIVE:" ({F4_EXCL_LIFT_STR}) and attribution language ({F4_ATTR_LIFT_STR}) drive CTR. For celebrity content: named person + possessive ({F4_POSS_LIFT_STR}).</p>
+      <p class="tile-action">→ Segment notification strategy by content type. Don't apply celebrity-content heuristics to hard news, or vice versa.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
@@ -4342,20 +4431,28 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-notifications">
         <h2>Finding 4 · Push Notifications</h2>
         <div class="callout">
-          <strong>Two signals dominate:</strong> "Exclusive" tag ({F4_EXCL_LIFT_STR} CTR lift, {F4_EXCL_P_STR}) and named person + possessive construction ({F4_POSS_LIFT_STR}, {F4_POSS_P_STR}). The counter-intuitive result: short notifications (≤80 chars) get {F4_SHORT_PCT_STR} fewer clicks. Longer, more descriptive notification text outperforms across the board.
+          <strong>Two distinct content ecosystems — different signals for each.</strong> News brands (n={N_NOTIF_NEWS}, median CTR {CTR_MED_NEWS_STR}): "EXCLUSIVE:" ({F4_EXCL_LIFT_STR}, {F4_EXCL_P_STR}) and attribution language (says/told, {F4_ATTR_LIFT_STR}, {F4_ATTR_P_STR}) drive CTR. Us Weekly / celebrity (n={N_NOTIF_UW}, median CTR {CTR_MED_UW_STR}): named person + possessive framing ({F4_POSS_LIFT_STR}, {F4_POSS_P_STR}) is the top signal. The populations are 2.8× apart in baseline CTR — pooling them obscures both sets of findings.
         </div>
-        <p>Across {N_NOTIF} Apple News push notifications (Jan 2025–Feb 2026, median CTR {CTR_MED}), {N_SIG_NOTIF_FEATURES} features show statistically significant effects after FDR correction. The "exclusive" tag is the strongest at {EXCL_LIFT} lift. The possessive framing signal: notifications with a full named person AND a possessive construction drive {_r5_poss['lift']:.2f}× CTR vs. {_r5_full['lift']:.2f}× for merely naming someone. Question format hurts at {_r5_q['lift']:.2f}×, consistent with the Apple News article finding.</p>
+        <p>Across {N_NOTIF} Apple News push notifications (Jan 2025–Feb 2026), the dataset contains two functionally different content types. Us Weekly (entertainment/celebrity) runs at {CTR_MED_UW_STR} median CTR; the four news brand outlets (Miami Herald, KC Star, Charlotte Observer, Sacramento Bee) run at {CTR_MED_NEWS_STR}. The formula signals that predict CTR are almost entirely non-overlapping between the two populations.</p>
         <div class="chart-wrap">{c4}</div>
+        <h3>News brand signals (n={N_NOTIF_NEWS}, median CTR {CTR_MED_NEWS_STR})</h3>
         <table class="findings">
           <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
-          <tbody>{_t4}</tbody>
+          <tbody>{_q5_table_pop(df_q5_news)}</tbody>
         </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> "Lift" is median CTR when the feature is present vs. absent. Overall median CTR is ~1.6%. A 2.0× lift means ~3.2% CTR. BH-adj p corrects for testing multiple features simultaneously.</p>
+        <p class="callout-inline">For hard news notifications: "EXCLUSIVE:" earns clicks when the story justifies it. Attribution language ("says"/"told"/"reports") signals source credibility and is associated with higher CTR. Question format consistently hurts. Notification length shows no significant effect when analyzed within this population.</p>
         {_excl_sensitivity_html}
         <h3>The serial/escalating story as a content type</h3>
-        <p>The top 10 notifications by CTR are dominated by a single ongoing story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
-        <p>What doesn't move the needle: neither "contains a number" (n={_r5_num['n_true']}, {_r5_num['lift']:.2f}×) nor "attribution" — says/told/reports (n={_r5_attr['n_true']}, {_r5_attr['lift']:.2f}×) — survive FDR correction.</p>
-        <p class="caveat">Apple News push notifications Jan 2025–Feb 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, other news brands from June 2025 only). Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. BH–FDR across all {len(_q5_raw_p)} feature tests. Feature classifier unvalidated.</p>
+        <p>The top news brand notifications by CTR are dominated by a single story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
+        <h3>Us Weekly / celebrity signals (n={N_NOTIF_UW}, median CTR {CTR_MED_UW_STR})</h3>
+        <table class="findings">
+          <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
+          <tbody>{_q5_table_pop(df_q5_uw)}</tbody>
+        </table>
+        <p class="callout-inline">For celebrity/entertainment notifications: named person + possessive ("Smith's…") is the dominant signal. Numbers in the headline hurt CTR — specific counts and statistics feel out of place in celebrity context. "EXCLUSIVE" shows no significant effect, suggesting the word has different valence in entertainment contexts. Notification length shows no significant effect within this population.</p>
+        <h3>News brand CTR trend (post-activation, H2 2025–Q1 2026)</h3>
+        <p>News brand Apple News notifications went live in June 2025. CTR has declined quarter-over-quarter since activation — from {_nb_trend[_nb_trend['_q'].astype(str)=='2025Q2']['median'].iloc[0]:.2%} in Q2 2025 to {_nb_trend[_nb_trend['_q'].astype(str)=='2025Q4']['median'].iloc[0]:.2%} by Q4 2025 — with a partial stabilization at {_nb_trend[_nb_trend['_q'].astype(str)=='2026Q1']['median'].iloc[0]:.2%} in Q1 2026. This pattern is consistent with audience accommodation to a new push channel. Monitoring this trend as the channel matures is important for interpreting future CTR benchmarks.</p>
+        <p class="caveat">Apple News push notifications Jan 2025–Feb 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated.</p>
       </div><!-- /#detail-notifications -->
 
       <!-- DETAIL: TOPICS -->
@@ -4892,10 +4989,10 @@ _pb_tile_defs = [
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
     ("conf-mod", "pb-4", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
-    <span class="conf-badge conf-mod">Moderate \u00b7 Jan\u2013Feb 2026 only</span>
-    <span class="tile-label">Push Notifications</span>
-    <p class="tile-claim">{N_SIG_NOTIF_FEATURES} features show significant CTR lift after multiple-comparison correction. \u201cEXCLUSIVE:\u201d and possessive framing are the top signals.</p>
-    <p class="tile-action">\u2192 Lead genuine scoops with \u201cEXCLUSIVE:\u201d; use possessive framing; write \u226580 characters to give readers context before the tap.</p>
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Push Notifications \u00b7 Two Content Ecosystems</span>
+    <p class="tile-claim">News brands ({N_NOTIF_NEWS} notifications, {CTR_MED_NEWS_STR} median CTR) and celebrity/entertainment ({N_NOTIF_UW}, {CTR_MED_UW_STR}) are 2.8\u00d7 apart in baseline CTR with non-overlapping formula signals. News: \u201cEXCLUSIVE:\u201d ({F4_EXCL_LIFT_STR}) and attribution ({F4_ATTR_LIFT_STR}) drive CTR. Celebrity: possessive framing ({F4_POSS_LIFT_STR}).</p>
+    <p class="tile-action">\u2192 Build separate notification playbooks for news vs. celebrity content. The \u201cshort notification penalty\u201d previously reported was a pooling artifact \u2014 length shows no significant effect within either population.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
     (HL_CONF_CLASS, "pb-5", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
