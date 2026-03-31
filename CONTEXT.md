@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — all 10 findings live, playbook (6 tiles), author-playbooks, experiments, full ingest pipeline
+**Phase:** Phase 2 complete — 5 findings live (curated), playbook (2 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-30 (MSN wiring — Finding 10, chart c5 updated, playbook tile pb-6)
+**Last session:** 2026-03-31 (findings cull — removed 6 weak findings, renumbered 1–5)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,16 +11,16 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 9 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
-- **Playbook:** `docs/playbook/index.html` — 5 tiles sorted by confidence level, PNG/PDF export
+- **Site:** `docs/index.html` — 5 findings (curated), interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Playbook:** `docs/playbook/index.html` — 2 tiles (Featured Targeting, Push Notifications), PNG/PDF export
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker), PNG/PDF export
 - **Generator:** `generate_site.py` — fully typed, documented, DRY; run via `ingest.py`
   - Nav: `_build_nav()` / `_NAV_PAGES` — single source of truth, all 3 pages
   - Export JS: `_make_export_js()` — parameterized, all 3 pages
 - **Data in use:**
-  - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, SmartNews, MSN Dec, Yahoo)
+  - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Apple News notifications, SmartNews, MSN, Yahoo)
   - `Top Stories 2026 Syndication.xlsx` — 2026 YTD (Apple News, Notifications, SmartNews, Yahoo, MSN)
-  - `Tracker Template.xlsx` — optional; enables Finding 9 (team performance)
+  - `Tracker Template.xlsx` — optional; team performance analysis (Finding 9 removed from site but code remains)
 
 ## Data Status (as of 2026-03-28)
 
@@ -47,17 +47,27 @@ For session history: see [sessions/](sessions/)
 
 **Analysis (future sessions):**
 - [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
-- [x] ~~Add SmartNews 2026 category breakdown~~ — done 2026-03-30; 11 common cats now in Q4
-- [x] ~~Wire full-year MSN 2025 into pipeline~~ — done 2026-03-30; Finding 10 live (formula, dislike signal, monthly trend); chart c5 updated with MSN trace; playbook tile pb-6 added
+- [x] ~~Add SmartNews 2026 category breakdown~~ — done 2026-03-30
+- [x] ~~Wire full-year MSN 2025 into pipeline~~ — done 2026-03-30; removed from site 2026-03-31 (cull)
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 
 **Stakeholder shares (still pending):**
 - [ ] Share site with Sarah Price
-- [ ] SmartNews Entertainment over-index → distribution team
-- [ ] "What to know" Featured rate → editorial leads
+- [ ] "What to know" Featured rate → editorial leads (Finding 1 on site)
 
 ## Session Log
+
+**2026-03-31: Findings cull — 10 findings → 5, renumbered**
+
+Evaluated all findings against "unexpected + interesting + actionable" bar. Removed 6:
+
+- **Removed:** F1 (Apple News Formulas — null result), F1b (Number Leads), F3 (SmartNews categories — predictable), F6 (Variance by topic — thin), F9 (Team Performance — 120 matched articles), F10 (MSN — platform health report, not a headline finding)
+- **Kept and renumbered 1–5:** Featured Targeting (was F2), Push Notifications/Two Ecosystems (was F4), Platform Topic Inversion (was F5), Views vs. Engagement (was F7), Formula Trends Over Time (was F8)
+- Playbook dropped from 6 tiles to 2 (Featured + Notifications)
+- HTML surgery only — all Python analysis/computation code retained; display layer removed
+
+Also: ad-hoc analysis of `national_team_deep_dive.xlsx` (national content team; Discover vs. TH cluster performance) — exploratory only, not wired into pipeline.
 
 **2026-03-30: MSN wiring — Finding 10 + chart c5 + playbook tile pb-6**
 
