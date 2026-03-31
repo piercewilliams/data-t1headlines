@@ -28,7 +28,8 @@ For session history: see [sessions/](sessions/)
 |--------|--------|-------|
 | Apple News 2025 | ✅ In repo | Full year, all columns |
 | Apple News 2026 | ✅ In repo | Engagement columns populated (Finding 7 uses them) |
-| Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 351 rows |
+| Apple News Notifications 2025 | ✅ In repo | Full year; news brands from June, Us Weekly all year; 1,443 rows |
+| Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 359 rows |
 | SmartNews 2025 | ✅ In repo | Full year, 32 category columns |
 | SmartNews 2026 | ✅ In repo | 7 cols (no category breakdown); headline analysis active |
 | MSN 2025 | ⚠️ Dec-only | Full-year re-export still pending from Tarrow |
@@ -37,7 +38,7 @@ For session history: see [sessions/](sessions/)
 | Yahoo 2025 | ✅ In repo | Full year |
 | Yahoo 2026 | ✅ In repo | 2,116 rows |
 | Yahoo video 2026 | ✅ Known (129 rows) | In known-sheets list; not yet wired into analysis |
-| SmartNews 2026 category breakdown | ❌ Unavailable | Only 7 cols in 2026 export |
+| SmartNews 2026 category breakdown | ✅ In repo | Tarrow rebuilt; 30 cols, 11 categories common with 2025; now in Q4 |
 
 ## Open Items
 
@@ -46,7 +47,7 @@ For session history: see [sessions/](sessions/)
 
 **Analysis (future sessions):**
 - [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
-- [ ] Add SmartNews 2026 category breakdown if/when Tarrow export restores it (Scenario 4 in PLAYBOOK.md)
+- [x] ~~Add SmartNews 2026 category breakdown~~ — done 2026-03-30; 11 common cats now in Q4
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 
@@ -56,6 +57,16 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads
 
 ## Session Log
+
+**2026-03-30: New data ingest — notifications 2025 + SmartNews 2026 categories**
+Wired two new datasets into the pipeline:
+- **Apple News Notifications 2025** (1,443 rows): loaded from 2025 workbook, renamed `Click-Through Rate` → `CTR`, concatenated with 2026 (359 rows) for a combined 1,783-row notification pool. Added `Apple News notifications` to `_KNOWN_SHEETS_2025`.
+- **SmartNews 2026 categories** (362 rows): Tarrow rebuilt 2026 SmartNews with full category breakdown. Added `_sn_month`, numeric category columns, and `normalize()` call for sn26. Created `sn_all` (2025+2026 combined) for Q4 analysis using 11 common categories (Football/LGBTQ are 2025-only, excluded from combined analysis; Technology added to SHOW_CATS). Caveats updated throughout.
+
+Finding 4 effect size changes with 4× more data (more credible):
+- Exclusive CTR lift: 2.5× → 1.9×
+- Possessive CTR lift: 1.9× → 1.8×
+- Short notification penalty: 39% fewer → 26% fewer clicks
 
 **2026-03-30: Snapshot version bar**
 Added version history system to `docs/index.html`. Weekly trigger (Mon 8am Dallas) copies `docs/index.html` → `docs/snapshots/snap-NNN.html` (snapshot bar script tag stripped). Clicking a pill opens the full historical page in a new tab. Passkey `8812` gates restore (downloads snapshot HTML + pruned `index.json`). Max 5 snapshots. URL guard in `snapshot-bar.js` prevents the bar from rendering inside snapshot files. `generate_site.py` updated with same snapshot bar so all future generated pages include it.

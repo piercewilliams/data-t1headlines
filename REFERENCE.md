@@ -110,8 +110,8 @@ Things to get or build to make the variant allocation model more powerful. Prior
 |----------|----------------|---------------|
 | 🔴 High | **MSN full year 2025** — current export is December only | Can't do any MSN temporal analysis without the other 11 months |
 | ✅ Resolved | **Apple News 2026 engagement columns** — now populated; active time, saves, shares, subscriber splits all in use in Finding 7 | — |
-| 🟡 Medium | **SmartNews 2026 category channel breakdown** — 2025 had 32 category columns; 2026 export has 7 | Category-level ROI signal (Local vs. Entertainment etc.) disappears for 2026 |
-| 🟡 Medium | **Apple News Notifications 2025** — if push notification data exists for 2025, that's a full year of CTR signal vs. only Jan–Feb 2026 now | Would let us validate whether the possessive-named-entity CTR lift holds across news cycles |
+| ✅ Resolved | **SmartNews 2026 category channel breakdown** — Tarrow rebuilt; 11 common cats now in Q4 combined analysis | — |
+| ✅ Resolved | **Apple News Notifications 2025** — full year in repo (news brands from June, Us Weekly all year); combined 2025+2026 pool = 1,783 rows in Finding 4 | — |
 | 🟢 Nice to have | **Yahoo Content Viewers 2026** — 82% null in current export | Unique reach metric is unusable for Yahoo 2026 |
 
 ### Instrument going forward (to enable the variant allocation model)
