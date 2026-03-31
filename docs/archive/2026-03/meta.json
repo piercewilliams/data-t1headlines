@@ -1,8 +1,8 @@
 {
   "release": "2026-03",
-  "generated": "2026-03-28T12:32:05",
-  "data_2025": "Top syndication content 2025.xlsx",
-  "data_2026": "Top Stories 2026 Syndication.xlsx",
+  "generated": "2026-03-30T22:39:32",
+  "data_2025": "/Users/pierce/Downloads/Top syndication content 2025.xlsx",
+  "data_2026": "/Users/pierce/Downloads/Top Stories 2026 Syndication.xlsx",
   "rows": {
     "apple_news": 4174,
     "smartnews": 38251,
@@ -14,6 +14,7 @@
     "directional": 0
   },
   "rigor_warnings": [
+    "[sheet_discovery] Top syndication content 2025.xlsx: sheets not yet in pipeline \u2014 ['Apple News notifications']. Add to generate_site.py if data is worth analyzing.",
     "[engagement_outliers] Column 'Avg. Active Time (in seconds)': 2 row(s) exceeded 600s ceiling (max=23496s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
     "[engagement_outliers] Column 'Avg. Active Time (in seconds), Subscribers, Subscription Content': 3 row(s) exceeded 600s ceiling (max=11990s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
     "[engagement_outliers] Column 'Avg. Active Time (in seconds), Non-subscribers, Free Content': 1 row(s) exceeded 600s ceiling (max=23496s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
