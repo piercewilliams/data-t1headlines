@@ -166,35 +166,11 @@
 
 <div class="tile-grid">
 
-  <div class="pb-tile" onclick="togglePb(this,'pb-1')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Apple News · Headline Formulas</span>
-    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it—but specific patterns clearly underperform.</p>
-    <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
-    <span class="tile-toggle">Details ↓</span>
-  </div>
-
   <div class="pb-tile" onclick="togglePb(this,'pb-2')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News · Featured Targeting</span>
     <p class="tile-claim">“What to know” is associated with 1.8× Featured placement. But for non-Featured articles, organic view performance trends lower (p<sub>adj</sub>=0.12, not significant at α=0.05, n=16).</p>
     <p class="tile-action">→ Reserve “What to know” for intentional Featured campaigns. Don’t apply it broadly for organic reach.</p>
-    <span class="tile-toggle">Details ↓</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-3')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">SmartNews · Channel Allocation</span>
-    <p class="tile-claim">Entertainment receives 33% of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver 1.85× and 1.81× on far less.</p>
-    <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required—reframe what’s already being published.</p>
-    <span class="tile-toggle">Details ↓</span>
-  </div>
-
-  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Apple News · Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines (~93 chars) reach 62% median %ile vs. 47% for bottom-quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</p>
-    <p class="tile-action">→ Don’t truncate. The ≤80 char rule applies to push notifications only—not to article headlines.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -206,48 +182,9 @@
     <span class="tile-toggle">Details ↓</span>
   </div>
 
-  <div class="pb-tile" onclick="togglePb(this,'pb-6')">
-    <span class="conf-badge conf-mod">Moderate confidence</span>
-    <span class="tile-label">MSN · Platform Trajectory &#x26; Dislike Signal</span>
-    <p class="tile-claim">MSN median pageviews fell 53% from Jan to Dec 2025—a platform-level trend, not formula-driven. The dislike metric (unique to MSN) shows high-dislike articles score 0.87× the views of low-dislike articles (p=0.001 **), but high dislike rate and high views are negatively correlated—controversial content drives both.</p>
-    <p class="tile-action">→ Treat MSN as a reach supplement, not a growth channel. Use the dislike rate as an audience-friction signal, not a hard filter. Monitor sports content: highest dislike rate (45.2%) but also high reach.</p>
-    <span class="tile-toggle">Details ↓</span>
-  </div>
-
 </div>
 
 <!-- Detail panels (shown one at a time below the grid) -->
-
-<div id="pb-1" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Possessive + named entity</strong> on crime and business is associated with the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
-    <li><strong>Number leads:</strong> use specific figures in the 11–20 range. Round numbers score 13 percentile points below specific numbers (p=0.04 * after BH-FDR).</li>
-    <li><strong>Avoid question format</strong> for organic reach—underperforms 0.65× baseline (p<sub>adj</sub>&lt;0.001 ***). Reserve for Featured targeting if "What to know" is unavailable.</li>
-    <li><strong>Don't truncate headlines</strong> to fit a format preference—median performing length is 80 chars.</li>
-    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: 1.55 and 1.56)—headline choice matters most here. Prioritize variant production on these topics first.</li>
-  </ul>
-  <h3 class="rh">Top formula × topic combinations—Apple News</h3>
-  <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
-  <table>
-    <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-    <tbody><tr><td>Here's / Here are</td><td>Sports</td><td>5</td><td>63%</td><td><span class="lift-pos">1.35×</span></td></tr>
-<tr><td>Number lead</td><td>Local/Civic</td><td>6</td><td>57%</td><td><span class="lift-pos">1.22×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Local/Civic</td><td>6</td><td>54%</td><td><span class="lift-pos">1.15×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Sports</td><td>9</td><td>52%</td><td><span class="lift-pos">1.11×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Crime</td><td>12</td><td>50%</td><td><span class="lift-pos">1.08×</span></td></tr>
-<tr><td>Question</td><td>Sports</td><td>10</td><td>48%</td><td><span class="lift-pos">1.02×</span></td></tr>
-<tr><td>Number lead</td><td>Crime</td><td>27</td><td>45%</td><td><span class="lift-neg">0.96×</span></td></tr>
-<tr><td>Question</td><td>Weather</td><td>10</td><td>36%</td><td><span class="lift-neg">0.76×</span></td></tr>
-<tr><td>Question</td><td>Politics</td><td>19</td><td>33%</td><td><span class="lift-neg">0.70×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Politics</td><td>8</td><td>31%</td><td><span class="lift-neg">0.68×</span></td></tr>
-<tr><td>Question</td><td>Business</td><td>6</td><td>27%</td><td><span class="lift-neg">0.58×</span></td></tr>
-<tr><td>Number lead</td><td>Lifestyle</td><td>14</td><td>20%</td><td><span class="lift-neg">0.43×</span></td></tr>
-<tr><td>Question</td><td>Local/Civic</td><td>8</td><td>19%</td><td><span class="lift-neg">0.42×</span></td></tr>
-<tr><td>Possessive named entity</td><td>Business</td><td>6</td><td>15%</td><td><span class="lift-neg">0.33×</span></td></tr>
-</tbody>
-  </table>
-</div>
 
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
@@ -265,33 +202,6 @@
 <tr><td>Quoted lede</td><td>199</td><td>34%</td><td>1.38×</td><td>p<sub>adj</sub>=0.004 **</td><td>81% (1.17× Featured avg)</td></tr>
 <tr><td>Possessive named entity</td><td>133</td><td>23%</td><td>0.91×</td><td>p<sub>adj</sub>=0.61</td><td>63% (0.91× Featured avg)</td></tr>
 <tr><td><span class="tag tag-red">↓</span>&nbsp;Number lead</td><td>225</td><td>16%</td><td>0.63×</td><td>p<sub>adj</sub>=0.003 **</td><td>77% (1.12× Featured avg)</td></tr>
-</tbody>
-  </table>
-</div>
-
-<div id="pb-3" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× median percentile rank respectively. Frame content with geographic specificity—"Sacramento," not "California," not "the region."</li>
-    <li><strong>Reduce Entertainment volume</strong>: 33% of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
-    <li><strong>Sports underperforms</strong> (0.77× platform median)—the same story with a local or civic frame does better than a sports frame.</li>
-    <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews—more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
-  </ul>
-  <h3 class="rh">Performance by channel—SmartNews</h3>
-  <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
-  <table>
-    <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;Local</td><td>1,097</td><td>2.6%</td><td>97%</td><td>16,593</td><td>1.85×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;U.S.</td><td>909</td><td>2.2%</td><td>95%</td><td>11,153</td><td>1.81×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;Business</td><td>125</td><td>0.3%</td><td>84%</td><td>1,933</td><td>1.62×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Health</td><td>235</td><td>0.6%</td><td>73%</td><td>565</td><td>1.40×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>World</td><td>120</td><td>0.3%</td><td>73%</td><td>580</td><td>1.40×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Science</td><td>117</td><td>0.3%</td><td>67%</td><td>354</td><td>1.28×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Politics</td><td>607</td><td>1.4%</td><td>66%</td><td>331</td><td>1.26×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Lifestyle</td><td>3,156</td><td>7.5%</td><td>60%</td><td>240</td><td>1.16×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Entertainment</td><td>13,713</td><td>32.7%</td><td>59%</td><td>224</td><td>1.14×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Technology</td><td>70</td><td>0.2%</td><td>54%</td><td>152</td><td>1.03×</td><td>p<sub>adj</sub>=0.11</td></tr>
-<tr><td>Top feed (baseline)</td><td>34,006</td><td>81.2%</td><td>52%</td><td>153</td><td>1.00×</td><td>—</td></tr>
 </tbody>
   </table>
 </div>
@@ -317,65 +227,6 @@
 </tbody>
   </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
-</div>
-
-<div id="pb-5" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Longer outperforms shorter on Apple News</strong>—top quartile (~93 chars) reaches 62% median %ile vs. 47% for bottom quartile (~74 chars). Mann-Whitney Q4 vs. Q1: p<sub>adj</sub>&lt;0.001 *** (BH-FDR).</li>
-    <li><strong>The ≤80-char rule applies to notifications only</strong>—don't apply it to article headlines. The data runs in the opposite direction.</li>
-    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong>—confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
-    <li><strong>Business and lifestyle</strong> show the widest performance spread—length optimization is most likely to matter there.</li>
-  </ul>
-  <h3 class="rh">Views by headline length quartile—Apple News and SmartNews</h3>
-  <table>
-    <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-    <tbody><tr><td>Short (Q1)</td><td>74 chars</td><td>1,224</td><td>47%</td><td>10,305</td><td>46%</td></tr>
-<tr><td>Medium (Q2)</td><td>79 chars</td><td>931</td><td>41%</td><td>10,667</td><td>49%</td></tr>
-<tr><td>Long (Q3)</td><td>83 chars</td><td>984</td><td>48%</td><td>8,121</td><td>51%</td></tr>
-<tr><td>Very long (Q4)</td><td>93 chars</td><td>1,035</td><td>62%</td><td>9,120</td><td>56%</td></tr>
-</tbody>
-  </table>
-  <p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News p<sub>adj</sub>&lt;0.001 ***; SmartNews p<sub>adj</sub>&lt;0.001 *** (BH-FDR). Confounders possible—longer headlines may coincide with longer, higher-stakes stories.</p>
-</div>
-
-<div id="pb-6" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>MSN pageviews declined 53% across 2025</strong>—this is a platform trajectory, not a content problem. Set expectations with stakeholders accordingly.</li>
-    <li><strong>High dislike rate ≠ avoid</strong>—high-dislike articles score 0.87× the views of low-dislike articles. Controversial content drives both reach and friction on MSN.</li>
-    <li><strong>Sports: highest dislike rate (45.2%)</strong>—but also high reach. Use the dislike rate as a friction signal when managing brand risk, not as a reach predictor.</li>
-    <li><strong>Formula signals on MSN mirror Apple News</strong>—number leads and "What to know" outperform; question format underperforms. Platform optimization for MSN does not require a separate formula playbook.</li>
-  </ul>
-  <h3 class="rh">Formula lift vs. baseline—MSN 2025</h3>
-  <table>
-    <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
-    <tbody><tr><td>heres_formula</td><td>43</td><td>nan×</td><td>—</td></tr>
-<tr><td>number_lead</td><td>159</td><td>nan×</td><td>—</td></tr>
-<tr><td>possessive_named_entity</td><td>178</td><td>nan×</td><td>—</td></tr>
-<tr><td>question</td><td>23</td><td>nan×</td><td>—</td></tr>
-<tr><td>quoted_lede</td><td>887</td><td>nan×</td><td>—</td></tr>
-<tr><td>untagged</td><td>2910</td><td>nan×</td><td>—</td></tr>
-</tbody>
-  </table>
-  <h3 class="rh">Monthly pageview trend—MSN 2025</h3>
-  <table>
-    <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
-    <tbody><tr><td>2025-01</td><td>157</td><td>50,166</td></tr>
-<tr><td>2025-02</td><td>237</td><td>72,242</td></tr>
-<tr><td>2025-03</td><td>410</td><td>52,260</td></tr>
-<tr><td>2025-04</td><td>314</td><td>79,748</td></tr>
-<tr><td>2025-05</td><td>349</td><td>55,457</td></tr>
-<tr><td>2025-06</td><td>350</td><td>59,033</td></tr>
-<tr><td>2025-07</td><td>351</td><td>46,226</td></tr>
-<tr><td>2025-08</td><td>442</td><td>41,437</td></tr>
-<tr><td>2025-09</td><td>464</td><td>35,522</td></tr>
-<tr><td>2025-10</td><td>504</td><td>30,413</td></tr>
-<tr><td>2025-11</td><td>338</td><td>25,562</td></tr>
-<tr><td>2025-12</td><td>285</td><td>23,472</td></tr>
-</tbody>
-  </table>
-  <p class="caveat">MSN 2025 (n=4,201). * = significant at α=0.05 after BH-FDR correction. Dislike rate analysis based on 4,200 articles with ≥1 reaction. 2026 MSN data not yet wired into trend analysis.</p>
 </div>
 
 
