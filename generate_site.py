@@ -65,6 +65,9 @@ except ImportError:
 parser = argparse.ArgumentParser(description="Generate T1 Headline Analysis site")
 parser.add_argument("--data-2025", default="Top syndication content 2025.xlsx")
 parser.add_argument("--data-2026", default="Top Stories 2026 Syndication.xlsx")
+parser.add_argument("--data-2026-full", default=None,
+                    help="Full Apple News 2026 export from Tarrow (all articles, not just top performers). "
+                         "When provided, replaces the top-stories-only 2026 Apple News slice for all analyses.")
 parser.add_argument("--tracker",   default="Tracker Template.xlsx")
 parser.add_argument("--theme",     default="dark", choices=["light", "dark"])
 parser.add_argument("--release",   default=None,
@@ -73,11 +76,20 @@ parser.add_argument("--release",   default=None,
 parser.add_argument("--skip-main-archive", action="store_true",
                     help="Skip archiving docs/index.html (used when ingest.py handles archiving).")
 _args = parser.parse_args()
-DATA_2025   = _args.data_2025
-DATA_2026   = _args.data_2026
-TRACKER     = _args.tracker
-THEME       = _args.theme
-SKIP_ARCHIVE = _args.skip_main_archive
+DATA_2025      = _args.data_2025
+DATA_2026      = _args.data_2026
+DATA_2026_FULL = _args.data_2026_full
+TRACKER        = _args.tracker
+THEME          = _args.theme
+SKIP_ARCHIVE   = _args.skip_main_archive
+
+# ── Analysis policy flags ─────────────────────────────────────────────────────
+# National content team doesn't write politics — exclude from all findings
+# Set 2026-03-31 per Sarah Price.
+EXCLUDE_POLITICS = True
+# MSN platform signals unreliable as of 2026-03-31 per Sarah Price.
+# Re-enable (set False) when Tarrow confirms MSN export is fixed.
+EXCLUDE_MSN = True
 
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
@@ -1006,6 +1018,23 @@ an_2026["Article"] = an_2026["Article"].apply(lambda x: _fix_mac_encoding(x) if 
 _common_cols = [c for c in an_2025.columns if c in an_2026.columns]
 an = pd.concat([an_2025[_common_cols], an_2026[_common_cols]], ignore_index=True)
 
+# Full Apple News 2026 (all articles, not just top performers) — provided by Tarrow on request.
+# When --data-2026-full is passed, the full export replaces the top-stories slice for all AN analyses.
+if DATA_2026_FULL and Path(DATA_2026_FULL).exists():
+    _an_2026_full = pd.read_excel(DATA_2026_FULL, sheet_name="Apple News")
+    if "Date" in _an_2026_full.columns:
+        _an_2026_full = _an_2026_full.drop(columns=["Date"])
+    if "Channel" in _an_2026_full.columns:
+        _an_2026_full = _an_2026_full.rename(columns={"Channel": "Brand"})
+    _an_2026_full["year"] = 2026
+    _an_2026_full["Article"] = _an_2026_full["Article"].apply(
+        lambda x: _fix_mac_encoding(x) if pd.notna(x) else x)
+    _full_common = [c for c in an_2025.columns if c in _an_2026_full.columns]
+    an = pd.concat([an_2025[_full_common], _an_2026_full[_full_common]], ignore_index=True)
+    print(f"  ✓ Full Apple News 2026 loaded: {len(_an_2026_full):,} articles (replaces top-performers slice)")
+elif DATA_2026_FULL:
+    print(f"  ⚠  --data-2026-full path not found: {DATA_2026_FULL!r} — using standard top-stories file")
+
 # SmartNews — 2025 primary (has category columns)
 sn = pd.read_excel(DATA_2025, sheet_name="SmartNews")
 
@@ -1083,6 +1112,20 @@ msn["formula"]    = msn["Title"].apply(classify_formula)
 msn["topic"]      = msn["Title"].apply(tag_topic)
 msn["_msn_month"] = pd.to_datetime(msn["Date"], errors="coerce").dt.to_period("M").astype(str)
 
+# ── Platform / topic exclusions ───────────────────────────────────────────────
+if EXCLUDE_POLITICS:
+    _pol_an  = (an["topic"]  == "politics").sum()
+    _pol_sn  = (sn["topic"]  == "politics").sum()
+    _pol_msn = (msn["topic"] == "politics").sum()
+    an  = an[an["topic"]   != "politics"].copy()
+    sn  = sn[sn["topic"]   != "politics"].copy()
+    msn = msn[msn["topic"] != "politics"].copy()
+    print(f"  Politics excluded: {_pol_an} AN + {_pol_sn} SN + {_pol_msn} MSN articles removed")
+
+if EXCLUDE_MSN:
+    msn = msn.iloc[0:0].copy()  # empty df, preserves schema for safe downstream use
+    print("  MSN excluded from analysis (data quality flag — re-enable when Tarrow confirms export is fixed)")
+
 # ── Normalize ────────────────────────────────────────────────────────────────
 print("Normalizing…")
 an    = normalize(an,    views_col="Total Views",   date_col="Date Published", group_col="_pub_month")
@@ -1111,7 +1154,7 @@ yahoo_t = set(yahoo["Content Title"].dropna().apply(_norm))
 
 excl_an    = len(an_t - sn_t - msn_t - yahoo_t) / len(an_t)
 excl_sn    = len(sn_t - an_t - msn_t - yahoo_t) / len(sn_t)
-excl_msn   = len(msn_t - an_t - sn_t - yahoo_t) / len(msn_t)
+excl_msn   = len(msn_t - an_t - sn_t - yahoo_t) / len(msn_t) if msn_t else 0.0
 excl_yahoo = len(yahoo_t - an_t - sn_t - msn_t) / len(yahoo_t)
 overlap_3plus = len((an_t & sn_t & msn_t) | (an_t & sn_t & yahoo_t) |
                     (an_t & msn_t & yahoo_t) | (sn_t & msn_t & yahoo_t))
@@ -1498,6 +1541,40 @@ TOPIC_LABELS = {
     "nature_wildlife":"Nature/Wildlife","other":"Other"
 }
 
+# ── Per-publication analysis (Apple News Brand column) ────────────────────────
+# Computes per-Brand formula lift and top topic for the playbook "By Publication" section.
+# Becomes meaningful when Tarrow sends the full Apple News 2026 export (all articles, not just top).
+PUB_ANALYSIS: list[dict] = []
+if "Brand" in an.columns and an["Brand"].notna().any():
+    for _brand, _bdf in an.groupby("Brand"):
+        if len(_bdf) < 15:
+            continue
+        _nf_bdf = _bdf[~_bdf["is_featured"]]
+        _base   = _nf_bdf[_nf_bdf["formula"] == "untagged"][VIEWS_METRIC]
+        _best_f, _best_lift = "—", np.nan
+        for _f, _fg in _nf_bdf.groupby("formula"):
+            if _f == "untagged" or len(_fg) < 5:
+                continue
+            _lift = (_fg[VIEWS_METRIC].median() / _base.median()
+                     if len(_base) > 0 and _base.median() > 0 else np.nan)
+            if np.isnan(_best_lift) or (not np.isnan(_lift) and _lift > _best_lift):
+                _best_f, _best_lift = _f, _lift
+        _top_topic_key = (
+            _bdf[_bdf["topic"] != "other"].groupby("topic")[VIEWS_METRIC].median().idxmax()
+            if (_bdf["topic"] != "other").any() else "other"
+        )
+        PUB_ANALYSIS.append({
+            "brand":         _brand,
+            "n":             len(_bdf),
+            "featured_rate": float(_bdf["is_featured"].mean()),
+            "top_formula":   FORMULA_LABELS.get(_best_f, _best_f),
+            "top_formula_lift": _best_lift,
+            "top_topic":     TOPIC_LABELS.get(_top_topic_key, _top_topic_key),
+        })
+    PUB_ANALYSIS.sort(key=lambda x: -x["n"])
+    if PUB_ANALYSIS:
+        print(f"  Per-publication analysis: {len(PUB_ANALYSIS)} brands with ≥15 articles")
+
 var_rows = []
 for topic, label in TOPIC_LABELS.items():
     an_tv = an[an["topic"] == topic][VIEWS_METRIC].dropna()
@@ -1523,10 +1600,10 @@ topic_df["label"] = topic_df["topic"].map(TOPIC_LABELS)
 
 an_overall  = an[VIEWS_METRIC].median()
 sn_overall  = sn[VIEWS_METRIC].median()
-msn_overall = msn[VIEWS_METRIC].median()
+msn_overall = msn[VIEWS_METRIC].median() if not msn.empty else 1.0
 topic_df["an_idx"]  = topic_df["an_median"]  / an_overall
 topic_df["sn_idx"]  = topic_df["sn_median"]  / sn_overall
-topic_df["msn_idx"] = topic_df["msn_median"].fillna(0) / msn_overall
+topic_df["msn_idx"] = topic_df["msn_median"].fillna(0) / msn_overall if not msn.empty else 0.0
 topic_df = topic_df.sort_values("an_idx", ascending=True)
 
 an_ranked = topic_df.sort_values("an_idx", ascending=False).reset_index(drop=True)
@@ -1939,53 +2016,70 @@ WC_Q4_VS_Q2_P  = np.nan
 print("Computing MSN…")
 N_MSN = len(msn)
 
-# Formula performance (each formula vs. "other" baseline; BH-FDR corrected)
-_msn_base_pct = msn[msn["formula"] == "other"][VIEWS_METRIC]
-msn_formula_rows: list = []
-_msn_f_raw_p: list = []
-_msn_f_idx: list = []
-for _mf, _mgrp in msn.groupby("formula"):
-    _msub = _mgrp[VIEWS_METRIC]
-    if len(_msub) < 10 or _mf == "other":
-        continue
-    _mlift = _msub.median() / _msn_base_pct.median() if _msn_base_pct.median() > 0 else np.nan
-    _mu    = stats.mannwhitneyu(_msub, _msn_base_pct, alternative="two-sided")
-    _msn_f_raw_p.append(_mu.pvalue)
-    _msn_f_idx.append(len(msn_formula_rows))
-    msn_formula_rows.append(dict(formula=_mf, n=len(_msub), median=_msub.median(),
-                                 lift=_mlift, p=_mu.pvalue))
-_msn_f_adj = bh_correct(_msn_f_raw_p)
-for _adj, _ri in zip(_msn_f_adj, _msn_f_idx):
-    msn_formula_rows[_ri]["p_adj"] = _adj
-df_msn_formula = (pd.DataFrame(msn_formula_rows).sort_values("lift")
-                  if msn_formula_rows else pd.DataFrame(
-                      columns=["formula","n","median","lift","p","p_adj"]))
-if not df_msn_formula.empty and "p_adj" not in df_msn_formula.columns:
-    df_msn_formula["p_adj"] = np.nan
+if msn.empty:
+    # MSN excluded (EXCLUDE_MSN=True) — set safe defaults for all downstream variables
+    df_msn_formula = pd.DataFrame(columns=["formula","n","median","lift","p","p_adj"])
+    msn_dr         = pd.DataFrame()
+    N_MSN_DR       = 0
+    MSN_DR_MED     = 0.0
+    _msn_dr_r      = 0.0
+    _msn_dr_p      = 1.0
+    MSN_DR_LIFT    = np.nan
+    msn_sports_dr  = 0.0
+    msn_monthly    = pd.DataFrame()
+    MSN_JAN_MED_PV = 0
+    MSN_DEC_MED_PV = 0
+    MSN_PV_DECLINE = 0.0
+    MSN_MAX_VOL_MONTH = "—"
+    MSN_MAX_VOL_N  = 0
+else:
+    # Formula performance (each formula vs. "other" baseline; BH-FDR corrected)
+    _msn_base_pct = msn[msn["formula"] == "other"][VIEWS_METRIC]
+    msn_formula_rows: list = []
+    _msn_f_raw_p: list = []
+    _msn_f_idx: list = []
+    for _mf, _mgrp in msn.groupby("formula"):
+        _msub = _mgrp[VIEWS_METRIC]
+        if len(_msub) < 10 or _mf == "other":
+            continue
+        _mlift = _msub.median() / _msn_base_pct.median() if _msn_base_pct.median() > 0 else np.nan
+        _mu    = stats.mannwhitneyu(_msub, _msn_base_pct, alternative="two-sided")
+        _msn_f_raw_p.append(_mu.pvalue)
+        _msn_f_idx.append(len(msn_formula_rows))
+        msn_formula_rows.append(dict(formula=_mf, n=len(_msub), median=_msub.median(),
+                                     lift=_mlift, p=_mu.pvalue))
+    _msn_f_adj = bh_correct(_msn_f_raw_p)
+    for _adj, _ri in zip(_msn_f_adj, _msn_f_idx):
+        msn_formula_rows[_ri]["p_adj"] = _adj
+    df_msn_formula = (pd.DataFrame(msn_formula_rows).sort_values("lift")
+                      if msn_formula_rows else pd.DataFrame(
+                          columns=["formula","n","median","lift","p","p_adj"]))
+    if not df_msn_formula.empty and "p_adj" not in df_msn_formula.columns:
+        df_msn_formula["p_adj"] = np.nan
 
-# Dislike signal — unique MSN metric
-msn_dr = msn[msn["Likes"] > 0].copy()
-msn_dr["dislike_rate"] = msn_dr["Dislikes"] / (msn_dr["Likes"] + msn_dr["Dislikes"])
-N_MSN_DR     = len(msn_dr)
-MSN_DR_MED   = msn_dr["dislike_rate"].median()
-_msn_dr_r, _ = stats.spearmanr(msn_dr["dislike_rate"], msn_dr["Pageviews"])
-msn_hi_dr    = msn_dr[msn_dr["dislike_rate"] > msn_dr["dislike_rate"].quantile(0.75)][VIEWS_METRIC]
-msn_lo_dr    = msn_dr[msn_dr["dislike_rate"] < msn_dr["dislike_rate"].quantile(0.25)][VIEWS_METRIC]
-_, _msn_dr_p = stats.mannwhitneyu(msn_hi_dr, msn_lo_dr, alternative="two-sided")
-MSN_DR_LIFT  = msn_hi_dr.median() / msn_lo_dr.median() if msn_lo_dr.median() > 0 else np.nan
-msn_sports_dr = (msn_dr[msn_dr["topic"] == "sports"]["dislike_rate"].median()
-                 if "sports" in msn_dr["topic"].values else 0.0)
+    # Dislike signal — unique MSN metric
+    msn_dr = msn[msn["Likes"] > 0].copy()
+    msn_dr["dislike_rate"] = msn_dr["Dislikes"] / (msn_dr["Likes"] + msn_dr["Dislikes"])
+    N_MSN_DR     = len(msn_dr)
+    MSN_DR_MED   = msn_dr["dislike_rate"].median()
+    _msn_dr_r, _ = stats.spearmanr(msn_dr["dislike_rate"], msn_dr["Pageviews"])
+    msn_hi_dr    = msn_dr[msn_dr["dislike_rate"] > msn_dr["dislike_rate"].quantile(0.75)][VIEWS_METRIC]
+    msn_lo_dr    = msn_dr[msn_dr["dislike_rate"] < msn_dr["dislike_rate"].quantile(0.25)][VIEWS_METRIC]
+    _, _msn_dr_p = stats.mannwhitneyu(msn_hi_dr, msn_lo_dr, alternative="two-sided")
+    MSN_DR_LIFT  = msn_hi_dr.median() / msn_lo_dr.median() if msn_lo_dr.median() > 0 else np.nan
+    msn_sports_dr = (msn_dr[msn_dr["topic"] == "sports"]["dislike_rate"].median()
+                     if "sports" in msn_dr["topic"].values else 0.0)
 
-# Monthly PV trend
-msn_monthly = (msn.groupby("_msn_month")
-               .agg(n=("Pageviews","count"), med_pv=("Pageviews","median"))
-               .reset_index()
-               .sort_values("_msn_month"))
-MSN_JAN_MED_PV    = int(msn_monthly["med_pv"].iloc[0])  if len(msn_monthly) > 0 else 0
-MSN_DEC_MED_PV    = int(msn_monthly["med_pv"].iloc[-1]) if len(msn_monthly) > 0 else 0
-MSN_PV_DECLINE    = 1.0 - MSN_DEC_MED_PV / MSN_JAN_MED_PV if MSN_JAN_MED_PV > 0 else 0.0
-MSN_MAX_VOL_MONTH = str(msn_monthly.loc[msn_monthly["n"].idxmax(), "_msn_month"]) if len(msn_monthly) > 0 else "—"
-MSN_MAX_VOL_N     = int(msn_monthly["n"].max()) if len(msn_monthly) > 0 else 0
+    # Monthly PV trend
+    msn_monthly = (msn.groupby("_msn_month")
+                   .agg(n=("Pageviews","count"), med_pv=("Pageviews","median"))
+                   .reset_index()
+                   .sort_values("_msn_month"))
+    MSN_JAN_MED_PV    = int(msn_monthly["med_pv"].iloc[0])  if len(msn_monthly) > 0 else 0
+    MSN_DEC_MED_PV    = int(msn_monthly["med_pv"].iloc[-1]) if len(msn_monthly) > 0 else 0
+    MSN_PV_DECLINE    = 1.0 - MSN_DEC_MED_PV / MSN_JAN_MED_PV if MSN_JAN_MED_PV > 0 else 0.0
+    MSN_MAX_VOL_MONTH = str(msn_monthly.loc[msn_monthly["n"].idxmax(), "_msn_month"]) if len(msn_monthly) > 0 else "—"
+    MSN_MAX_VOL_N     = int(msn_monthly["n"].max()) if len(msn_monthly) > 0 else 0
 
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
@@ -2269,6 +2363,10 @@ _COL_TOOLTIPS: dict[str, str] = {
     "padj (bh-fdr)":                  "P-value corrected for testing multiple groups at once; below 0.05 means the result is unlikely to be random chance.",
     "n needed (80% power)":           "How many more articles would be needed to reliably detect this effect in a controlled experiment.",
     "featured rate":                  "Share of this formula's articles that Apple News promoted to a Featured editorial slot.",
+    "publication":                    "The specific McClatchy publication outlet (e.g. Kansas City Star, Miami Herald, Us Weekly).",
+    "top formula":                    "The headline formula with the highest median views lift vs. the untagged baseline for this publication.",
+    "formula lift":                   "How much higher the top formula's median rank is compared to untagged headlines for this publication; 1.5× = 50% higher.",
+    "top topic (views)":              "The content topic with the highest median view rank for this publication, excluding unclassified articles.",
     "within-featured median %ile":    "Among articles Apple News Featured, how this formula ranked against other Featured articles.",
     "channel":                        "The SmartNews topic channel this article was routed to (e.g. Entertainment, Local, Top).",
     "article count":                  "Number of articles published to this SmartNews channel.",
@@ -4894,6 +4992,40 @@ _pb_tile_defs = [
 _pb_tile_defs.sort(key=lambda x: _CONF_RANK.get(x[0], 3))  # stable sort preserves original order within same rank
 _pb_tiles_html = "\n\n".join(t for _, _, t in _pb_tile_defs)
 
+# ── By-publication table for playbook ────────────────────────────────────────
+def _fmt_lift(v: float) -> str:
+    return f"{v:.2f}×" if not np.isnan(v) else "—"
+
+if PUB_ANALYSIS:
+    _pub_rows = "".join(
+        f"<tr><td>{html_module.escape(str(r['brand']))}</td>"
+        f"<td>{r['n']:,}</td>"
+        f"<td>{r['featured_rate']:.0%}</td>"
+        f"<td>{html_module.escape(r['top_formula'])}</td>"
+        f"<td>{_fmt_lift(r['top_formula_lift'])}</td>"
+        f"<td>{html_module.escape(r['top_topic'])}</td></tr>"
+        for r in PUB_ANALYSIS
+    )
+    _pub_section_html = f"""
+<div class="pb-detail" style="display:block; margin-top:2.5rem">
+  <h3 class="rh">By Publication — Apple News</h3>
+  <p class="detail-sub">Formula lift vs. untagged baseline (non-Featured articles only, ≥5 examples). Populated fully when Tarrow's complete 2026 export is loaded via <code>--data-2026-full</code>.</p>
+  <table>
+    <thead><tr>
+      <th>Publication</th>
+      <th>N articles</th>
+      <th>Featured rate</th>
+      <th>Top formula</th>
+      <th>Formula lift</th>
+      <th>Top topic (views)</th>
+    </tr></thead>
+    <tbody>{_pub_rows}</tbody>
+  </table>
+  <p class="caveat">Politics excluded. Lift is directional only — sample sizes per publication are small; confirm before changing editorial policy.</p>
+</div>"""
+else:
+    _pub_section_html = ""
+
 # ── Editorial Playbooks page ──────────────────────────────────────────────────
 playbook_html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -5089,6 +5221,8 @@ playbook_html = f"""<!DOCTYPE html>
   </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
 </div>
+
+{_pub_section_html}
 
 {_inline_sections_html}
 
