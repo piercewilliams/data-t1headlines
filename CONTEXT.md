@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — all 9 findings live, playbook, author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-28 (README rewrite — priority-ordered structure, full roadmap coverage, non-technical entry path)
+**Last session:** 2026-03-30 (Tarrow data drop — notifications 2025, SmartNews 2026 categories, Finding 4 brand-type rewrite)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -31,7 +31,7 @@ For session history: see [sessions/](sessions/)
 | Apple News Notifications 2025 | ✅ In repo | Full year; news brands from June, Us Weekly all year; 1,443 rows |
 | Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 359 rows |
 | SmartNews 2025 | ✅ In repo | Full year, 32 category columns |
-| SmartNews 2026 | ✅ In repo | 7 cols (no category breakdown); headline analysis active |
+| SmartNews 2026 | ✅ In repo | 30 cols; category breakdown restored by Tarrow; 11 common cats in Q4 |
 | MSN 2025 | ⚠️ Dec-only | Full-year re-export still pending from Tarrow |
 | MSN 2026 | ✅ In repo | Jan–Feb, 355 rows |
 | MSN video 2026 | ✅ Known (404 rows) | In known-sheets list; not yet wired into analysis |
@@ -58,15 +58,22 @@ For session history: see [sessions/](sessions/)
 
 ## Session Log
 
-**2026-03-30: New data ingest — notifications 2025 + SmartNews 2026 categories**
-Wired two new datasets into the pipeline:
-- **Apple News Notifications 2025** (1,443 rows): loaded from 2025 workbook, renamed `Click-Through Rate` → `CTR`, concatenated with 2026 (359 rows) for a combined 1,783-row notification pool. Added `Apple News notifications` to `_KNOWN_SHEETS_2025`.
-- **SmartNews 2026 categories** (362 rows): Tarrow rebuilt 2026 SmartNews with full category breakdown. Added `_sn_month`, numeric category columns, and `normalize()` call for sn26. Created `sn_all` (2025+2026 combined) for Q4 analysis using 11 common categories (Football/LGBTQ are 2025-only, excluded from combined analysis; Technology added to SHOW_CATS). Caveats updated throughout.
+**2026-03-30: Tarrow data drop + Finding 4 brand-type rewrite**
 
-Finding 4 effect size changes with 4× more data (more credible):
-- Exclusive CTR lift: 2.5× → 1.9×
-- Possessive CTR lift: 1.9× → 1.8×
-- Short notification penalty: 39% fewer → 26% fewer clicks
+Tarrow provided: (1) Apple News Notifications 2025 added to 2025 workbook; (2) SmartNews 2026 rebuilt with full category columns.
+
+**SmartNews 2026 categories wired into Q4:** Added `_sn_month`, numeric CATS_COMMON columns, and `normalize()` to `sn26`. Created `sn_all` (2025 + 2026 combined, 11 common categories) for Q4 analysis. Football/LGBTQ are 2025-only, excluded from combined analysis; Technology added to SHOW_CATS. "2026 export lacks category breakdown" caveat retired.
+
+**Notifications 2025 wired into Q5:** Combined 1,443 rows (2025) + 359 rows (2026) = 1,783-row pool. Renamed `Click-Through Rate` → `CTR`. Added `Apple News notifications` to `_KNOWN_SHEETS_2025`.
+
+**Finding 4 brand-type rewrite (major analytical change):** The larger 2025 dataset revealed the previous pooled analysis was mixing two incompatible content populations. Us Weekly (celebrity/entertainment, 4.01% median CTR) and news brands (hard news, 1.41% CTR) are 2.8× apart at baseline with almost entirely non-overlapping formula signals. The "short notification penalty" (−39%) was a pooling artifact — length shows no significant effect within either population separately.
+
+Q5 now runs separately per brand type (`df_q5_news`, `df_q5_uw`, via `_run_q5()` helper). Display in Finding 4 shows two tables. Signals by population:
+- **News brands:** "EXCLUSIVE:" positive; attribution (says/told) positive; question format negative
+- **Us Weekly:** Named person + possessive positive; numbers negative; "EXCLUSIVE" neutral
+- CTR declining trend for news brands documented: Q2 2025 (1.77%) → Q4 2025 (1.26%) → Q1 2026 (1.37%)
+
+Playbook tile pb-4 upgraded from Moderate to High confidence. Hero candidates updated; "short notifications backfire" hero retired.
 
 **2026-03-30: Snapshot version bar**
 Added version history system to `docs/index.html`. Weekly trigger (Mon 8am Dallas) copies `docs/index.html` → `docs/snapshots/snap-NNN.html` (snapshot bar script tag stripped). Clicking a pill opens the full historical page in a new tab. Passkey `8812` gates restore (downloads snapshot HTML + pruned `index.json`). Max 5 snapshots. URL guard in `snapshot-bar.js` prevents the bar from rendering inside snapshot files. `generate_site.py` updated with same snapshot bar so all future generated pages include it.
@@ -77,49 +84,8 @@ Files changed: `docs/index.html` (bar div + script tag + CSS), `docs/js/snapshot
 
 **Trigger:** `trig_01Qze9PVrNErCEYa1fMXxF2U` — shared with csa-dashboard and csa-content-standards. Details in ops-hub REFERENCE.md.
 
-**2026-03-28: README rewrite**
-- Full rewrite of README.md for clarity, completeness, and priority-ordered structure
-- Added table of contents with 10 sections; moved "Why this exists" + variant allocation model to section 2 (was last)
-- Added post-build verification checklist (5 checks with expected values) — previously only in PLAYBOOK.md
-- Added key thresholds to watch table (where findings will shift significance as data grows) — previously only in PLAYBOOK.md
-- Expanded future roadmap: full data gaps table (with priorities), instrumentation roadmap (canon article ID, variant count, formula/platform tags), and analytical enrichments we can do now
-- Architecture and design decisions moved behind operational sections — non-technical stakeholders now have a clean entry path
-
-**2026-03-28: Charts, tooltips, author tiles, finding framing, experiment automation**
-- Wired build report display for `_audit_warnings`, `_palette_warnings`, `_formula_warnings`
-- Fixed Plotly.restyle double-wrap bug: per-bar color arrays must be passed as `[mc]` not `mc` (all bars were rendering as the first color in light mode)
-- Fixed export background: read from `document.body` instead of panel element (panels have `rgba(0,0,0,0)` — dark mode exported as white)
-- Added color legends to fig1–fig4: `_lift_legend_traces()`, `_sn_legend_traces()`, `_LEGEND_BELOW` shared constant; dummy `go.Scatter` traces generate legend entries for single-trace per-bar-color charts
-- Added `_check_chart_legends()` build guardrail — fails if any chart uses per-bar colors without `showlegend=True`
-- Added `_COL_TOOLTIPS` dict (~70 entries) + `_make_col_tooltip_js()` — hovering any `<th>` shows a floating plain-English tooltip; injected into all 3 pages
-- Added `_check_col_tooltips()` build guardrail — fails if any rendered `<th>` has no matching tooltip
-- Reframed F4 tile: leads with short-notification counter-finding (≤80 chars = 39% fewer clicks) rather than obvious EXCLUSIVE lift
-- Reframed F7 tile: Apple News-specific two-strategy framing (reach vs. depth) rather than generic correlation statement
-- Fixed author tile callout: replaced hardcoded dark hex values with CSS variables; added "Recommended actions this round" header; structured DO/TRY list driven by confidence badge
-- Added step 4b to `ingest.py`: discovers and regenerates all `experiments/*.md` spec files so nav/theme/export JS stay in sync on every ingest
-- README fully updated: pipeline diagram, audit suite, tooltip/legend design decisions, experiment automation, triage table
-
-**2026-03-28: DRY refactor (nav + export JS)**
-- Added `_NAV_PAGES` + `_build_nav()` to `generate_site.py` — replaced 3 hardcoded nav blocks (~40 lines each → 1 call each)
-- Added `_make_export_js()` to `generate_site.py` — replaced 3 hardcoded `_findTileForPanel` + `_exportPanel` blocks (~120 lines each → 1 call each)
-- Copied `_NAV_PAGES` + adapted `_build_nav()` into `generate_experiment.py` — replaced 2 hardcoded nav blocks
-- Verified formula label keys consistent between `FORMULA_LABELS` and `_FORMULA_LABELS` (both 7 keys, display strings intentionally differ)
-- Confirmed cache-control meta tags present on all 3 main pages
-- All 5 page types pass nav consistency audit (4 links each, correct active link, correct hrefs)
-- Build: JS syntax valid, 6 expected rigor warnings, row counts unchanged (AN=4174, SN=38251, Notif=351)
-
-**2026-03-28: Code quality / refactor**
-Full refactor pass on all three Python scripts:
-- Fixed data loss bug: `_fix_mac_encoding` was discarded via `.reindex()` after `.dropna()`
-- Fixed invalid `\s` escape sequences in JS f-strings (suppressed SyntaxWarnings)
-- Fixed `__import__("json")` → `json` (already imported)
-- Removed unused import (`make_subplots`) and dead code (`col = spec.get(...)` in generate_experiment.py)
-- Added type hints to all public functions across generate_site.py, ingest.py, generate_experiment.py
-- Added docstrings to all statistical helpers and key functions
-- Added module-level docstrings to all three scripts
-- Tightened exception handling (bare `except Exception` → specific types with messages)
-- Converted table generator string accumulation to list-join pattern
-- Added column-sortable tables to all pages (JS + CSS, zero-dependency, auto-attaches on load)
+**2026-03-28: README rewrite, charts/tooltips, DRY refactor, code quality**
+Multiple sessions: README rewritten (priority-ordered, non-technical entry path, full roadmap); Plotly color/export bugs fixed; color legends and `_COL_TOOLTIPS` (~70 entries) added; `_build_nav()` / `_make_export_js()` DRY refactors; full type hint + docstring pass; column-sortable tables added. See git log for details.
 
 **2026-03-27: Infrastructure, rigor, UX, pipeline**
 Full pipeline: `ingest.py` entry point, BH-FDR, bootstrap CIs, rank-biserial, power analysis, hero scoring, playbook tile sorting, main-page versioning/archive, `CLAUDE.md` autonomous workflow, documentation overhaul.
