@@ -4361,86 +4361,41 @@ html = f"""<!DOCTYPE html>
   <p class="grid-label">CLICK ON ANY FINDING TO EXPAND</p>
   <div class="tile-grid">
 
-    <div class="tile" onclick="showDetail('formulas', this)">
-      <span class="tile-num">1 · Apple News Formulas</span>
-      <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it — but underperformance is statistically clear.</p>
-      <p class="tile-action">→ Audit number-lead and question-format headlines. Specificity and execution matter more than format choice.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
-    {"" if NL_PARSED < 10 else f"""
-    <div class="tile" onclick="showDetail('numleads', this)">
-      <span class="tile-num">1b · Number Leads Deep Dive</span>
-      <p class="tile-claim">Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers. Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile).</p>
-      <p class="tile-action">→ Use precise figures. Avoid leading with totals, round counts, or numbers above 50.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-    """}
-
     <div class="tile" onclick="showDetail('featured', this)">
-      <span class="tile-num">2 · Featured on Apple News</span>
+      <span class="tile-num">1 · Featured on Apple News</span>
       <p class="tile-claim">"What to know" gets Featured {WTN_FEAT_LIFT:.1f}× more often — but organic views trend lower ({WTN_ORGANIC_P_STR}, not significant at α=0.05, n={WTN_N_NONFEAT}).</p>
       <p class="tile-action">→ Use "What to know" when targeting Featured specifically. Don't apply it broadly.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
-    <div class="tile" onclick="showDetail('smartnews', this)">
-      <span class="tile-num">3 · SmartNews Allocation</span>
-      <p class="tile-claim">Entertainment gets 36% of SmartNews volume at the lowest median percentile rank. Local delivers {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.0%} of volume.</p>
-      <p class="tile-action">→ Shift SmartNews volume toward Local and U.S. National. No new content required.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
     <div class="tile" onclick="showDetail('notifications', this)">
-      <span class="tile-num">4 · Push Notifications</span>
+      <span class="tile-num">2 · Push Notifications</span>
       <p class="tile-claim">News brands and celebrity/entertainment content operate as two distinct notification ecosystems with 2.8× different baseline CTRs and non-overlapping formula signals. For news: "EXCLUSIVE:" ({F4_EXCL_LIFT_STR}) and attribution language ({F4_ATTR_LIFT_STR}) drive CTR. For celebrity content: named person + possessive ({F4_POSS_LIFT_STR}).</p>
       <p class="tile-action">→ Segment notification strategy by content type. Don't apply celebrity-content heuristics to hard news, or vice versa.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('topics', this)">
-      <span class="tile-num">5 · Platform Topic Inversion</span>
+      <span class="tile-num">3 · Platform Topic Inversion</span>
       <p class="tile-claim">Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews — the largest topic-rank gap by platform ({abs(sports_an_rank - sports_sn_rank)} rank positions).</p>
       <p class="tile-action">→ Write platform-specific sports briefs. Don't reuse Apple News sports content on SmartNews.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
-    <div class="tile" onclick="showDetail('allocation', this)">
-      <span class="tile-num">6 · Headline Variance by Topic</span>
-      <p class="tile-claim">Business and lifestyle have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV} respectively). This is where headline choice pays off most.</p>
-      <p class="tile-action">→ Concentrate headline variant testing on business and lifestyle content.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
     <div class="tile" onclick="showDetail('engagement', this)">
-      <span class="tile-num">7 · Views vs. Reading Depth</span>
+      <span class="tile-num">4 · Views vs. Reading Depth</span>
       <p class="tile-claim">On Apple News, high-view and high-engagement articles are largely separate populations (r={r_views_at:.3f}) — a headline optimized for reach won't advance depth, and vice versa. These are two distinct editorial strategies, not one.</p>
       <p class="tile-action">→ Define success separately for reach campaigns vs. depth campaigns. Don't optimize headline variants for views and expect active time to follow.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('longitudinal', this)">
-      <span class="tile-num">8 · Trends Over Time</span>
+      <span class="tile-num">5 · Trends Over Time</span>
       <p class="tile-claim">Number leads climbed from {NL_LIFT_EARLY:.2f}× (Q1 2025) to {NL_LIFT_LATE:.2f}× (Q1 2026) — the only formula to cross into above-baseline territory. Question format dropped from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}×.</p>
       <p class="tile-action">→ Lean into number leads; deprioritize question-format headlines. Re-check quarterly as 2026 data accumulates.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
-    {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
-    <div class="tile" onclick="showDetail('team', this)">
-      <span class="tile-num">9 · Team Performance</span>
-      <p class="tile-claim">{N_TRACKED} articles matched across platforms. Long-form articles ({_F9_Q4_WORDS_STR}+ words) syndicate at the {_F9_Q4_PCT_STR} — the lowest of any length group.</p>
-      <p class="tile-action">→ Target the middle word-count range ({_F9_Q2_WORDS_STR} words, {_F9_Q2_PCT_STR}ile) for syndication. Review team percentile rankings monthly.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-    """}
-
-    <div class="tile" onclick="showDetail('msn', this)">
-      <span class="tile-num">10 · MSN Performance</span>
-      <p class="tile-claim">MSN median pageviews declined {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a clear platform-level headwind. Sports draws the highest dislike rate ({msn_sports_dr:.1%} median) yet also high views, suggesting sports readers engage but critics are vocal. Formula signals mirror Apple News: number leads and "What to know" outperform baseline.</p>
-      <p class="tile-action">→ Don't expect growing PV returns from MSN — optimize for formula fit and low dislike risk on non-sports content. Monitor the dislike/views tradeoff on sports stories.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
 
   </div><!-- /.tile-grid -->
 
@@ -4448,63 +4403,9 @@ html = f"""<!DOCTYPE html>
     <div class="detail-wrap">
       <button class="detail-close" onclick="closeDetail()">×</button>
 
-      <!-- DETAIL: FORMULAS -->
-      <div class="detail-panel" id="detail-formulas">
-        <h2>Finding 1 · Apple News Formulas</h2>
-        <p class="callout-inline"><strong>How to read cohort %ile:</strong> Every percentile value on this site is a <em>cohort percentile</em> — views rank among articles from the same outlet published in the same calendar month. An article at the 80th cohort %ile outperformed 80% of that outlet's same-month articles in views. Raw views aren't comparable across months (January articles always accumulate more by year-end), so cohort percentile is the primary metric throughout.</p>
-        <div class="callout">
-          <strong>Key finding:</strong> No formula shows statistically confirmed lift above baseline — but several significantly drag performance below it. "Here's / Here are" posts the highest median percentile ({F1_HERES_PCT}) on only n={F1_HERES_N} articles — directional, not confirmed. Number leads and question-format headlines statistically <em>underperform</em> the baseline ({F1_NUM_P_STR} and {F1_Q_P_STR} respectively, BH-adj). The formula alone isn't the signal — how you execute it is.
-        </div>
-        <p>Across {len(nf):,} non-Featured articles, three formula types significantly underperform the baseline: number leads ({_r1_num['lift']:.2f}×, {F1_NUM_P_STR}), question format ({_r1_q['lift']:.2f}×, {F1_Q_P_STR}), and quoted ledes ({_r1_ql['lift']:.2f}×, {F1_QL_P_STR}) — all BH-FDR adjusted. The better-performing formulas — "Here's / Here are" ({_r1_h['lift']:.2f}×) and possessive named entity ({_r1_pne['lift']:.2f}×) — are directional but not statistically significant at current sample sizes (n={_r1_h['n']} and n={_r1_pne['n']} respectively).</p>
-        <p>These lifts are now expressed as percentile ratios: a lift of {_r1_h['lift']:.2f}× means the "Here's" group's median article falls in a {_r1_h['lift']:.2f}× higher monthly cohort percentile than untagged articles. Number leads fall to the {_r1_num['median']:.0%}ile of their monthly cohort, versus {baseline.median():.0%}ile for untagged articles.</p>
-        <div class="chart-wrap">{c1}</div>
-        <table class="findings">
-          <thead><tr><th>Formula</th><th>n</th><th>Median %ile</th><th>Lift</th><th>95% CI (bootstrap)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH–FDR)</th><th>n needed (80% power)</th></tr></thead>
-          <tbody>{_t1}</tbody>
-        </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> "lift" is the formula's median cohort percentile divided by the untagged baseline median cohort percentile. Lift &lt;1.0 = underperforms baseline. BH-adj p corrects for testing 6 formulas simultaneously.</p>
-        <h3>Untagged baseline characterisation</h3>
-        <p>The "untagged" baseline ({UNTAGGED_N:,} articles, {UNTAGGED_PCT:.0%} of non-Featured) comprises headlines that do not match any formula regex — typically mid-sentence constructions, declarative statements, and soft-news ledes. Sample (random): <em>{' / '.join([str(x)[:80] for x in _ung_sample])}</em>.</p>
-        <p class="caveat">Non-Featured articles only (n={len(nf):,}). Primary metric: cohort percentile — views rank within same outlet × calendar month, controlling for temporal view accumulation bias. Mann-Whitney U vs. untagged baseline; effect size = rank-biserial r. 95% CIs: 1,000-iteration bootstrap on median ratio (seed=42). BH–FDR applied across all {len(_q1_raw_p)} formula tests. Stars: * p&lt;0.05 ** p&lt;0.01 *** p&lt;0.001. "n needed" = estimated per-group sample for 80% power (α=0.05). Formula classifier: unvalidated regex.</p>
-      </div><!-- /#detail-formulas -->
-
-      {"" if NL_PARSED < 10 else f"""
-      <!-- DETAIL: NUMLEADS -->
-      <div class="detail-panel" id="detail-numleads">
-        <h2>Finding 1b · Number Leads: Deep Dive</h2>
-        <div class="callout">
-          <strong>Key finding:</strong> Round numbers (multiples of 10, 100, 1,000) score at the {NL_ROUND_MED:.0%}ile — {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_SPECIFIC_MED:.0%}ile). The difference is statistically significant ({NL_P_STR}). Numbers in the {NL_SWEET_SPOT_CAT} range are the highest-performing in this dataset ({NL_SWEET_SPOT_MED:.0%}ile). Numbers {NL_WORST_CAT} drag performance to the {NL_WORST_MED:.0%}ile. Bottom line: "127 arrested" outperforms "100 arrested," and "15 takeaways" outperforms "50 things to know."
-        </div>
-        <h3>Round vs. specific numbers</h3>
-        <p>Round numbers (multiples of 10, 100, 1,000): median {NL_ROUND_MED:.0%}ile vs. specific numbers: median {NL_SPECIFIC_MED:.0%}ile. ({_nl_round_sig})</p>
-        <div class="two-col">
-          <div>
-            <p><strong>Top performers: specific numbers</strong></p>
-            <ul class="headline-list">{_nl_specific_examples}</ul>
-          </div>
-          <div>
-            <p><strong>Top performers: round numbers</strong></p>
-            <ul class="headline-list">{_nl_round_examples}</ul>
-          </div>
-        </div>
-        <h3>By number type</h3>
-        <table class="findings">
-          <thead><tr><th>Number type</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
-          <tbody>{_t_nl_type}</tbody>
-        </table>
-        <p class="callout-inline"><strong>Note:</strong> Nearly all number-lead articles ({NL_NOTE_FRAC}) use a count or list format. Dollar amounts and ordinals appear too rarely (n&lt;10) for reliable conclusions.</p>
-        <h3>By number magnitude</h3>
-        <table class="findings">
-          <thead><tr><th>Number range</th><th>n</th><th>Cohort %ile</th><th>Lift vs. baseline</th></tr></thead>
-          <tbody>{_t_nl_size}</tbody>
-        </table>
-        <p class="callout-inline"><strong>Unexpected:</strong> The {NL_SWEET_SPOT_CAT} range outperforms even single-digit numbers ({NL_SWEET_SPOT_MED:.0%}ile). The {NL_WORST_CAT} range is the weakest ({NL_WORST_MED:.0%}ile) — avoid leading with totals, casualty counts, or cumulative statistics that tend to produce large numbers.</p>
-      </div><!-- /#detail-numleads -->
-      """}
-
       <!-- DETAIL: FEATURED -->
       <div class="detail-panel" id="detail-featured">
-        <h2>Finding 2 · Featured on Apple News</h2>
+        <h2>Finding 1 · Featured on Apple News</h2>
         <div class="callout">
           <strong>Key tension:</strong> "What to know" gets featured by Apple at {WTN_FEAT_LIFT:.2f}× the baseline rate — and non-featured WTN articles trend toward the lower end of the distribution. This is directional and not significant at α=0.05 ({WTN_ORGANIC_P_STR}, n={WTN_N_NONFEAT} non-featured WTN articles) — interpret with caution. The Featured signal is statistically robust; the organic underperformance is a pattern worth watching, not a confirmed finding. Use WTN specifically when chasing Featured placement; avoid applying it as a general-purpose formula until the organic performance data strengthens.
         </div>
@@ -4523,25 +4424,9 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
       </div><!-- /#detail-featured -->
 
-      <!-- DETAIL: SMARTNEWS -->
-      <div class="detail-panel" id="detail-smartnews">
-        <h2>Finding 3 · SmartNews Allocation</h2>
-        <div class="callout">
-          <strong>High-leverage finding:</strong> Entertainment is {float(_r4_ent['pct_share']):.0%} of SmartNews article volume ({int(_r4_ent['n']):,} articles) at {float(_r4_ent['lift']):.2f}× median percentile rank. Local is {float(_r4_loc['lift']):.2f}× on {float(_r4_loc['pct_share']):.1%} of volume. U.S. National is {float(_r4_us['lift']):.2f}× on {float(_r4_us['pct_share']):.1%} of volume. The channel allocation is inverted: the highest-performing channels are starved while the lowest-performing channel dominates volume. No new content required — better channel framing captures the gains.
-        </div>
-        <p>SmartNews category channel data reveals a severe allocation mismatch. Articles appearing in the Local channel sit at the {_r4_loc['median_pct']:.0%}ile of their monthly cohort ({_r4_loc['median_views']:,.0f} median raw views). The U.S. National channel: {_r4_us['median_pct']:.0%}ile. The Top feed baseline: {top_median_sn_pct:.0%}ile. Meanwhile, Entertainment — which accounts for {_r4_ent['pct_share']:.1%} of all SmartNews articles — sits at only the {_r4_ent['median_pct']:.0%}ile.</p>
-        <div class="chart-wrap">{c3}</div>
-        <table class="findings">
-          <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH–FDR)</th></tr></thead>
-          <tbody>{_t3}</tbody>
-        </table>
-        <p class="callout-inline"><strong>Read this table as:</strong> "Lift" compares each channel's median percentile to the Top feed baseline (88.9% of articles). Values above 1.0× mean that channel's articles outperform the overall Top-feed median. High lift + low volume share = underused channel.</p>
-        <p class="caveat">SmartNews 2025+2026 (n={N_SN:,} 2025 articles + {N_SN26_CAT:,} 2026 articles; 11 categories common to both years — Football and LGBTQ are 2025-only and excluded). Category columns contain channel-specific view counts; non-zero = article appeared in that channel. Lift = median percentile vs. Top feed median percentile. Percentiles computed within each year separately, then pooled. Mann-Whitney U: each channel vs. Top feed; BH–FDR correction applied across {len(_q4_raw_p)} tests. Independence caveat: {SN_MULTI_CAT_N:,} articles ({SN_MULTI_CAT_PCT:.0%}) appear in more than one category.</p>
-      </div><!-- /#detail-smartnews -->
-
       <!-- DETAIL: NOTIFICATIONS -->
       <div class="detail-panel" id="detail-notifications">
-        <h2>Finding 4 · Push Notifications</h2>
+        <h2>Finding 2 · Push Notifications</h2>
         <div class="callout">
           <strong>Two distinct content ecosystems — different signals for each.</strong> News brands (n={N_NOTIF_NEWS}, median CTR {CTR_MED_NEWS_STR}): "EXCLUSIVE:" ({F4_EXCL_LIFT_STR}, {F4_EXCL_P_STR}) and attribution language (says/told, {F4_ATTR_LIFT_STR}, {F4_ATTR_P_STR}) drive CTR. Us Weekly / celebrity (n={N_NOTIF_UW}, median CTR {CTR_MED_UW_STR}): named person + possessive framing ({F4_POSS_LIFT_STR}, {F4_POSS_P_STR}) is the top signal. The populations are 2.8× apart in baseline CTR — pooling them obscures both sets of findings.
         </div>
@@ -4569,13 +4454,13 @@ html = f"""<!DOCTYPE html>
 
       <!-- DETAIL: TOPICS -->
       <div class="detail-panel" id="detail-topics">
-        <h2>Finding 5 · Platform Topic Inversion</h2>
+        <h2>Finding 3 · Platform Topic Inversion</h2>
         <div class="callout">
           <strong>Action:</strong> Write platform-specific variant briefs for sports and nature/wildlife — these two categories show the strongest inversions. Apple News sports: lead with team/player + outcome. SmartNews sports: don't rely on sports for reach — use local/civic and breaking news instead. Nature/wildlife is the mirror: underperforms on Apple News ({nw_an_idx:.2f}× platform median) but outperforms on SmartNews ({nw_sn_idx:.2f}×).
         </div>
         <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. {"The inversion is statistically significant (Mann-Whitney U, " + SPORTS_P_STR + ") across the full year of 2025 data." if SPORTS_P_STR else "The inversion holds across the full year of 2025 data."}</p>
         <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
-        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average, consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}. See Finding 10 for a full MSN analysis.</p>
+        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average, consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}.</p>
         <div class="chart-wrap">{c5}</div>
         <h3>Sports subtopic performance by platform</h3>
         <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
@@ -4596,46 +4481,9 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}); MSN 2025 (n={N_MSN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Subtopics with n&lt;3 show "—".</p>
       </div><!-- /#detail-topics -->
 
-      <!-- DETAIL: ALLOCATION -->
-      <div class="detail-panel" id="detail-allocation">
-        <h2>Finding 6 · Headline Variance by Topic</h2>
-        <div class="callout">
-          <strong>Action:</strong> Concentrate variant production on high-variance topics — business (IQR/median = {F6_BIZ_CV}) and lifestyle ({F6_LIFE_CV}) on Apple News — where the gap between a top-quartile and bottom-quartile headline is widest. Crime and sports are more consistent mid-performers with less room to move.
-        </div>
-        <p>The chart shows IQR ÷ median cohort percentile for each topic × platform. A ratio of 1.5 means the articles between the 25th and 75th percentile span 1.5× the median — a wide, unpredictable range. Where this ratio is high, headline choice has the most room to lift or drag performance.</p>
-        <div class="chart-wrap">{c6}</div>
-        <p class="callout-inline"><strong>Read this chart as:</strong> IQR ÷ median of percentile rank — a scale-free measure of outcome spread. A higher value means the gap between a 25th-percentile and 75th-percentile article is wider relative to the median: more variance, more room for headline choice to make a difference. Lower values (sports, weather) mean outcomes cluster tightly — less leverage from headline optimization alone.</p>
-        <h3>Crime: top vs. bottom quartile headlines on Apple News</h3>
-        <div class="example-cols">
-          <div class="example-list example-top"><h4>Top quartile crime headlines</h4><ul>{crime_top_h}</ul></div>
-          <div class="example-list example-bot"><h4>Bottom quartile crime headlines</h4><ul>{crime_bot_h}</ul></div>
-        </div>
-        <p class="callout-inline"><strong>What separates top from bottom crime headlines:</strong> Top performers almost always include a named location, a named individual, or a specific count. Bottom performers use vague agency ("police say"), generic action words ("incident," "situation"), or lead with institutional attribution rather than the crime itself.</p>
-        <h3>Business: top vs. bottom quartile headlines on Apple News</h3>
-        <div class="example-cols">
-          <div class="example-list example-top"><h4>Top quartile business headlines</h4><ul>{biz_top_h}</ul></div>
-          <div class="example-list example-bot"><h4>Bottom quartile business headlines</h4><ul>{biz_bot_h}</ul></div>
-        </div>
-        <p class="callout-inline"><strong>What separates top from bottom business headlines:</strong> Top performers anchor to a specific company, dollar figure, or named individual. Bottom performers describe economic conditions abstractly ("rising costs," "market uncertainty") without a concrete hook.</p>
-        <h3>Business subtopic drill-down</h3>
-        <p>Within business, which sub-category performs best on each platform?</p>
-        <table class="findings">
-          <thead><tr><th>Subtopic</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-          <tbody>{_t_biz_sub}</tbody>
-        </table>
-        <h3>Headline length vs. performance</h3>
-        <p>Headline character count split into quartiles — median Apple News headline is {AN_MEDIAN_HL_LEN:.0f} chars; SmartNews is {SN_MEDIAN_HL_LEN:.0f} chars. {"Longer Apple News headlines outperform shorter ones: Q4 vs. Q1 Mann-Whitney U " + HL_AN_P_STR + " (BH-FDR). The same test on SmartNews: " + (HL_SN_P_STR or "insufficient data") + "." if HL_AN_P_STR else "The pattern is directional — no significant Q4 vs. Q1 difference detected at this sample."}</p>
-        <div class="chart-wrap">{c_hl}</div>
-        <table class="findings">
-          <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-          <tbody>{_t_hl_len}</tbody>
-        </table>
-        <p class="caveat">IQR = interquartile range (75th percentile minus 25th percentile) of percentile_within_cohort. IQR/median is a scale-free spread measure (not CV, which is std/mean). Topic tagged via regex classifier. Apple News 2025–2026; SmartNews 2025. Topics with fewer than 10 articles excluded. High IQR/median on SmartNews local/civic is consistent with channel-placement bimodality (Finding 3) — articles land either in the high-ROI Local channel or the lower-ROI Top feed, producing a wide spread.</p>
-      </div><!-- /#detail-allocation -->
-
       <!-- DETAIL: ENGAGEMENT -->
       <div class="detail-panel" id="detail-engagement">
-        <h2>Finding 7 · Views vs. Reading Depth</h2>
+        <h2>Finding 4 · Views vs. Reading Depth</h2>
         <div class="callout">
           <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
         </div>
@@ -4656,7 +4504,7 @@ html = f"""<!DOCTYPE html>
 
       <!-- DETAIL: LONGITUDINAL -->
       <div class="detail-panel" id="detail-longitudinal">
-        <h2>Finding 8 · Trends Over Time</h2>
+        <h2>Finding 5 · Trends Over Time</h2>
         <div class="callout">
           <strong>Key shift:</strong> Number leads started below baseline ({NL_LIFT_EARLY:.2f}× in Q1 2025) and climbed steadily to {NL_LIFT_LATE:.2f}× by Q1 2026 — the only formula to cross into above-baseline territory. Possessive named entity held above 1.0× all year but softened. Question-format headlines declined from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}× and are now well below baseline.
           <br><br><em>Chart shows the three highest-volume formulas</em> (≥15 articles/quarter). Here's/Here are and What to know are in the table below — their n=4–9/quarter is too small to distinguish trend from noise.
@@ -4678,87 +4526,6 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median cohort percentile ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
-      {"" if not (HAS_TRACKER and N_TRACKED > 0) else f"""
-      <!-- DETAIL: TEAM -->
-      <div class="detail-panel" id="detail-team">
-        <h2>Finding 9 · Team Content Analysis</h2>
-        <div class="callout">
-          <strong>Coverage:</strong> {N_TRACKED} articles from the content tracker matched to syndication data (Apple News, SmartNews, Yahoo) via URL or headline text. Mostly SmartNews. Results are directional; treat as signal, not significance.
-        </div>
-
-        <h3>Are variants performing as well as originals?</h3>
-        <p>{"The tracker distinguishes original articles (Parent-P) from generated variants (Child-C). " + (f"Originals syndicate at the <strong>{PARENT_MED_PCT:.0%}ile</strong>; variants at <strong>{CHILD_MED_PCT:.0%}ile</strong> — a {abs(PARENT_MED_PCT - CHILD_MED_PCT):.0%}-point gap. " + ("Originals outperform variants in this sample. " if PARENT_MED_PCT > CHILD_MED_PCT else "Variants are holding up in this sample. ") + (_fmt_p(CT_P) + " (Mann-Whitney, unadjusted). " if not np.isnan(CT_P) else "Sample too small for significance test. ") + "Directional — but this is exactly the signal the variant allocation model needs to track over time as match rates grow." if not (np.isnan(PARENT_MED_PCT) or np.isnan(CHILD_MED_PCT)) else "Parent/Child data available but sample too small to compare.") if not df_content_type.empty else "Content type breakdown not available in tracker."}</p>
-        <table class="findings">
-          <thead><tr><th>Content type</th><th>n matched</th><th>Cohort %ile</th></tr></thead>
-          <tbody>{_t_content_type}</tbody>
-        </table>
-
-        <h3>What formula types is the team actually writing?</h3>
-        <p>Tracked headlines were classified using the same formula detector as Finding 1. <strong>{_ft_untagged_share:.0%} are untagged</strong> (no detectable formula); the most common tagged formula is <strong>{_ft_top_formula.replace("_"," ")} ({_ft_top_formula_pct:.0%} of articles)</strong>. Cross-reference with Finding 1: number leads and question-format headlines significantly underperform the Apple News baseline. If those formula types dominate here, there is a gap to close.</p>
-        <table class="findings">
-          <thead><tr><th>Formula type</th><th>n articles</th><th>Share of team output</th><th>Cohort %ile</th></tr></thead>
-          <tbody>{_t_formula_team}</tbody>
-        </table>
-
-        <h3>Author formula profiles</h3>
-        <p>Each author's dominant formula (by article count), their overall median percentile across platforms, and how that formula performs in their own work. Use this to identify whether individual writers are aligned with the highest-performing formats.</p>
-        <table class="findings">
-          <thead><tr><th>Author</th><th>Total matched</th><th>Cohort %ile</th><th>Dominant formula (performance)</th></tr></thead>
-          <tbody>{_t_author_profiles}</tbody>
-        </table>
-
-        <h3>Vertical routing: which team content types perform where</h3>
-        <p>Cells with n&lt;3 are suppressed. Use this to inform which content verticals to prioritize per platform.</p>
-        <table class="findings">
-          <thead><tr><th>Vertical</th><th>Platform</th><th>n</th><th>Cohort %ile</th></tr></thead>
-          <tbody>{_t_vert_plat}</tbody>
-        </table>
-
-        <h3>Word count and syndication performance</h3>
-        <div class="callout">
-          <strong>Unexpected:</strong> Articles in the longest quartile (~{_F9_Q4_WORDS_STR} words) perform at the {_F9_Q4_PCT_STR}; worse than any other length group. Q2 (~{_F9_Q2_WORDS_STR} words) is the highest-performing range at {_F9_Q2_PCT_STR}. {"Mann-Whitney Q4 vs. Q2: " + WC_P_STR + " (n=" + str(WC_MATCHED_N) + ", unadjusted). Pattern is consistent within SmartNews individually but interpret cautiously at this sample size." if WC_P_STR else "Based on " + str(WC_MATCHED_N) + " tracker-matched articles; too small for reliable significance testing. Treat as directional."}
-        </div>
-        <table class="findings">
-          <thead><tr><th>Word count quartile</th><th>n</th><th>Median word count</th><th>Cohort %ile</th></tr></thead>
-          <tbody>{_t_wc}</tbody>
-        </table>
-
-        <h3>Top 20 articles by percentile rank</h3>
-        <table class="findings">
-          <thead><tr><th>Article</th><th>Platform / Brand</th><th>Author</th><th>Cohort %ile</th><th>Views</th><th>Featured</th></tr></thead>
-          <tbody>{_t_team}</tbody>
-        </table>
-        <p class="caveat">Percentile ranks are platform-relative (SmartNews vs. SmartNews, etc.). Word count is from the tracker. Match rate is low for Apple News (URL format mismatch); SmartNews is the most reliable cohort.</p>
-      </div><!-- /#detail-team -->
-      """}
-
-      <!-- DETAIL: MSN -->
-      <div class="detail-panel" id="detail-msn">
-        <h2>Finding 10 · MSN Platform Analysis</h2>
-        <div class="callout">
-          <strong>Action:</strong> MSN pageviews declined {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a platform-level headwind that is not formula-driven. Use MSN primarily as a reach supplement, not a growth channel. Avoid high-dislike-risk content types; sports generates high views but also the highest dislike rate ({msn_sports_dr:.1%}), signaling audience friction.
-        </div>
-        <p>Full-year 2025 MSN data covers {N_MSN:,} articles across all T1 outlets. The platform offers a unique metric not available on Apple News or SmartNews: explicit audience reaction (Likes/Dislikes), making it possible to measure content friction directly.</p>
-
-        <h3>Formula performance on MSN</h3>
-        <p>Formula classification uses the same headline classifier as Finding 1 (Apple News). Each formula is tested against the "other/untagged" baseline using Mann-Whitney U with BH-FDR correction. * = significant at α=0.05 after correction.</p>
-        <table class="findings sortable">
-          <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
-          <tbody>{_t_msn_formula}</tbody>
-        </table>
-
-        <h3>Dislike signal — unique MSN metric</h3>
-        <p>MSN is the only platform in this dataset with explicit negative feedback. Among the {N_MSN_DR:,} articles with at least one reaction, the median dislike rate is {MSN_DR_MED:.1%}. Articles in the top-quartile dislike bucket score {MSN_DR_LIFT:.2f}× the percentile rank of low-dislike articles (Mann-Whitney {_fmt_p(_msn_dr_p)}). High dislike rate and high views are {"positively" if _msn_dr_r > 0 else "negatively"} correlated (Spearman r={_msn_dr_r:.2f}) — controversial content drives both reach and friction.</p>
-        <p>Sports content draws the highest dislike rate by topic ({msn_sports_dr:.1%} median), consistent with the partisan audience dynamics typical of sports commentary. This does not mean avoiding sports on MSN — but it does mean high-dislike sports content may generate audience friction alongside its reach.</p>
-
-        <h3>Monthly pageview trend (2025)</h3>
-        <p>Median article pageviews declined from {MSN_JAN_MED_PV:,} (Jan 2025) to {MSN_DEC_MED_PV:,} (Dec 2025) — a {MSN_PV_DECLINE:.0%} drop across the year. Volume peaked in {MSN_MAX_VOL_MONTH} ({MSN_MAX_VOL_N:,} articles). This is a platform-level trend, not a formula or topic issue — the entire distribution shifted down across 2025.</p>
-        <table class="findings sortable">
-          <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
-          <tbody>{_t_msn_monthly}</tbody>
-        </table>
-        <p class="caveat">MSN 2025 (n={N_MSN:,}). Formula classifier same as Finding 1 — coverage may differ. Dislike rate = Dislikes / (Likes + Dislikes); only articles with ≥1 reaction included (n={N_MSN_DR:,}). Monthly trend uses raw pageviews (not percentile) to show absolute platform trajectory. 2026 data not yet included in MSN trend analysis.</p>
-      </div><!-- /#detail-msn -->
 
     </div><!-- /.detail-wrap -->
   </div><!-- /#detail-area -->
@@ -5108,13 +4875,6 @@ _pb_run_label = _slug_to_label(REPORT_DATE_SLUG)
 _CONF_RANK = {"conf-high": 0, "conf-mod": 1, "conf-dir": 2}
 
 _pb_tile_defs = [
-    ("conf-high", "pb-1", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-1')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Apple News \u00b7 Headline Formulas</span>
-    <p class="tile-claim">Number leads and question-format headlines significantly underperform the baseline. No formula shows confirmed lift above it \u2014 but specific patterns clearly underperform.</p>
-    <p class="tile-action">\u2192 Audit number-lead and question-format headlines. Specificity and execution matter more than format choice alone.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>"""),
     ("conf-high", "pb-2", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-2')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News \u00b7 Featured Targeting</span>
@@ -5122,32 +4882,11 @@ _pb_tile_defs = [
     <p class="tile-action">\u2192 Reserve \u201cWhat to know\u201d for intentional Featured campaigns. Don\u2019t apply it broadly for organic reach.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
-    ("conf-high", "pb-3", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-3')">
-    <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">SmartNews \u00b7 Channel Allocation</span>
-    <p class="tile-claim">Entertainment receives {float(_r4_ent['pct_share']):.0%} of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver {float(_r4_loc['lift']):.2f}\u00d7 and {float(_r4_us['lift']):.2f}\u00d7 on far less.</p>
-    <p class="tile-action">\u2192 Shift volume toward Local and U.S. National. No new content required \u2014 reframe what\u2019s already being published.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>"""),
     ("conf-mod", "pb-4", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Push Notifications \u00b7 Two Content Ecosystems</span>
     <p class="tile-claim">News brands ({N_NOTIF_NEWS} notifications, {CTR_MED_NEWS_STR} median CTR) and celebrity/entertainment ({N_NOTIF_UW}, {CTR_MED_UW_STR}) are 2.8\u00d7 apart in baseline CTR with non-overlapping formula signals. News: \u201cEXCLUSIVE:\u201d ({F4_EXCL_LIFT_STR}) and attribution ({F4_ATTR_LIFT_STR}) drive CTR. Celebrity: possessive framing ({F4_POSS_LIFT_STR}).</p>
     <p class="tile-action">\u2192 Build separate notification playbooks for news vs. celebrity content. The \u201cshort notification penalty\u201d previously reported was a pooling artifact \u2014 length shows no significant effect within either population.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>"""),
-    (HL_CONF_CLASS, "pb-5", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-5')">
-    <span class="conf-badge {HL_CONF_CLASS}">{HL_CONF_LABEL}</span>
-    <span class="tile-label">Apple News \u00b7 Headline Length</span>
-    <p class="tile-claim">Top-quartile headlines ({AN_LEN_Q4_CHARS_STR} chars) reach {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom-quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional \u2014 Q4 vs. Q1 difference not statistically confirmed."}</p>
-    <p class="tile-action">\u2192 Don\u2019t truncate. The \u226480 char rule applies to push notifications only \u2014 not to article headlines.</p>
-    <span class="tile-toggle">Details \u2193</span>
-  </div>"""),
-    ("conf-mod", "pb-6", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-6')">
-    <span class="conf-badge conf-mod">Moderate confidence</span>
-    <span class="tile-label">MSN \u00b7 Platform Trajectory &#x26; Dislike Signal</span>
-    <p class="tile-claim">MSN median pageviews fell {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a platform-level trend, not formula-driven. The dislike metric (unique to MSN) shows high-dislike articles score {MSN_DR_LIFT:.2f}\u00d7 the views of low-dislike articles ({_fmt_p(_msn_dr_p)}), but high dislike rate and high views are {"positively" if _msn_dr_r > 0 else "negatively"} correlated — controversial content drives both.</p>
-    <p class="tile-action">\u2192 Treat MSN as a reach supplement, not a growth channel. Use the dislike rate as an audience-friction signal, not a hard filter. Monitor sports content: highest dislike rate ({msn_sports_dr:.1%}) but also high reach.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
 ]
@@ -5319,23 +5058,6 @@ playbook_html = f"""<!DOCTYPE html>
 
 <!-- Detail panels (shown one at a time below the grid) -->
 
-<div id="pb-1" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Possessive + named entity</strong> on crime and business is associated with the highest consistent lift. Anchor to a specific person or company: "Target's layoffs," "Smith's arrest."</li>
-    <li><strong>Number leads:</strong> use specific figures in the {NL_SWEET_SPOT_CAT} range. Round numbers score {NL_ROUND_SPECIFIC_PTS} percentile points below specific numbers ({NL_P_STR} after BH-FDR).</li>
-    <li><strong>Avoid question format</strong> for organic reach — underperforms {_r1_q['lift']:.2f}× baseline ({F1_Q_P_STR}). Reserve for Featured targeting if "What to know" is unavailable.</li>
-    <li><strong>Don't truncate headlines</strong> to fit a format preference — median performing length is {AN_MEDIAN_HL_LEN:.0f} chars.</li>
-    <li><strong>Business and lifestyle</strong> have the widest outcome spread (IQR/median: {F6_BIZ_CV} and {F6_LIFE_CV}) — headline choice matters most here. Prioritize variant production on these topics first.</li>
-  </ul>
-  <h3 class="rh">Top formula × topic combinations — Apple News</h3>
-  <p class="detail-sub">Non-Featured articles only · ranked by lift vs. untagged baseline · ≥5 articles per cell</p>
-  <table>
-    <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Median %ile</th><th>Lift vs. baseline</th></tr></thead>
-    <tbody>{_t_an_guide}</tbody>
-  </table>
-</div>
-
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
@@ -5347,22 +5069,6 @@ playbook_html = f"""<!DOCTYPE html>
   <table>
     <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
     <tbody>{_t2}</tbody>
-  </table>
-</div>
-
-<div id="pb-3" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at {float(_r4_loc['lift']):.2f}× and {float(_r4_us['lift']):.2f}× median percentile rank respectively. Frame content with geographic specificity — "Sacramento," not "California," not "the region."</li>
-    <li><strong>Reduce Entertainment volume</strong>: {float(_r4_ent['pct_share']):.0%} of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
-    <li><strong>Sports underperforms</strong> ({sports_sn_idx:.2f}× platform median) — the same story with a local or civic frame does better than a sports frame.</li>
-    <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews — more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
-  </ul>
-  <h3 class="rh">Performance by channel — SmartNews</h3>
-  <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
-  <table>
-    <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody>{_t3}</tbody>
   </table>
 </div>
 
@@ -5382,43 +5088,6 @@ playbook_html = f"""<!DOCTYPE html>
     <tbody>{_t4}</tbody>
   </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
-</div>
-
-<div id="pb-5" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>Longer outperforms shorter on Apple News</strong> — top quartile ({AN_LEN_Q4_CHARS_STR} chars) reaches {AN_LEN_Q4_STR} median %ile vs. {AN_LEN_Q1_STR} for bottom quartile ({AN_LEN_Q1_CHARS_STR} chars). {"Mann-Whitney Q4 vs. Q1: " + HL_AN_P_STR + " (BH-FDR)." if HL_AN_P_STR else "Effect is directional — difference not statistically confirmed at this sample."}</li>
-    <li><strong>The \u226480-char rule applies to notifications only</strong> — don't apply it to article headlines. The data runs in the opposite direction.</li>
-    <li><strong>Longer headlines may proxy for longer, higher-stakes stories</strong> — confounders exist. Don't pad headlines to hit a character count; use the length the story requires.</li>
-    <li><strong>Business and lifestyle</strong> show the widest performance spread — length optimization is most likely to matter there.</li>
-  </ul>
-  <h3 class="rh">Views by headline length quartile — Apple News and SmartNews</h3>
-  <table>
-    <thead><tr><th>Length bucket</th><th>Median chars (AN)</th><th>Apple News n</th><th>Apple News median %ile</th><th>SmartNews n</th><th>SmartNews median %ile</th></tr></thead>
-    <tbody>{_t_hl_len}</tbody>
-  </table>
-  {"<p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News " + HL_AN_P_STR + "; SmartNews " + (HL_SN_P_STR or "—") + " (BH-FDR). Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>" if HL_AN_P_STR else "<p class='caveat'>Q4 vs. Q1 difference not statistically significant. Treat as directional orientation. Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>"}
-</div>
-
-<div id="pb-6" class="pb-detail" style="display:none">
-  <h3 class="rh">Rules of thumb</h3>
-  <ul class="rules">
-    <li><strong>MSN pageviews declined {MSN_PV_DECLINE:.0%} across 2025</strong> — this is a platform trajectory, not a content problem. Set expectations with stakeholders accordingly.</li>
-    <li><strong>High dislike rate ≠ avoid</strong> — high-dislike articles score {MSN_DR_LIFT:.2f}× the views of low-dislike articles. Controversial content drives both reach and friction on MSN.</li>
-    <li><strong>Sports: highest dislike rate ({msn_sports_dr:.1%})</strong> — but also high reach. Use the dislike rate as a friction signal when managing brand risk, not as a reach predictor.</li>
-    <li><strong>Formula signals on MSN mirror Apple News</strong> — number leads and "What to know" outperform; question format underperforms. Platform optimization for MSN does not require a separate formula playbook.</li>
-  </ul>
-  <h3 class="rh">Formula lift vs. baseline — MSN 2025</h3>
-  <table>
-    <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
-    <tbody>{_t_msn_formula}</tbody>
-  </table>
-  <h3 class="rh">Monthly pageview trend — MSN 2025</h3>
-  <table>
-    <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
-    <tbody>{_t_msn_monthly}</tbody>
-  </table>
-  <p class="caveat">MSN 2025 (n={N_MSN:,}). * = significant at α=0.05 after BH-FDR correction. Dislike rate analysis based on {N_MSN_DR:,} articles with ≥1 reaction. 2026 MSN data not yet wired into trend analysis.</p>
 </div>
 
 {_inline_sections_html}
@@ -6176,12 +5845,8 @@ _audit_warnings = _post_build_audit({
 _palette_warnings  = _check_color_palette()
 _formula_warnings  = _check_formula_labels()
 _legend_warnings   = _check_chart_legends({
-    "fig1 (formula lift)":       fig1,
-    "fig2 (featured rate)":      fig2,
-    "fig3 (SmartNews channels)": fig3,
     "fig4 (notification CTR)":   fig4,
     "fig5 (topic × platform)":   fig5,
-    "fig6 (variance by topic)":  fig6,
     "fig7 (engagement scatter)": fig7,
     "fig8 (longitudinal)":       fig8,
 })
