@@ -32,7 +32,7 @@ For session history: see [sessions/](sessions/)
 | Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 359 rows |
 | SmartNews 2025 | ✅ In repo | Full year, 32 category columns |
 | SmartNews 2026 | ✅ In repo | 30 cols; category breakdown restored by Tarrow; 11 common cats in Q4 |
-| MSN 2025 | ⚠️ Dec-only | Full-year re-export still pending from Tarrow |
+| MSN 2025 | ✅ In repo | Full year, Jan–Dec, 4,201 rows |
 | MSN 2026 | ✅ In repo | Jan–Feb, 355 rows |
 | MSN video 2026 | ✅ Known (404 rows) | In known-sheets list; not yet wired into analysis |
 | Yahoo 2025 | ✅ In repo | Full year |
@@ -43,7 +43,7 @@ For session history: see [sessions/](sessions/)
 ## Open Items
 
 **Data:**
-- [ ] Get full-year 2025 MSN re-export from Tarrow (current = Dec only)
+- [x] ~~Get full-year 2025 MSN re-export from Tarrow~~ — already in repo (4,201 rows, Jan–Dec)
 
 **Analysis (future sessions):**
 - [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
