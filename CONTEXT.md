@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — all 9 findings live, playbook, author-playbooks, experiments, full ingest pipeline
+**Phase:** Phase 2 complete — all 10 findings live, playbook (6 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-30 (Tarrow data drop — notifications 2025, SmartNews 2026 categories, Finding 4 brand-type rewrite)
+**Last session:** 2026-03-30 (MSN wiring — Finding 10, chart c5 updated, playbook tile pb-6)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -48,6 +48,7 @@ For session history: see [sessions/](sessions/)
 **Analysis (future sessions):**
 - [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
 - [x] ~~Add SmartNews 2026 category breakdown~~ — done 2026-03-30; 11 common cats now in Q4
+- [x] ~~Wire full-year MSN 2025 into pipeline~~ — done 2026-03-30; Finding 10 live (formula, dislike signal, monthly trend); chart c5 updated with MSN trace; playbook tile pb-6 added
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 
@@ -57,6 +58,19 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads
 
 ## Session Log
+
+**2026-03-30: MSN wiring — Finding 10 + chart c5 + playbook tile pb-6**
+
+Full-year MSN 2025 (4,201 rows) wired into analysis pipeline. Changes:
+
+- **Finding 10 added** (main page tile + detail panel): formula lift vs. baseline (BH-FDR corrected Mann-Whitney), dislike signal analysis (unique MSN metric — hi-dislike articles score {MSN_DR_LIFT}× views of lo-dislike; sports highest dislike rate), monthly PV trend showing decline across 2025.
+- **Chart c5 updated**: MSN added as third bar trace (orange) to the topic × platform chart; `ORANGE = "#f97316"` color constant added.
+- **Playbook tile pb-6 added** (Moderate confidence): MSN platform trajectory and dislike signal guidance. Detail panel added with formula table + monthly trend.
+- **Finding 5 caveat updated**: now includes MSN in sample size reference; MSN paragraph added to detail panel pointing readers to Finding 10.
+- **`_msn_formula_table()` and `_msn_monthly_table()`** helper functions added.
+- **`_COL_TOOLTIPS`** extended with "p (adj)", "month", "articles", "median pageviews".
+- **2025 data file updated** in repo root: `Top syndication content 2025.xlsx` replaced with the Tarrow drop that includes the "Apple News notifications" sheet (was missing from the prior file).
+- Build: all audits pass; 6 rigor warnings (3 standing + 3 engagement outlier cap notices).
 
 **2026-03-30: Tarrow data drop + Finding 4 brand-type rewrite**
 
