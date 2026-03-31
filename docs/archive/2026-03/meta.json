@@ -1,6 +1,6 @@
 {
   "release": "2026-03",
-  "generated": "2026-03-30T22:49:01",
+  "generated": "2026-03-30T23:03:17",
   "data_2025": "/Users/pierce/Downloads/Top syndication content 2025.xlsx",
   "data_2026": "/Users/pierce/Downloads/Top Stories 2026 Syndication.xlsx",
   "rows": {
@@ -9,8 +9,8 @@
     "notifications": 1783
   },
   "findings": {
-    "high_confidence": 4,
-    "moderate": 1,
+    "high_confidence": 5,
+    "moderate": 0,
     "directional": 0
   },
   "rigor_warnings": [
@@ -21,5 +21,5 @@
     "[biz_subtopic] No significance test (n_a=106, n_b=277). Add Mann-Whitney U.",
     "[pol_subtopic] No significance test (n_a=290, n_b=556). Add Mann-Whitney U."
   ],
-  "hero": "Sports is #2 on Apple News and #9 (last) on SmartNews \u2014 the largest topic-rank gap across platforms (rank gap: 7). \u201cExcl"
+  "hero": "Sports is #2 on Apple News and #9 (last) on SmartNews \u2014 the largest topic-rank gap across platforms (rank gap: 7). Smart"
 }
