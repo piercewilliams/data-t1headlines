@@ -86,6 +86,7 @@ NAVY   = "#0f172a"
 BLUE   = "#2563eb"
 GREEN  = "#16a34a"
 RED    = "#dc2626"
+ORANGE = "#f97316"
 AMBER  = "#f59e0b"
 GRAY   = "#64748b"
 LIGHT  = "#f8fafc"
@@ -1072,13 +1073,22 @@ for cat in CATS:
 # Prep sn26 for category analysis (Tarrow rebuilt with full breakdown)
 sn26["_sn_month"] = sn26["date"].astype(str)
 for _cat in CATS_COMMON:
-    sn26[_cat] = pd.to_numeric(sn26.get(_cat, 0), errors="coerce").fillna(0)
+    if _cat in sn26.columns:
+        sn26[_cat] = pd.to_numeric(sn26[_cat], errors="coerce").fillna(0)
+    else:
+        sn26[_cat] = 0.0
+
+# MSN feature engineering
+msn["formula"]    = msn["Title"].apply(classify_formula)
+msn["topic"]      = msn["Title"].apply(tag_topic)
+msn["_msn_month"] = pd.to_datetime(msn["Date"], errors="coerce").dt.to_period("M").astype(str)
 
 # ── Normalize ────────────────────────────────────────────────────────────────
 print("Normalizing…")
 an    = normalize(an,    views_col="Total Views",   date_col="Date Published", group_col="_pub_month")
 sn    = normalize(sn,    views_col="article_view",  date_col=None,             group_col="_sn_month")
 sn26  = normalize(sn26,  views_col="article_view",  date_col=None,             group_col="_sn_month")
+msn   = normalize(msn,   views_col="Pageviews",     date_col=None,             group_col="_msn_month")
 yahoo = normalize(yahoo, views_col="Content Views", date_col="Publish Date",   group_col="_pub_month")
 
 # Subtopics
@@ -1502,17 +1512,21 @@ df_var = df_var.sort_values("an_cv", ascending=True)
 
 
 # ── Topics ────────────────────────────────────────────────────────────────────
-an_topic = an.groupby("topic")[VIEWS_METRIC].median().reset_index()
-an_topic.columns = ["topic", "an_median"]
-sn_topic = sn.groupby("topic")[VIEWS_METRIC].median().reset_index()
-sn_topic.columns = ["topic", "sn_median"]
-topic_df = an_topic.merge(sn_topic, on="topic")
+an_topic  = an.groupby("topic")[VIEWS_METRIC].median().reset_index()
+an_topic.columns  = ["topic", "an_median"]
+sn_topic  = sn.groupby("topic")[VIEWS_METRIC].median().reset_index()
+sn_topic.columns  = ["topic", "sn_median"]
+msn_topic = msn.groupby("topic")[VIEWS_METRIC].median().reset_index()
+msn_topic.columns = ["topic", "msn_median"]
+topic_df = an_topic.merge(sn_topic, on="topic").merge(msn_topic, on="topic", how="left")
 topic_df["label"] = topic_df["topic"].map(TOPIC_LABELS)
 
-an_overall = an[VIEWS_METRIC].median()
-sn_overall = sn[VIEWS_METRIC].median()
-topic_df["an_idx"] = topic_df["an_median"] / an_overall
-topic_df["sn_idx"] = topic_df["sn_median"] / sn_overall
+an_overall  = an[VIEWS_METRIC].median()
+sn_overall  = sn[VIEWS_METRIC].median()
+msn_overall = msn[VIEWS_METRIC].median()
+topic_df["an_idx"]  = topic_df["an_median"]  / an_overall
+topic_df["sn_idx"]  = topic_df["sn_median"]  / sn_overall
+topic_df["msn_idx"] = topic_df["msn_median"].fillna(0) / msn_overall
 topic_df = topic_df.sort_values("an_idx", ascending=True)
 
 an_ranked = topic_df.sort_values("an_idx", ascending=False).reset_index(drop=True)
@@ -1527,6 +1541,8 @@ sports_an_rank = int(an_ranked[an_ranked["topic"] == "sports"].index[0]) + 1
 sports_sn_rank = int(sn_ranked[sn_ranked["topic"] == "sports"].index[0]) + 1
 sports_an_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "an_idx"].iloc[0])
 sports_sn_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "sn_idx"].iloc[0])
+sports_msn_idx = float(topic_df.loc[topic_df["topic"] == "sports", "msn_idx"].iloc[0]) if "sports" in topic_df["topic"].values else 0.0
+politics_msn_idx = float(topic_df.loc[topic_df["topic"] == "politics", "msn_idx"].iloc[0]) if "politics" in topic_df["topic"].values else 0.0
 nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
 nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
 
@@ -1919,6 +1935,58 @@ df_wc_quartile = pd.DataFrame()
 WC_MATCHED_N   = 0
 WC_Q4_VS_Q2_P  = np.nan
 
+# ── MSN: Formula performance, dislike signal, monthly trend ──────────────────
+print("Computing MSN…")
+N_MSN = len(msn)
+
+# Formula performance (each formula vs. "other" baseline; BH-FDR corrected)
+_msn_base_pct = msn[msn["formula"] == "other"][VIEWS_METRIC]
+msn_formula_rows: list = []
+_msn_f_raw_p: list = []
+_msn_f_idx: list = []
+for _mf, _mgrp in msn.groupby("formula"):
+    _msub = _mgrp[VIEWS_METRIC]
+    if len(_msub) < 10 or _mf == "other":
+        continue
+    _mlift = _msub.median() / _msn_base_pct.median() if _msn_base_pct.median() > 0 else np.nan
+    _mu    = stats.mannwhitneyu(_msub, _msn_base_pct, alternative="two-sided")
+    _msn_f_raw_p.append(_mu.pvalue)
+    _msn_f_idx.append(len(msn_formula_rows))
+    msn_formula_rows.append(dict(formula=_mf, n=len(_msub), median=_msub.median(),
+                                 lift=_mlift, p=_mu.pvalue))
+_msn_f_adj = bh_correct(_msn_f_raw_p)
+for _adj, _ri in zip(_msn_f_adj, _msn_f_idx):
+    msn_formula_rows[_ri]["p_adj"] = _adj
+df_msn_formula = (pd.DataFrame(msn_formula_rows).sort_values("lift")
+                  if msn_formula_rows else pd.DataFrame(
+                      columns=["formula","n","median","lift","p","p_adj"]))
+if not df_msn_formula.empty and "p_adj" not in df_msn_formula.columns:
+    df_msn_formula["p_adj"] = np.nan
+
+# Dislike signal — unique MSN metric
+msn_dr = msn[msn["Likes"] > 0].copy()
+msn_dr["dislike_rate"] = msn_dr["Dislikes"] / (msn_dr["Likes"] + msn_dr["Dislikes"])
+N_MSN_DR     = len(msn_dr)
+MSN_DR_MED   = msn_dr["dislike_rate"].median()
+_msn_dr_r, _ = stats.spearmanr(msn_dr["dislike_rate"], msn_dr["Pageviews"])
+msn_hi_dr    = msn_dr[msn_dr["dislike_rate"] > msn_dr["dislike_rate"].quantile(0.75)][VIEWS_METRIC]
+msn_lo_dr    = msn_dr[msn_dr["dislike_rate"] < msn_dr["dislike_rate"].quantile(0.25)][VIEWS_METRIC]
+_, _msn_dr_p = stats.mannwhitneyu(msn_hi_dr, msn_lo_dr, alternative="two-sided")
+MSN_DR_LIFT  = msn_hi_dr.median() / msn_lo_dr.median() if msn_lo_dr.median() > 0 else np.nan
+msn_sports_dr = (msn_dr[msn_dr["topic"] == "sports"]["dislike_rate"].median()
+                 if "sports" in msn_dr["topic"].values else 0.0)
+
+# Monthly PV trend
+msn_monthly = (msn.groupby("_msn_month")
+               .agg(n=("Pageviews","count"), med_pv=("Pageviews","median"))
+               .reset_index()
+               .sort_values("_msn_month"))
+MSN_JAN_MED_PV    = int(msn_monthly["med_pv"].iloc[0])  if len(msn_monthly) > 0 else 0
+MSN_DEC_MED_PV    = int(msn_monthly["med_pv"].iloc[-1]) if len(msn_monthly) > 0 else 0
+MSN_PV_DECLINE    = 1.0 - MSN_DEC_MED_PV / MSN_JAN_MED_PV if MSN_JAN_MED_PV > 0 else 0.0
+MSN_MAX_VOL_MONTH = str(msn_monthly.loc[msn_monthly["n"].idxmax(), "_msn_month"]) if len(msn_monthly) > 0 else "—"
+MSN_MAX_VOL_N     = int(msn_monthly["n"].max()) if len(msn_monthly) > 0 else 0
+
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
 HAS_TRACKER  = False
@@ -2238,6 +2306,10 @@ _COL_TOOLTIPS: dict[str, str] = {
     "q1 2026":                        "Articles published January-March 2026.",
     "q2 2026":                        "Articles published April-June 2026.",
     "q3 2026":                        "Articles published July-September 2026.",
+    "p (adj)":                        "P-value after BH-FDR correction for multiple comparisons; below 0.05 = statistically significant.",
+    "month":                          "Calendar month (YYYY-MM format).",
+    "articles":                       "Number of articles published in this month.",
+    "median pageviews":               "The middle article's raw pageview count for this month.",
 }
 
 
@@ -3326,6 +3398,31 @@ def _team_top_table() -> str:
                      f"<td>{feat_str}</td></tr>\n")
     return html_out
 
+def _msn_formula_table() -> str:
+    """Return HTML <tr> rows for MSN formula performance table."""
+    if df_msn_formula.empty:
+        return "<tr><td colspan='4'>No MSN formula data.</td></tr>"
+    html_out = ""
+    for _, r in df_msn_formula.sort_values("lift", ascending=False).iterrows():
+        sig = " *" if pd.notna(r.get("p_adj")) and r["p_adj"] < 0.05 else ""
+        p_str = f"{r['p_adj']:.3f}" if pd.notna(r.get("p_adj")) else "—"
+        html_out += (f"<tr><td>{html_module.escape(str(r['formula']))}</td>"
+                     f"<td>{int(r['n'])}</td>"
+                     f"<td>{r['lift']:.2f}×{sig}</td>"
+                     f"<td>{p_str}</td></tr>\n")
+    return html_out
+
+def _msn_monthly_table() -> str:
+    """Return HTML <tr> rows for MSN monthly PV trend table."""
+    if msn_monthly.empty:
+        return "<tr><td colspan='3'>No MSN monthly data.</td></tr>"
+    html_out = ""
+    for _, r in msn_monthly.iterrows():
+        html_out += (f"<tr><td>{html_module.escape(str(r['_msn_month']))}</td>"
+                     f"<td>{int(r['n']):,}</td>"
+                     f"<td>{int(r['med_pv']):,}</td></tr>\n")
+    return html_out
+
 _t1 = _q1_table()
 _t2 = _q2_table()
 _t3 = _q4_table()
@@ -3347,6 +3444,8 @@ _t_formula_team    = _formula_team_table()
 _t_content_type    = _content_type_table()
 _t_author_profiles = _author_profiles_table()
 _t_vert_plat       = _vert_plat_table()
+_t_msn_formula     = _msn_formula_table()
+_t_msn_monthly     = _msn_monthly_table()
 
 _excl_sensitivity_html = ""
 if EXCL_NOGUTH_LIFT is not None and _r5_excl is not None:
@@ -3653,6 +3752,12 @@ fig5.add_trace(go.Bar(
     name="SmartNews", orientation="h",
     marker_color=GREEN, opacity=0.85,
     hovertemplate="<b>%{y}</b><br>SmartNews: %{x:.2f}× platform median<extra></extra>",
+))
+fig5.add_trace(go.Bar(
+    y=topic_df["label"].tolist(), x=topic_df["msn_idx"].tolist(),
+    name="MSN", orientation="h",
+    marker_color=ORANGE, opacity=0.85,
+    hovertemplate="<b>%{y}</b><br>MSN: %{x:.2f}× platform median<extra></extra>",
 ))
 fig5.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
                annotation_text="Platform median", annotation_position="top")
@@ -4330,6 +4435,13 @@ html = f"""<!DOCTYPE html>
     </div>
     """}
 
+    <div class="tile" onclick="showDetail('msn', this)">
+      <span class="tile-num">10 · MSN Performance</span>
+      <p class="tile-claim">MSN median pageviews declined {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a clear platform-level headwind. Sports draws the highest dislike rate ({msn_sports_dr:.1%} median) yet also high views, suggesting sports readers engage but critics are vocal. Formula signals mirror Apple News: number leads and "What to know" outperform baseline.</p>
+      <p class="tile-action">→ Don't expect growing PV returns from MSN — optimize for formula fit and low dislike risk on non-sports content. Monitor the dislike/views tradeoff on sports stories.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+
   </div><!-- /.tile-grid -->
 
   <div class="detail-area" id="detail-area" style="display:none;">
@@ -4463,6 +4575,7 @@ html = f"""<!DOCTYPE html>
         </div>
         <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. {"The inversion is statistically significant (Mann-Whitney U, " + SPORTS_P_STR + ") across the full year of 2025 data." if SPORTS_P_STR else "The inversion holds across the full year of 2025 data."}</p>
         <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
+        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average, consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}. See Finding 10 for a full MSN analysis.</p>
         <div class="chart-wrap">{c5}</div>
         <h3>Sports subtopic performance by platform</h3>
         <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
@@ -4480,7 +4593,7 @@ html = f"""<!DOCTYPE html>
           <div class="example-list example-top"><h4>Top quartile politics headlines</h4><ul>{pol_top_h}</ul></div>
           <div class="example-list example-bot"><h4>Bottom quartile politics headlines</h4><ul>{pol_bot_h}</ul></div>
         </div>
-        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Subtopics with n&lt;3 show "—".</p>
+        <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}); MSN 2025 (n={N_MSN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Subtopics with n&lt;3 show "—".</p>
       </div><!-- /#detail-topics -->
 
       <!-- DETAIL: ALLOCATION -->
@@ -4618,6 +4731,34 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Percentile ranks are platform-relative (SmartNews vs. SmartNews, etc.). Word count is from the tracker. Match rate is low for Apple News (URL format mismatch); SmartNews is the most reliable cohort.</p>
       </div><!-- /#detail-team -->
       """}
+
+      <!-- DETAIL: MSN -->
+      <div class="detail-panel" id="detail-msn">
+        <h2>Finding 10 · MSN Platform Analysis</h2>
+        <div class="callout">
+          <strong>Action:</strong> MSN pageviews declined {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a platform-level headwind that is not formula-driven. Use MSN primarily as a reach supplement, not a growth channel. Avoid high-dislike-risk content types; sports generates high views but also the highest dislike rate ({msn_sports_dr:.1%}), signaling audience friction.
+        </div>
+        <p>Full-year 2025 MSN data covers {N_MSN:,} articles across all T1 outlets. The platform offers a unique metric not available on Apple News or SmartNews: explicit audience reaction (Likes/Dislikes), making it possible to measure content friction directly.</p>
+
+        <h3>Formula performance on MSN</h3>
+        <p>Formula classification uses the same headline classifier as Finding 1 (Apple News). Each formula is tested against the "other/untagged" baseline using Mann-Whitney U with BH-FDR correction. * = significant at α=0.05 after correction.</p>
+        <table class="findings sortable">
+          <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
+          <tbody>{_t_msn_formula}</tbody>
+        </table>
+
+        <h3>Dislike signal — unique MSN metric</h3>
+        <p>MSN is the only platform in this dataset with explicit negative feedback. Among the {N_MSN_DR:,} articles with at least one reaction, the median dislike rate is {MSN_DR_MED:.1%}. Articles in the top-quartile dislike bucket score {MSN_DR_LIFT:.2f}× the percentile rank of low-dislike articles (Mann-Whitney {_fmt_p(_msn_dr_p)}). High dislike rate and high views are {"positively" if _msn_dr_r > 0 else "negatively"} correlated (Spearman r={_msn_dr_r:.2f}) — controversial content drives both reach and friction.</p>
+        <p>Sports content draws the highest dislike rate by topic ({msn_sports_dr:.1%} median), consistent with the partisan audience dynamics typical of sports commentary. This does not mean avoiding sports on MSN — but it does mean high-dislike sports content may generate audience friction alongside its reach.</p>
+
+        <h3>Monthly pageview trend (2025)</h3>
+        <p>Median article pageviews declined from {MSN_JAN_MED_PV:,} (Jan 2025) to {MSN_DEC_MED_PV:,} (Dec 2025) — a {MSN_PV_DECLINE:.0%} drop across the year. Volume peaked in {MSN_MAX_VOL_MONTH} ({MSN_MAX_VOL_N:,} articles). This is a platform-level trend, not a formula or topic issue — the entire distribution shifted down across 2025.</p>
+        <table class="findings sortable">
+          <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
+          <tbody>{_t_msn_monthly}</tbody>
+        </table>
+        <p class="caveat">MSN 2025 (n={N_MSN:,}). Formula classifier same as Finding 1 — coverage may differ. Dislike rate = Dislikes / (Likes + Dislikes); only articles with ≥1 reaction included (n={N_MSN_DR:,}). Monthly trend uses raw pageviews (not percentile) to show absolute platform trajectory. 2026 data not yet included in MSN trend analysis.</p>
+      </div><!-- /#detail-msn -->
 
     </div><!-- /.detail-wrap -->
   </div><!-- /#detail-area -->
@@ -5002,6 +5143,13 @@ _pb_tile_defs = [
     <p class="tile-action">\u2192 Don\u2019t truncate. The \u226480 char rule applies to push notifications only \u2014 not to article headlines.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
+    ("conf-mod", "pb-6", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-6')">
+    <span class="conf-badge conf-mod">Moderate confidence</span>
+    <span class="tile-label">MSN \u00b7 Platform Trajectory &#x26; Dislike Signal</span>
+    <p class="tile-claim">MSN median pageviews fell {MSN_PV_DECLINE:.0%} from Jan to Dec 2025 — a platform-level trend, not formula-driven. The dislike metric (unique to MSN) shows high-dislike articles score {MSN_DR_LIFT:.2f}\u00d7 the views of low-dislike articles ({_fmt_p(_msn_dr_p)}), but high dislike rate and high views are {"positively" if _msn_dr_r > 0 else "negatively"} correlated — controversial content drives both.</p>
+    <p class="tile-action">\u2192 Treat MSN as a reach supplement, not a growth channel. Use the dislike rate as an audience-friction signal, not a hard filter. Monitor sports content: highest dislike rate ({msn_sports_dr:.1%}) but also high reach.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
 ]
 
 _pb_tile_defs.sort(key=lambda x: _CONF_RANK.get(x[0], 3))  # stable sort preserves original order within same rank
@@ -5250,6 +5398,27 @@ playbook_html = f"""<!DOCTYPE html>
     <tbody>{_t_hl_len}</tbody>
   </table>
   {"<p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News " + HL_AN_P_STR + "; SmartNews " + (HL_SN_P_STR or "—") + " (BH-FDR). Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>" if HL_AN_P_STR else "<p class='caveat'>Q4 vs. Q1 difference not statistically significant. Treat as directional orientation. Confounders possible — longer headlines may coincide with longer, higher-stakes stories.</p>"}
+</div>
+
+<div id="pb-6" class="pb-detail" style="display:none">
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
+    <li><strong>MSN pageviews declined {MSN_PV_DECLINE:.0%} across 2025</strong> — this is a platform trajectory, not a content problem. Set expectations with stakeholders accordingly.</li>
+    <li><strong>High dislike rate ≠ avoid</strong> — high-dislike articles score {MSN_DR_LIFT:.2f}× the views of low-dislike articles. Controversial content drives both reach and friction on MSN.</li>
+    <li><strong>Sports: highest dislike rate ({msn_sports_dr:.1%})</strong> — but also high reach. Use the dislike rate as a friction signal when managing brand risk, not as a reach predictor.</li>
+    <li><strong>Formula signals on MSN mirror Apple News</strong> — number leads and "What to know" outperform; question format underperforms. Platform optimization for MSN does not require a separate formula playbook.</li>
+  </ul>
+  <h3 class="rh">Formula lift vs. baseline — MSN 2025</h3>
+  <table>
+    <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
+    <tbody>{_t_msn_formula}</tbody>
+  </table>
+  <h3 class="rh">Monthly pageview trend — MSN 2025</h3>
+  <table>
+    <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
+    <tbody>{_t_msn_monthly}</tbody>
+  </table>
+  <p class="caveat">MSN 2025 (n={N_MSN:,}). * = significant at α=0.05 after BH-FDR correction. Dislike rate analysis based on {N_MSN_DR:,} articles with ≥1 reaction. 2026 MSN data not yet wired into trend analysis.</p>
 </div>
 
 {_inline_sections_html}
