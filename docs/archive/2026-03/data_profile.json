@@ -119,14 +119,11 @@
     }
   },
   "2026/SmartNews": {
-    "rows": 362,
-    "cols": 30,
+    "rows": 3632,
+    "cols": 7,
     "null_rates": {
-      "Us Weekly": 0.169,
-      "Search": 0.378,
-      "Unnamed: 27": 0.627,
-      "Unnamed: 28": 0.627,
-      "Unnamed: 29": 0.627
+      "period": 0.946,
+      "domain": 0.054
     }
   }
 }
