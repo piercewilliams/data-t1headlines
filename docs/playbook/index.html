@@ -185,7 +185,7 @@
   <div class="pb-tile" onclick="togglePb(this,'pb-3')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">SmartNews · Channel Allocation</span>
-    <p class="tile-claim">Entertainment receives 36% of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver 1.85× and 1.80× on far less.</p>
+    <p class="tile-claim">Entertainment receives 33% of SmartNews volume at the lowest median percentile rank. Local and U.S. National deliver 1.85× and 1.81× on far less.</p>
     <p class="tile-action">→ Shift volume toward Local and U.S. National. No new content required—reframe what’s already being published.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
@@ -203,6 +203,14 @@
     <span class="tile-label">Push Notifications · Two Content Ecosystems</span>
     <p class="tile-claim">News brands (1036 notifications, 1.41% median CTR) and celebrity/entertainment (747, 4.01%) are 2.8× apart in baseline CTR with non-overlapping formula signals. News: “EXCLUSIVE:” (—) and attribution (1.33×) drive CTR. Celebrity: possessive framing (1.17×).</p>
     <p class="tile-action">→ Build separate notification playbooks for news vs. celebrity content. The “short notification penalty” previously reported was a pooling artifact—length shows no significant effect within either population.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-6')">
+    <span class="conf-badge conf-mod">Moderate confidence</span>
+    <span class="tile-label">MSN · Platform Trajectory &#x26; Dislike Signal</span>
+    <p class="tile-claim">MSN median pageviews fell 53% from Jan to Dec 2025—a platform-level trend, not formula-driven. The dislike metric (unique to MSN) shows high-dislike articles score 0.87× the views of low-dislike articles (p=0.001 **), but high dislike rate and high views are negatively correlated—controversial content drives both.</p>
+    <p class="tile-action">→ Treat MSN as a reach supplement, not a growth channel. Use the dislike rate as an audience-friction signal, not a hard filter. Monitor sports content: highest dislike rate (45.2%) but also high reach.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -264,8 +272,8 @@
 <div id="pb-3" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.80× median percentile rank respectively. Frame content with geographic specificity—"Sacramento," not "California," not "the region."</li>
-    <li><strong>Reduce Entertainment volume</strong>: 36% of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
+    <li><strong>Local and U.S. National channels</strong> are severely underused at 1.85× and 1.81× median percentile rank respectively. Frame content with geographic specificity—"Sacramento," not "California," not "the region."</li>
+    <li><strong>Reduce Entertainment volume</strong>: 33% of articles, lowest median percentile rank. Reframe entertainment content toward lifestyle or local angles where possible.</li>
     <li><strong>Sports underperforms</strong> (0.77× platform median)—the same story with a local or civic frame does better than a sports frame.</li>
     <li><strong>Channel allocation is the highest-leverage variable</strong> on SmartNews—more impactful than headline formula. Fix the allocation first, then optimize formulas within channels.</li>
   </ul>
@@ -273,17 +281,17 @@
   <p class="detail-sub">Lift compares each channel's median %ile to the Top feed baseline. High lift + low volume = underused channel.</p>
   <table>
     <thead><tr><th>Channel</th><th>Article count</th><th>% of total</th><th>Median %ile</th><th>Median raw views</th><th>Lift vs. Top</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;Local</td><td>1,144</td><td>3.0%</td><td>97%</td><td>16,567</td><td>1.85×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;U.S.</td><td>970</td><td>2.5%</td><td>94%</td><td>11,469</td><td>1.80×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;Business</td><td>152</td><td>0.4%</td><td>79%</td><td>8,774</td><td>1.51×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Health</td><td>297</td><td>0.8%</td><td>68%</td><td>1,260</td><td>1.30×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>World</td><td>136</td><td>0.4%</td><td>67%</td><td>4,213</td><td>1.29×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Science</td><td>121</td><td>0.3%</td><td>66%</td><td>362</td><td>1.26×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Politics</td><td>610</td><td>1.6%</td><td>66%</td><td>335</td><td>1.26×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Lifestyle</td><td>3,238</td><td>8.4%</td><td>60%</td><td>253</td><td>1.15×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Entertainment</td><td>13,892</td><td>36.0%</td><td>59%</td><td>233</td><td>1.14×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td>Technology</td><td>72</td><td>0.2%</td><td>57%</td><td>167</td><td>1.09×</td><td>p<sub>adj</sub>=0.08</td></tr>
-<tr><td>Top feed (baseline)</td><td>34,235</td><td>88.7%</td><td>52%</td><td>156</td><td>1.00×</td><td>—</td></tr>
+    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;Local</td><td>1,097</td><td>2.6%</td><td>97%</td><td>16,593</td><td>1.85×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;U.S.</td><td>909</td><td>2.2%</td><td>95%</td><td>11,153</td><td>1.81×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;Business</td><td>125</td><td>0.3%</td><td>84%</td><td>1,933</td><td>1.62×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td>Health</td><td>235</td><td>0.6%</td><td>73%</td><td>565</td><td>1.40×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td>World</td><td>120</td><td>0.3%</td><td>73%</td><td>580</td><td>1.40×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td>Science</td><td>117</td><td>0.3%</td><td>67%</td><td>354</td><td>1.28×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td>Politics</td><td>607</td><td>1.4%</td><td>66%</td><td>331</td><td>1.26×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-red">↓</span>&nbsp;Lifestyle</td><td>3,156</td><td>7.5%</td><td>60%</td><td>240</td><td>1.16×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-red">↓</span>&nbsp;Entertainment</td><td>13,713</td><td>32.7%</td><td>59%</td><td>224</td><td>1.14×</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td>Technology</td><td>70</td><td>0.2%</td><td>54%</td><td>152</td><td>1.03×</td><td>p<sub>adj</sub>=0.11</td></tr>
+<tr><td>Top feed (baseline)</td><td>34,006</td><td>81.2%</td><td>52%</td><td>153</td><td>1.00×</td><td>—</td></tr>
 </tbody>
   </table>
 </div>
@@ -329,6 +337,45 @@
 </tbody>
   </table>
   <p class='caveat'>Mann-Whitney U (Q4 vs. Q1): Apple News p<sub>adj</sub>&lt;0.001 ***; SmartNews p<sub>adj</sub>&lt;0.001 *** (BH-FDR). Confounders possible—longer headlines may coincide with longer, higher-stakes stories.</p>
+</div>
+
+<div id="pb-6" class="pb-detail" style="display:none">
+  <h3 class="rh">Rules of thumb</h3>
+  <ul class="rules">
+    <li><strong>MSN pageviews declined 53% across 2025</strong>—this is a platform trajectory, not a content problem. Set expectations with stakeholders accordingly.</li>
+    <li><strong>High dislike rate ≠ avoid</strong>—high-dislike articles score 0.87× the views of low-dislike articles. Controversial content drives both reach and friction on MSN.</li>
+    <li><strong>Sports: highest dislike rate (45.2%)</strong>—but also high reach. Use the dislike rate as a friction signal when managing brand risk, not as a reach predictor.</li>
+    <li><strong>Formula signals on MSN mirror Apple News</strong>—number leads and "What to know" outperform; question format underperforms. Platform optimization for MSN does not require a separate formula playbook.</li>
+  </ul>
+  <h3 class="rh">Formula lift vs. baseline—MSN 2025</h3>
+  <table>
+    <thead><tr><th>Formula</th><th>n</th><th>Lift vs. baseline</th><th>p (adj)</th></tr></thead>
+    <tbody><tr><td>heres_formula</td><td>43</td><td>nan×</td><td>—</td></tr>
+<tr><td>number_lead</td><td>159</td><td>nan×</td><td>—</td></tr>
+<tr><td>possessive_named_entity</td><td>178</td><td>nan×</td><td>—</td></tr>
+<tr><td>question</td><td>23</td><td>nan×</td><td>—</td></tr>
+<tr><td>quoted_lede</td><td>887</td><td>nan×</td><td>—</td></tr>
+<tr><td>untagged</td><td>2910</td><td>nan×</td><td>—</td></tr>
+</tbody>
+  </table>
+  <h3 class="rh">Monthly pageview trend—MSN 2025</h3>
+  <table>
+    <thead><tr><th>Month</th><th>Articles</th><th>Median pageviews</th></tr></thead>
+    <tbody><tr><td>2025-01</td><td>157</td><td>50,166</td></tr>
+<tr><td>2025-02</td><td>237</td><td>72,242</td></tr>
+<tr><td>2025-03</td><td>410</td><td>52,260</td></tr>
+<tr><td>2025-04</td><td>314</td><td>79,748</td></tr>
+<tr><td>2025-05</td><td>349</td><td>55,457</td></tr>
+<tr><td>2025-06</td><td>350</td><td>59,033</td></tr>
+<tr><td>2025-07</td><td>351</td><td>46,226</td></tr>
+<tr><td>2025-08</td><td>442</td><td>41,437</td></tr>
+<tr><td>2025-09</td><td>464</td><td>35,522</td></tr>
+<tr><td>2025-10</td><td>504</td><td>30,413</td></tr>
+<tr><td>2025-11</td><td>338</td><td>25,562</td></tr>
+<tr><td>2025-12</td><td>285</td><td>23,472</td></tr>
+</tbody>
+  </table>
+  <p class="caveat">MSN 2025 (n=4,201). * = significant at α=0.05 after BH-FDR correction. Dislike rate analysis based on 4,200 articles with ≥1 reaction. 2026 MSN data not yet wired into trend analysis.</p>
 </div>
 
 
@@ -639,7 +686,7 @@ function toggleTheme() {
 
 /* ── Column header tooltips ───────────────────────────────────────────────── */
 (function() {
-  var _TIPS = {"n": "Number of articles in this group.", "median %ile": "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.", "cohort %ile": "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.", "type": "Whether the article is an original piece or an AI-generated variant.", "structure": "The sub-pattern used by headlines that don't fit any main formula—helps identify emerging patterns.", "formula": "The structural template used in this headline (e.g. 'What to know', number lead).", "share": "This formula's fraction of all articles in the dataset.", "lift vs. team": "How much higher this author's median rank is compared to the team average; 1.2x means 20% above average.", "platform": "The distribution app where this article was published (Apple News, SmartNews, Yahoo, or MSN).", "headline": "The article headline as published to the distribution platform.", "views": "Total raw page views recorded for this article.", "author": "The article's author as recorded in the content tracker.", "n articles": "Number of articles attributed to this person in the dataset.", "article": "The article headline as published.", "platform / brand": "The distribution app and the specific publication outlet.", "featured": "Whether Apple News editorially promoted this article to a Featured story slot.", "word count quartile": "Articles split into four equal groups by word count, from shortest (Q1) to longest (Q4).", "median word count": "The middle article's word count within this quartile group.", "number type": "Whether the number in the headline is rounded (e.g. '10 things') or specific (e.g. '7 takeaways').", "lift vs. baseline": "How much higher this group's median rank is compared to untagged headlines; 1.5x means 50% higher.", "number range": "The size of the number used—small (2-9), medium (10-99), or large (100+).", "lift": "How much higher this group's median rank is compared to the reference group; 1.0 = same, 1.5x = 50% higher.", "95% ci (bootstrap)": "The range we're 95% confident the true lift falls within, estimated by resampling the data 1,000 times.", "effect size r": "How practically significant the difference is (0 = none, 0.3+ = meaningful, 0.5+ = large).", "padj (bh-fdr)": "P-value corrected for testing multiple groups at once; below 0.05 means the result is unlikely to be random chance.", "n needed (80% power)": "How many more articles would be needed to reliably detect this effect in a controlled experiment.", "featured rate": "Share of this formula's articles that Apple News promoted to a Featured editorial slot.", "within-featured median %ile": "Among articles Apple News Featured, how this formula ranked against other Featured articles.", "channel": "The SmartNews topic channel this article was routed to (e.g. Entertainment, Local, Top).", "article count": "Number of articles published to this SmartNews channel.", "% of total": "This channel's share of all SmartNews articles in the dataset.", "median raw views": "The middle article's actual view count—not normalized, so months with more traffic naturally score higher.", "lift vs. top": "How this channel's median rank compares to the Top feed, which is the reference baseline.", "feature": "The headline characteristic being tested (e.g. contains a named person, uses a question mark).", "n (present)": "Number of push notifications where this feature appeared in the headline.", "median ctr (present)": "The middle click-through rate when this feature was in the headline; CTR = clicks divided by impressions.", "median ctr (absent)": "The middle click-through rate when this feature was NOT in the headline.", "lift (95% ci)": "CTR improvement ratio with confidence range; 2.0x (1.5-2.5) means roughly twice the clicks when the feature is present.", "sport": "The specific sport sub-category (football, basketball, baseball, etc.).", "apple news n": "Number of articles published to Apple News in this group.", "apple news median %ile": "The middle Apple News article's rank within its publication-month cohort.", "smartnews n": "Number of articles published to SmartNews in this group.", "smartnews median %ile": "The middle SmartNews article's rank within its publication-month cohort.", "subtopic": "A more specific sub-category within the broader topic (e.g. 'violent crime' within crime, 'NFL' within sports).", "length bucket": "Headlines grouped by character count from shortest to longest.", "median chars (an)": "The middle headline length in characters for Apple News articles in this group.", "metric": "The reader engagement signal being compared against view count.", "correlation with total views": "How strongly this metric moves together with view count; +1.0 = always in sync, 0 = unrelated.", "what it measures": "Plain-language description of what this engagement metric tracks.", "content type": "The article's editorial category (sports, politics, crime, etc.).", "n matched": "Number of articles where tracker data was successfully linked to distribution platform data.", "formula type": "The structural template used in this headline.", "share of team output": "Fraction of the team's total articles that used this formula.", "total matched": "Number of this author's articles successfully linked to distribution platform data.", "dominant formula (performance)": "The formula type that produced this author's best-performing articles by cohort percentile.", "vertical": "The editorial section this article belongs to (e.g. sports, business, local news).", "topic": "The broad subject area of the article (sports, politics, crime, business, etc.).", "q1 2025": "Articles published January-March 2025.", "q2 2025": "Articles published April-June 2025.", "q3 2025": "Articles published July-September 2025.", "q4 2025": "Articles published October-December 2025.", "q1 2026": "Articles published January-March 2026.", "q2 2026": "Articles published April-June 2026.", "q3 2026": "Articles published July-September 2026."};
+  var _TIPS = {"n": "Number of articles in this group.", "median %ile": "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.", "cohort %ile": "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.", "type": "Whether the article is an original piece or an AI-generated variant.", "structure": "The sub-pattern used by headlines that don't fit any main formula—helps identify emerging patterns.", "formula": "The structural template used in this headline (e.g. 'What to know', number lead).", "share": "This formula's fraction of all articles in the dataset.", "lift vs. team": "How much higher this author's median rank is compared to the team average; 1.2x means 20% above average.", "platform": "The distribution app where this article was published (Apple News, SmartNews, Yahoo, or MSN).", "headline": "The article headline as published to the distribution platform.", "views": "Total raw page views recorded for this article.", "author": "The article's author as recorded in the content tracker.", "n articles": "Number of articles attributed to this person in the dataset.", "article": "The article headline as published.", "platform / brand": "The distribution app and the specific publication outlet.", "featured": "Whether Apple News editorially promoted this article to a Featured story slot.", "word count quartile": "Articles split into four equal groups by word count, from shortest (Q1) to longest (Q4).", "median word count": "The middle article's word count within this quartile group.", "number type": "Whether the number in the headline is rounded (e.g. '10 things') or specific (e.g. '7 takeaways').", "lift vs. baseline": "How much higher this group's median rank is compared to untagged headlines; 1.5x means 50% higher.", "number range": "The size of the number used—small (2-9), medium (10-99), or large (100+).", "lift": "How much higher this group's median rank is compared to the reference group; 1.0 = same, 1.5x = 50% higher.", "95% ci (bootstrap)": "The range we're 95% confident the true lift falls within, estimated by resampling the data 1,000 times.", "effect size r": "How practically significant the difference is (0 = none, 0.3+ = meaningful, 0.5+ = large).", "padj (bh-fdr)": "P-value corrected for testing multiple groups at once; below 0.05 means the result is unlikely to be random chance.", "n needed (80% power)": "How many more articles would be needed to reliably detect this effect in a controlled experiment.", "featured rate": "Share of this formula's articles that Apple News promoted to a Featured editorial slot.", "within-featured median %ile": "Among articles Apple News Featured, how this formula ranked against other Featured articles.", "channel": "The SmartNews topic channel this article was routed to (e.g. Entertainment, Local, Top).", "article count": "Number of articles published to this SmartNews channel.", "% of total": "This channel's share of all SmartNews articles in the dataset.", "median raw views": "The middle article's actual view count—not normalized, so months with more traffic naturally score higher.", "lift vs. top": "How this channel's median rank compares to the Top feed, which is the reference baseline.", "feature": "The headline characteristic being tested (e.g. contains a named person, uses a question mark).", "n (present)": "Number of push notifications where this feature appeared in the headline.", "median ctr (present)": "The middle click-through rate when this feature was in the headline; CTR = clicks divided by impressions.", "median ctr (absent)": "The middle click-through rate when this feature was NOT in the headline.", "lift (95% ci)": "CTR improvement ratio with confidence range; 2.0x (1.5-2.5) means roughly twice the clicks when the feature is present.", "sport": "The specific sport sub-category (football, basketball, baseball, etc.).", "apple news n": "Number of articles published to Apple News in this group.", "apple news median %ile": "The middle Apple News article's rank within its publication-month cohort.", "smartnews n": "Number of articles published to SmartNews in this group.", "smartnews median %ile": "The middle SmartNews article's rank within its publication-month cohort.", "subtopic": "A more specific sub-category within the broader topic (e.g. 'violent crime' within crime, 'NFL' within sports).", "length bucket": "Headlines grouped by character count from shortest to longest.", "median chars (an)": "The middle headline length in characters for Apple News articles in this group.", "metric": "The reader engagement signal being compared against view count.", "correlation with total views": "How strongly this metric moves together with view count; +1.0 = always in sync, 0 = unrelated.", "what it measures": "Plain-language description of what this engagement metric tracks.", "content type": "The article's editorial category (sports, politics, crime, etc.).", "n matched": "Number of articles where tracker data was successfully linked to distribution platform data.", "formula type": "The structural template used in this headline.", "share of team output": "Fraction of the team's total articles that used this formula.", "total matched": "Number of this author's articles successfully linked to distribution platform data.", "dominant formula (performance)": "The formula type that produced this author's best-performing articles by cohort percentile.", "vertical": "The editorial section this article belongs to (e.g. sports, business, local news).", "topic": "The broad subject area of the article (sports, politics, crime, business, etc.).", "q1 2025": "Articles published January-March 2025.", "q2 2025": "Articles published April-June 2025.", "q3 2025": "Articles published July-September 2025.", "q4 2025": "Articles published October-December 2025.", "q1 2026": "Articles published January-March 2026.", "q2 2026": "Articles published April-June 2026.", "q3 2026": "Articles published July-September 2026.", "p (adj)": "P-value after BH-FDR correction for multiple comparisons; below 0.05 = statistically significant.", "month": "Calendar month (YYYY-MM format).", "articles": "Number of articles published in this month.", "median pageviews": "The middle article's raw pageview count for this month."};
 
   function _normKey(s) {
     // Normalize <th> textContent for dict lookup: trim, collapse spaces, lowercase,

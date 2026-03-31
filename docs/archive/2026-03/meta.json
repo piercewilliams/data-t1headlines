@@ -1,8 +1,8 @@
 {
   "release": "2026-03",
-  "generated": "2026-03-30T23:03:17",
-  "data_2025": "/Users/pierce/Downloads/Top syndication content 2025.xlsx",
-  "data_2026": "/Users/pierce/Downloads/Top Stories 2026 Syndication.xlsx",
+  "generated": "2026-03-30T23:42:02",
+  "data_2025": "Top syndication content 2025.xlsx",
+  "data_2026": "Top Stories 2026 Syndication.xlsx",
   "rows": {
     "apple_news": 4174,
     "smartnews": 38251,
@@ -10,7 +10,7 @@
   },
   "findings": {
     "high_confidence": 5,
-    "moderate": 0,
+    "moderate": 1,
     "directional": 0
   },
   "rigor_warnings": [
