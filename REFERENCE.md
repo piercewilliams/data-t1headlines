@@ -108,7 +108,7 @@ Things to get or build to make the variant allocation model more powerful. Prior
 
 | Priority | What to ask for | Why it matters |
 |----------|----------------|---------------|
-| 🔴 High | **MSN full year 2025** — current export is December only | Can't do any MSN temporal analysis without the other 11 months |
+| ✅ Resolved | **MSN full year 2025** — full year in repo (Jan–Dec, 4,201 rows); was already present, CONTEXT.md was stale | — |
 | ✅ Resolved | **Apple News 2026 engagement columns** — now populated; active time, saves, shares, subscriber splits all in use in Finding 7 | — |
 | ✅ Resolved | **SmartNews 2026 category channel breakdown** — Tarrow rebuilt; 11 common cats now in Q4 combined analysis | — |
 | ✅ Resolved | **Apple News Notifications 2025** — full year in repo (news brands from June, Us Weekly all year); combined 2025+2026 pool = 1,783 rows in Finding 4 | — |
