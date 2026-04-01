@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — 7 findings live, playbook (2 tiles), author-playbooks, experiments, full ingest pipeline
+**Phase:** Phase 2 complete — 8 findings live, playbook (4 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
-**Last session:** 2026-04-01 (ANP data integrated — findings 6 & 7; rigor verification pass)
+**Last session:** 2026-04-01 (Finding 8 added — ANP bottom-performer analysis; 2 new playbook tiles)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,8 +11,8 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 7 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
-- **Playbook:** `docs/playbook/index.html` — 2 tiles (Featured Targeting, Push Notifications)
+- **Site:** `docs/index.html` — 8 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Playbook:** `docs/playbook/index.html` — 4 tiles (Featured Targeting, Push Notifications, Section Tagging, Local vs. National)
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
 - **Generator:** `generate_site.py` — run via `ingest.py`; `_build_nav()` / `_NAV_PAGES` single source of truth
 - **Data in use:**
@@ -52,6 +52,17 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads (Finding 1)
 
 ## Session Log
+
+**2026-04-01: Finding 8 — ANP bottom-performer analysis (Sarah Price request)**
+
+Sarah Price asked: "what are the worst performers and what could be the causes?" Ran bottom-quintile analysis on 10,929 ANP news articles.
+
+Three structural failure patterns identified, all BH-FDR or Mann-Whitney significant:
+- **Missing section tag (Main only):** 47.5% land in bottom 20%, median rank 0.22 (p=9.9e-36, n=318). Apple News routes by section; no tag = no routing = no featuring. Operational fix: ensure every article has a section before publish.
+- **Local Sports without featuring:** 27.2% of sports articles bottom out, median rank 0.37 (p=5.4e-102). Featured sports performs extremely well (37 articles, median rank 0.91) but Apple features sports at 1.4%. Use SmartNews for local sports instead.
+- **National wire (Nation & World):** 35.5% bottom, median rank 0.33 vs. 0.59 for local sections (p=5.3e-19). Local outlets lose to national brands on national content.
+
+Finding 8 tile + detail panel added to main page. Two new High-confidence playbook tiles: "Section Tagging" and "Local vs. National Content." Playbook now at 4 tiles.
 
 **2026-04-01: ANP data integration + rigor verification**
 
