@@ -96,4 +96,4 @@ Full-year MSN 2025 wired (later culled from site). Tarrow added Notifications 20
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~130 lines*
+*Current count: ~145 lines*
