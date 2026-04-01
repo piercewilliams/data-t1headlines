@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 complete — 7 findings live, playbook (2 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
-**Last session:** 2026-04-01 (ANP data integrated — findings 6 & 7 added from Apple News Publisher full-article data)
+**Last session:** 2026-04-01 (ANP data integrated — findings 6 & 7; rigor verification pass)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,126 +11,78 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 7 findings (curated), interactive tiles, dark/light mode, sortable tables, PNG/PDF export
-- **Playbook:** `docs/playbook/index.html` — 2 tiles (Featured Targeting, Push Notifications), PNG/PDF export
-- **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker), PNG/PDF export
-- **Generator:** `generate_site.py` — fully typed, documented, DRY; run via `ingest.py`
-  - Nav: `_build_nav()` / `_NAV_PAGES` — single source of truth, all 3 pages
-  - Export JS: `_make_export_js()` — parameterized, all 3 pages
+- **Site:** `docs/index.html` — 7 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Playbook:** `docs/playbook/index.html` — 2 tiles (Featured Targeting, Push Notifications)
+- **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
+- **Generator:** `generate_site.py` — run via `ingest.py`; `_build_nav()` / `_NAV_PAGES` single source of truth
 - **Data in use:**
-  - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Apple News notifications, SmartNews, MSN, Yahoo)
+  - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Notifications, SmartNews, MSN, Yahoo)
   - `Top Stories 2026 Syndication.xlsx` — 2026 YTD (Apple News, Notifications, SmartNews, Yahoo, MSN)
-  - `Tracker Template.xlsx` — optional; team performance analysis (Finding 9 removed from site but code remains)
-  - `anp_data/` — Apple News Publisher full-article CSVs (weekly drops; gitignored). Jan–Feb 2026 loaded. Pass `--anp-data <dir>` to override path.
+  - `Tracker Template.xlsx` — optional; author/team analysis
+  - `anp_data/` — Apple News Publisher CSVs (weekly drops; gitignored). Jan–Feb 2026 loaded. `--anp-data <dir>` to override.
 
-## Data Status (as of 2026-03-28)
+## Data Status (as of 2026-04-01)
 
 | Source | Status | Notes |
 |--------|--------|-------|
-| Apple News 2025 | ✅ In repo | Full year, all columns |
-| Apple News 2026 | ✅ In repo | Engagement columns populated (Finding 7 uses them) |
-| Apple News Notifications 2025 | ✅ In repo | Full year; news brands from June, Us Weekly all year; 1,443 rows |
-| Apple News Notifications 2026 | ✅ In repo | Jan–Feb 2026, 359 rows |
+| Apple News 2025 | ✅ In repo | Full year |
+| Apple News 2026 | ✅ In repo | Engagement columns populated |
+| Apple News Notifications 2025 | ✅ In repo | 1,443 rows; news brands from June, Us Weekly all year |
+| Apple News Notifications 2026 | ✅ In repo | 359 rows, Jan–Feb |
 | SmartNews 2025 | ✅ In repo | Full year, 32 category columns |
-| SmartNews 2026 | ✅ In repo | 30 cols; category breakdown restored by Tarrow; 11 common cats in Q4 |
-| MSN 2025 | ✅ In repo | Full year, Jan–Dec, 4,201 rows |
+| SmartNews 2026 | ✅ In repo | 30 cols; 11 common categories in Q4 combined analysis |
+| MSN 2025 | ✅ In repo | Full year, 4,201 rows |
 | MSN 2026 | ✅ In repo | Jan–Feb, 355 rows |
-| MSN video 2026 | ✅ Known (404 rows) | In known-sheets list; not yet wired into analysis |
 | Yahoo 2025 | ✅ In repo | Full year |
 | Yahoo 2026 | ✅ In repo | 2,116 rows |
-| Yahoo video 2026 | ✅ Known (129 rows) | In known-sheets list; not yet wired into analysis |
-| SmartNews 2026 category breakdown | ✅ In repo | Tarrow rebuilt; 30 cols, 11 categories common with 2025; now in Q4 |
+| MSN video 2026 | ✅ Known | 404 rows; not yet wired |
+| Yahoo video 2026 | ✅ Known | 129 rows; not yet wired |
+| Apple News Publisher (ANP) | ✅ In anp_data/ | Jan–Feb 2026; 8 publications; 420K rows / 80K articles; weekly cadence |
 
 ## Open Items
 
-**Data:**
-- [x] ~~Get full-year 2025 MSN re-export from Tarrow~~ — already in repo (4,201 rows, Jan–Dec)
-
-**Analysis (future sessions):**
-- [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
-- [x] ~~Add SmartNews 2026 category breakdown~~ — done 2026-03-30
-- [x] ~~Wire full-year MSN 2025 into pipeline~~ — done 2026-03-30; removed from site 2026-03-31 (cull)
+**Analysis:**
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
+- [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
+- [ ] ANP March drop — Tarrow said he'd add it to the Drive folder the next day (2026-04-01); drop into `anp_data/` when it arrives
 
-**Stakeholder shares (still pending):**
-- [ ] Share site with Sarah Price
-- [ ] "What to know" Featured rate → editorial leads (Finding 1 on site)
+**Stakeholder shares:**
+- [ ] Share site with Sarah Price (she's seen the Slack preview; hasn't gotten the direct link yet)
+- [ ] "What to know" Featured rate → editorial leads (Finding 1)
 
 ## Session Log
 
-**2026-04-01: ANP data integration — findings 6 & 7 added**
+**2026-04-01: ANP data integration + rigor verification**
 
-Apple News Publisher full-article CSVs (Jan–Feb 2026, 8 publications, 420K rows / 80K unique articles) from Chris Tarrow via weekly News Publisher automated reports. First analysis of the full article universe (not just top headlines).
+Sarah Price surfaced need for full Apple News universe data (not just top headlines) to compare what went wrong vs. right. Chris Tarrow set up weekly automated exports from Apple News Publisher; first drop (Jan–Feb 2026, 8 publications) arrived same day.
 
-Two new findings wired into main page:
-- **Finding 6: Featuring Reaches Non-Subscribers** — Featured articles: 47% non-subscriber audience. Non-featured: 3% non-subscriber, even among top-quartile performers. Featuring = audience acquisition mechanism, not just a traffic bump. p < 0.0001.
-- **Finding 7: Topic Predicts Featuring More Than Formula** — Weather featured at 41%, Sports at 1.4% (28× gap), Shopping/Opinion at 0%. Within Business: situation/event stories featured 2× more than individual-person stories. Question format lifts featuring 2× across sections.
+**Exploratory analysis (8 angles):** profiled 420K daily rows → 80K unique articles → 10,929 2026-published news-pub articles. Ran featured vs. non-featured headline signals (BH-FDR), section × featuring rates, top-decile views signals, notification traffic amplification, subscriber ratio by section, Us Weekly signals, cross-pub topic performance, and active time vs. views.
 
-ANP data pipeline:
-- CSVs stored in `anp_data/` (gitignored). Drop new weekly files there — they auto-accumulate.
-- `_load_anp()` + `_anp_analysis()` in `generate_site.py`. `--anp-data <dir>` to override path.
-- `.gitignore` created (was missing).
+**Two findings wired into main page (6 & 7):**
+- **Finding 6 — Featuring Reaches Non-Subscribers:** Featured articles: 47% non-subscriber audience; non-featured: 3%, even among top-quartile performers (5%). Featuring is audience acquisition, not a traffic boost. p = 6.6e-277. Mechanism is behavioral (non-subscribers can technically access non-featured articles — 67% have at least one non-sub view — but almost never do without a featured placement to surface them).
+- **Finding 7 — Topic Predicts Featuring More Than Formula:** Weather featured at 41%, Sports 1.4% (28× gap), Shopping/Opinion 0%. Business: situation/event stories 2× more featured than individual-person stories (χ²=5.47, p=0.019, labeled directional — not BH-FDR corrected). Question format: 2× featuring lift (χ²=28.6, p=8.78e-08).
 
-Not wired in (below findings bar): Us Weekly section-only effect (Style & Beauty > Entertainment > News; formula irrelevant since 100% named-person rate), notification traffic as selection vs. amplification signal.
+**Rigor verification pass (same session):** Confirmed subscriber ratio data quality (no nulls, 100% coverage), verified behavioral vs. structural mechanism, ran Business named-person chi-squared (missing from initial build), verified question format significance, confirmed double-counting across daily rows doesn't distort the ratio (sub+nonsub/total_unique ≈ 1.0 at article level). Detail panels updated with mechanism note and directional caveat.
 
-**2026-03-31: Findings cull — 10 findings → 5, renumbered**
+**Infrastructure:**
+- `anp_data/` directory created (gitignored); drop new weekly CSVs there — pipeline accumulates all
+- `_load_anp()` + `_anp_analysis()` in `generate_site.py`; `--anp-data` CLI arg added
+- `.gitignore` created (was missing from repo)
+- 5 new `_COL_TOOLTIPS` entries added (all audits pass, no new warnings)
 
-Evaluated all findings against "unexpected + interesting + actionable" bar. Removed 6:
+**Not wired in (below findings bar):** Us Weekly — 100% named-person rate makes formula comparison impossible; section is the only signal (Style & Beauty > Entertainment) but not actionable for the news team. Notification traffic — selection vs. amplification ambiguous from cumulative data; only 2/1,726 notif articles had majority traffic from notifications.
 
-- **Removed:** F1 (Apple News Formulas — null result), F1b (Number Leads), F3 (SmartNews categories — predictable), F6 (Variance by topic — thin), F9 (Team Performance — 120 matched articles), F10 (MSN — platform health report, not a headline finding)
-- **Kept and renumbered 1–5:** Featured Targeting (was F2), Push Notifications/Two Ecosystems (was F4), Platform Topic Inversion (was F5), Views vs. Engagement (was F7), Formula Trends Over Time (was F8)
-- Playbook dropped from 6 tiles to 2 (Featured + Notifications)
-- HTML surgery only — all Python analysis/computation code retained; display layer removed
+**2026-03-31: Findings cull — 10 → 5, renumbered**
+Removed F1 (Apple News Formulas — null result), F1b (Number Leads), F3 (SmartNews categories), F6 (Variance by topic), F9 (Team Performance), F10 (MSN). Kept and renumbered 1–5: Featured Targeting, Push Notifications, Platform Topic Inversion, Views vs. Engagement, Formula Trends. Playbook dropped from 6 to 2 tiles. HTML surgery only — Python analysis retained. Also: ad-hoc `national_team_deep_dive.xlsx` exploration (not wired in).
 
-Also: ad-hoc analysis of `national_team_deep_dive.xlsx` (national content team; Discover vs. TH cluster performance) — exploratory only, not wired into pipeline.
+**2026-03-30: MSN wiring, Tarrow data drop, Finding 4 rewrite, snapshot bar**
+Full-year MSN 2025 wired (later culled from site). Tarrow added Notifications 2025 + SmartNews 2026 category columns. Finding 4 (Notifications) rewritten after pooling artifact discovered — Us Weekly and news brands are separate populations (2.8× CTR gap, non-overlapping signals). Snapshot version bar added to all pages.
 
-**2026-03-30: MSN wiring — Finding 10 + chart c5 + playbook tile pb-6**
-
-Full-year MSN 2025 (4,201 rows) wired into analysis pipeline. Changes:
-
-- **Finding 10 added** (main page tile + detail panel): formula lift vs. baseline (BH-FDR corrected Mann-Whitney), dislike signal analysis (unique MSN metric — hi-dislike articles score {MSN_DR_LIFT}× views of lo-dislike; sports highest dislike rate), monthly PV trend showing decline across 2025.
-- **Chart c5 updated**: MSN added as third bar trace (orange) to the topic × platform chart; `ORANGE = "#f97316"` color constant added.
-- **Playbook tile pb-6 added** (Moderate confidence): MSN platform trajectory and dislike signal guidance. Detail panel added with formula table + monthly trend.
-- **Finding 5 caveat updated**: now includes MSN in sample size reference; MSN paragraph added to detail panel pointing readers to Finding 10.
-- **`_msn_formula_table()` and `_msn_monthly_table()`** helper functions added.
-- **`_COL_TOOLTIPS`** extended with "p (adj)", "month", "articles", "median pageviews".
-- **2025 data file updated** in repo root: `Top syndication content 2025.xlsx` replaced with the Tarrow drop that includes the "Apple News notifications" sheet (was missing from the prior file).
-- Build: all audits pass; 6 rigor warnings (3 standing + 3 engagement outlier cap notices).
-
-**2026-03-30: Tarrow data drop + Finding 4 brand-type rewrite**
-
-Tarrow provided: (1) Apple News Notifications 2025 added to 2025 workbook; (2) SmartNews 2026 rebuilt with full category columns.
-
-**SmartNews 2026 categories wired into Q4:** Added `_sn_month`, numeric CATS_COMMON columns, and `normalize()` to `sn26`. Created `sn_all` (2025 + 2026 combined, 11 common categories) for Q4 analysis. Football/LGBTQ are 2025-only, excluded from combined analysis; Technology added to SHOW_CATS. "2026 export lacks category breakdown" caveat retired.
-
-**Notifications 2025 wired into Q5:** Combined 1,443 rows (2025) + 359 rows (2026) = 1,783-row pool. Renamed `Click-Through Rate` → `CTR`. Added `Apple News notifications` to `_KNOWN_SHEETS_2025`.
-
-**Finding 4 brand-type rewrite (major analytical change):** The larger 2025 dataset revealed the previous pooled analysis was mixing two incompatible content populations. Us Weekly (celebrity/entertainment, 4.01% median CTR) and news brands (hard news, 1.41% CTR) are 2.8× apart at baseline with almost entirely non-overlapping formula signals. The "short notification penalty" (−39%) was a pooling artifact — length shows no significant effect within either population separately.
-
-Q5 now runs separately per brand type (`df_q5_news`, `df_q5_uw`, via `_run_q5()` helper). Display in Finding 4 shows two tables. Signals by population:
-- **News brands:** "EXCLUSIVE:" positive; attribution (says/told) positive; question format negative
-- **Us Weekly:** Named person + possessive positive; numbers negative; "EXCLUSIVE" neutral
-- CTR declining trend for news brands documented: Q2 2025 (1.77%) → Q4 2025 (1.26%) → Q1 2026 (1.37%)
-
-Playbook tile pb-4 upgraded from Moderate to High confidence. Hero candidates updated; "short notifications backfire" hero retired.
-
-**2026-03-30: Snapshot version bar**
-Added version history system to `docs/index.html`. Weekly trigger (Mon 8am Dallas) copies `docs/index.html` → `docs/snapshots/snap-NNN.html` (snapshot bar script tag stripped). Clicking a pill opens the full historical page in a new tab. Passkey `8812` gates restore (downloads snapshot HTML + pruned `index.json`). Max 5 snapshots. URL guard in `snapshot-bar.js` prevents the bar from rendering inside snapshot files. `generate_site.py` updated with same snapshot bar so all future generated pages include it.
-
-Files changed: `docs/index.html` (bar div + script tag + CSS), `docs/js/snapshot-bar.js` (new), `docs/snapshots/index.json` (scaffold), `generate_site.py` (snapshot bar injected into template).
-
-**Known pre-existing warning:** `generate_site.py` emits a `SyntaxWarning: "\(" is an invalid escape sequence` at build time (Python 3.14) due to a JS regex pattern embedded in the HTML f-string at line 4524. This is pre-existing, does not affect output, and does not affect our snapshot code.
-
-**Trigger:** `trig_01Qze9PVrNErCEYa1fMXxF2U` — shared with csa-dashboard and csa-content-standards. Details in ops-hub REFERENCE.md.
-
-**2026-03-28: README rewrite, charts/tooltips, DRY refactor, code quality**
-Multiple sessions: README rewritten (priority-ordered, non-technical entry path, full roadmap); Plotly color/export bugs fixed; color legends and `_COL_TOOLTIPS` (~70 entries) added; `_build_nav()` / `_make_export_js()` DRY refactors; full type hint + docstring pass; column-sortable tables added. See git log for details.
-
-**2026-03-27: Infrastructure, rigor, UX, pipeline**
-Full pipeline: `ingest.py` entry point, BH-FDR, bootstrap CIs, rank-biserial, power analysis, hero scoring, playbook tile sorting, main-page versioning/archive, `CLAUDE.md` autonomous workflow, documentation overhaul.
+**2026-03-27–28: Infrastructure, pipeline, rigor, UX**
+`ingest.py` entry point, BH-FDR, bootstrap CIs, hero scoring, playbook, archive, `CLAUDE.md` autonomous workflow, README, `_COL_TOOLTIPS`, `_build_nav()` / `_make_export_js()` DRY refactors, type hints.
 
 ---
 
 *This file follows the Tiered Context Architecture. Budget: ≤150 lines.*
-*Current count: ~90 lines*
+*Current count: ~130 lines*
