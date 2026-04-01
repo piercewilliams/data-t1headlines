@@ -1,0 +1,25 @@
+{
+  "release": "2026-04",
+  "generated": "2026-04-01T00:04:39",
+  "data_2025": "Top syndication content 2025.xlsx",
+  "data_2026": "Top Stories 2026 Syndication.xlsx",
+  "rows": {
+    "apple_news": 3884,
+    "smartnews": 37695,
+    "notifications": 1783
+  },
+  "findings": {
+    "high_confidence": 2,
+    "moderate": 0,
+    "directional": 0
+  },
+  "rigor_warnings": [
+    "[engagement_outliers] Column 'Avg. Active Time (in seconds)': 1 row(s) exceeded 600s ceiling (max=23496s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
+    "[engagement_outliers] Column 'Avg. Active Time (in seconds), Subscribers, Subscription Content': 2 row(s) exceeded 600s ceiling (max=11990s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
+    "[engagement_outliers] Column 'Avg. Active Time (in seconds), Non-subscribers, Free Content': 1 row(s) exceeded 600s ceiling (max=23496s). Capped to 600s. Likely bad data or unconverted milliseconds in source Excel.",
+    "[sports_subtopic] No significance test (n_a=276, n_b=2115). Add Mann-Whitney U.",
+    "[biz_subtopic] No significance test (n_a=106, n_b=277). Add Mann-Whitney U.",
+    "[pol_subtopic] No significance test (n_a=0, n_b=0). Add Mann-Whitney U."
+  ],
+  "hero": "Sports is #2 on Apple News and #8 (last) on SmartNews \u2014 the largest topic-rank gap across platforms (rank gap: 6). Smart"
+}
