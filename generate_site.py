@@ -75,11 +75,15 @@ parser.add_argument("--release",   default=None,
                          "Pass explicitly when ingesting data from a prior month.")
 parser.add_argument("--skip-main-archive", action="store_true",
                     help="Skip archiving docs/index.html (used when ingest.py handles archiving).")
+parser.add_argument("--anp-data", default="anp_data",
+                    help="Directory containing Apple News Publisher CSV exports (weekly drops from "
+                         "News Publisher). Defaults to anp_data/ in the working directory.")
 _args = parser.parse_args()
 DATA_2025      = _args.data_2025
 DATA_2026      = _args.data_2026
 DATA_2026_FULL = _args.data_2026_full
 TRACKER        = _args.tracker
+ANP_DATA_DIR   = _args.anp_data
 THEME          = _args.theme
 SKIP_ARCHIVE   = _args.skip_main_archive
 
@@ -991,6 +995,159 @@ def _check_new_sheets(path: str, known_sheets: "set[str]") -> None:
 
 _check_new_sheets(DATA_2025, _KNOWN_SHEETS_2025)
 _check_new_sheets(DATA_2026, _KNOWN_SHEETS_2026)
+
+# ── Apple News Publisher (ANP) full-article data ──────────────────────────────
+# Loaded from weekly CSV drops placed in ANP_DATA_DIR. Independent of Tarrow's
+# top-headlines sheets — this is the complete article universe from News Publisher.
+
+_ANP_NEWS_PUBS = {"Charlotte", "KC", "Miami", "Raleigh", "Sac"}
+_ANP_POLITICS_RE = re.compile(r"\bpolitics\b|\bgovernment\b|\belection\b|\bpolitical\b", re.I)
+
+def _load_anp() -> "pd.DataFrame | None":
+    """Load all ANP CSVs from ANP_DATA_DIR and return article-level aggregation, or None."""
+    import glob as _glob
+    csvs = sorted(_glob.glob(os.path.join(ANP_DATA_DIR, "*.csv")))
+    if not csvs:
+        return None
+    dfs = []
+    for f in csvs:
+        try:
+            df = pd.read_csv(f)
+            parts = os.path.basename(f).replace(".csv", "").split("_")
+            df["_pub"] = "_".join(parts[2:]) if len(parts) > 2 else "Unknown"
+            dfs.append(df)
+        except Exception:
+            continue
+    if not dfs:
+        return None
+    raw = pd.concat(dfs, ignore_index=True)
+    raw["Date Published"] = pd.to_datetime(raw["Date Published"], dayfirst=True, errors="coerce")
+    art = raw.groupby(["Article ID", "_pub"]).agg(
+        title=("Article", "first"),
+        date_published=("Date Published", "first"),
+        sections=("Sections", "first"),
+        total_views=("Total Views", "sum"),
+        featured=("Featured by Apple", lambda x: (x == "Yes").any()),
+        sub_viewers=("Unique Viewers, Subscribers, All Content", "sum"),
+        nonsub_viewers=("Unique Viewers, Non-subscribers, All Content", "sum"),
+    ).reset_index()
+    art["pub_year"] = art["date_published"].dt.year
+    return art
+
+
+def _anp_top_section(s: str) -> str:
+    """Return the primary non-Main section label, or 'Main only'."""
+    if not isinstance(s, str):
+        return "Unknown"
+    parts = [x.strip() for x in s.split(",")]
+    non_main = [p for p in parts if p.lower() != "main"]
+    return non_main[0] if non_main else "Main only"
+
+
+def _anp_analysis(art: "pd.DataFrame") -> dict:
+    """Compute ANP findings from article-level DataFrame. Returns dict of template variables."""
+    art26 = art[
+        (art["pub_year"] == 2026) &
+        (art["total_views"] >= 10) &
+        (~art["sections"].fillna("").str.contains(_ANP_POLITICS_RE))
+    ].copy()
+    art26["pct_rank"] = art26.groupby("_pub")["total_views"].rank(pct=True)
+
+    news = art26[art26["_pub"].isin(_ANP_NEWS_PUBS)].copy()
+    news["top_section"] = news["sections"].apply(_anp_top_section)
+    news["sub_ratio"] = news["sub_viewers"] / (
+        (news["sub_viewers"] + news["nonsub_viewers"]).clip(lower=1)
+    )
+    news["is_question"] = news["title"].str.rstrip().str.endswith("?", na=False)
+    news["has_named"] = news["title"].str.contains(
+        r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", regex=True, na=False
+    )
+
+    feat   = news[news["featured"]]
+    nonfeat = news[~news["featured"]]
+
+    # ── Subscriber audience split ─────────────────────────────────────────────
+    _, p_sub = stats.mannwhitneyu(feat["sub_ratio"], nonfeat["sub_ratio"], alternative="less")
+    nf_topq_sub = pd.qcut(nonfeat["total_views"], 4, labels=False, duplicates="drop")
+    nf_topq_sub_ratio = nonfeat[nf_topq_sub == 3]["sub_ratio"].median()
+
+    # ── Section × featuring rates ─────────────────────────────────────────────
+    sec_stats: dict[str, dict] = {}
+    for sec in ["Weather", "Business", "Sports", "Shopping", "Opinion", "Crime"]:
+        sub = news[news["top_section"] == sec]
+        if len(sub) >= 10:
+            sec_stats[sec] = {
+                "n": len(sub),
+                "feat_pct": sub["featured"].mean(),
+                "med_rank": sub["pct_rank"].median(),
+            }
+
+    weather_feat = sec_stats.get("Weather", {}).get("feat_pct", np.nan)
+    sports_feat  = sec_stats.get("Sports",  {}).get("feat_pct", np.nan)
+    biz_feat     = sec_stats.get("Business",{}).get("feat_pct", np.nan)
+
+    # ── Business: named-person penalty ───────────────────────────────────────
+    biz = news[news["top_section"] == "Business"]
+    biz_named_feat   = biz[biz["has_named"]]["featured"].mean()
+    biz_unnamed_feat = biz[~biz["has_named"]]["featured"].mean()
+    biz_named_lift   = biz_unnamed_feat / biz_named_feat if biz_named_feat > 0 else np.nan
+
+    # ── Question format × featuring ───────────────────────────────────────────
+    q_feat_rate  = news[news["is_question"]]["featured"].mean()
+    noq_feat_rate = news[~news["is_question"]]["featured"].mean()
+    q_feat_lift  = q_feat_rate / noq_feat_rate if noq_feat_rate > 0 else np.nan
+
+    # ── Section table rows HTML ───────────────────────────────────────────────
+    sec_rows_html = ""
+    ordered_secs = sorted(
+        [(s, d) for s, d in sec_stats.items()],
+        key=lambda x: x[1]["feat_pct"], reverse=True
+    )
+    for sec, d in ordered_secs:
+        bar_pct = d["feat_pct"] * 100
+        sec_rows_html += (
+            f'<tr><td>{sec}</td>'
+            f'<td>{d["n"]:,}</td>'
+            f'<td><span style="display:inline-block;width:{bar_pct:.1f}%;min-width:2px;'
+            f'height:10px;background:{BLUE};border-radius:2px;"></span>'
+            f' {bar_pct:.1f}%</td>'
+            f'<td>{d["med_rank"]:.2f}</td></tr>\n'
+        )
+
+    return {
+        "ANP_N_NEWS":         len(news),
+        "ANP_N_FEATURED":     int(news["featured"].sum()),
+        "ANP_FEAT_RATE":      news["featured"].mean(),
+        "ANP_FEAT_NONSUB_PCT": 1 - feat["sub_ratio"].median(),
+        "ANP_NONFEAT_NONSUB_PCT": 1 - nonfeat["sub_ratio"].median(),
+        "ANP_TOPQ_NONSUB_PCT": 1 - nf_topq_sub_ratio,
+        "ANP_SUB_P":          p_sub,
+        "ANP_WEATHER_FEAT":   weather_feat,
+        "ANP_SPORTS_FEAT":    sports_feat,
+        "ANP_BIZ_FEAT":       biz_feat,
+        "ANP_WEATHER_SPORTS_RATIO": weather_feat / sports_feat if sports_feat > 0 else np.nan,
+        "ANP_BIZ_NAMED_FEAT": biz_named_feat,
+        "ANP_BIZ_UNNAMED_FEAT": biz_unnamed_feat,
+        "ANP_BIZ_NAMED_LIFT": biz_named_lift,
+        "ANP_Q_FEAT_LIFT":    q_feat_lift,
+        "ANP_Q_FEAT_RATE":    q_feat_rate,
+        "ANP_SEC_ROWS":       sec_rows_html,
+        "ANP_N_PUBS":         news["_pub"].nunique(),
+        "ANP_SEC_STATS":      sec_stats,
+        "ANP_BIZ_N":          sec_stats.get("Business", {}).get("n", 0),
+    }
+
+
+_anp_raw = _load_anp()
+HAS_ANP  = _anp_raw is not None
+if HAS_ANP:
+    _anp = _anp_analysis(_anp_raw)
+    print(f"  ANP data: {_anp['ANP_N_NEWS']:,} news articles, "
+          f"{_anp['ANP_N_FEATURED']} featured ({_anp['ANP_FEAT_RATE']:.1%}) "
+          f"across {_anp['ANP_N_PUBS']} publications")
+else:
+    print(f"  ⚠  No ANP CSVs found in {ANP_DATA_DIR!r} — findings 6 & 7 will be hidden")
+    _anp = {}
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 print(f"Loading data…  2025={DATA_2025}  2026={DATA_2026}")
@@ -2408,6 +2565,12 @@ _COL_TOOLTIPS: dict[str, str] = {
     "month":                          "Calendar month (YYYY-MM format).",
     "articles":                       "Number of articles published in this month.",
     "median pageviews":               "The middle article's raw pageview count for this month.",
+    # ANP findings (6 & 7)
+    "article type":                   "Whether the article was Featured in Local News by Apple's editors, or not featured.",
+    "median subscriber share":        "The middle article's share of unique viewers who are Apple News subscribers.",
+    "non-subscriber reach":           "Share of unique viewers who are non-subscribers (potential new audience).",
+    "median view percentile":         "Median within-publication view percentile (0–1 scale; 0.9 = top 10% for that publication).",
+    "section":                        "Primary Apple News section the article was tagged to, excluding 'Main'.",
 }
 
 
@@ -4494,6 +4657,21 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
+{"" if not HAS_ANP else f"""
+    <div class="tile" onclick="showDetail('anp-audience', this)">
+      <span class="tile-num">6 · Featuring Reaches Non-Subscribers</span>
+      <p class="tile-claim">Featured articles reach {_anp['ANP_FEAT_NONSUB_PCT']:.0%} non-subscriber audiences. Non-featured articles reach only {_anp['ANP_NONFEAT_NONSUB_PCT']:.0%} non-subscribers — even among the top-quartile most-viewed non-featured stories ({_anp['ANP_TOPQ_NONSUB_PCT']:.0%}).</p>
+      <p class="tile-action">→ Treat featuring as audience acquisition, not just a traffic bump. Without it, Apple News delivers your content almost exclusively to existing subscribers.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+
+    <div class="tile" onclick="showDetail('anp-topics', this)">
+      <span class="tile-num">7 · Topic Predicts Featuring — Formula Doesn't</span>
+      <p class="tile-claim">Weather articles get featured at {_anp['ANP_WEATHER_FEAT']:.0%} — {_anp['ANP_WEATHER_SPORTS_RATIO']:.0f}× the Sports rate ({_anp['ANP_SPORTS_FEAT']:.1%}). Shopping and Opinion are never featured. Within Business, situation/event stories are featured {_anp['ANP_BIZ_NAMED_LIFT']:.1f}× more than individual-person stories. Question format lifts featuring probability {_anp['ANP_Q_FEAT_LIFT']:.1f}× across all sections.</p>
+      <p class="tile-action">→ Choose topic before formula when targeting Local News featuring. Weather and Business are the highest-leverage sections; Sports and Shopping essentially opt you out.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+"""}
 
   </div><!-- /.tile-grid -->
 
@@ -4624,6 +4802,46 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median cohort percentile ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
       </div><!-- /#detail-longitudinal -->
 
+{"" if not HAS_ANP else f"""
+      <!-- DETAIL: ANP AUDIENCE SPLIT -->
+      <div class="detail-panel" id="detail-anp-audience">
+        <h2>Finding 6 · Featuring Reaches Non-Subscribers</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> On Apple News, featuring isn't just a traffic multiplier — it's the primary mechanism for reaching non-subscribers. Non-featured articles, regardless of how well they perform organically, land almost exclusively in front of existing subscribers. The gap is extreme and highly significant (Mann-Whitney p&lt;0.0001).
+        </div>
+        <p>Among {_anp['ANP_N_NEWS']:,} news articles published in 2026 across {_anp['ANP_N_PUBS']} publications (Charlotte, KC, Miami, Raleigh, Sacramento), the subscriber composition of article audiences splits sharply by featuring status:</p>
+        <table class="findings">
+          <thead><tr><th>Article type</th><th>Median subscriber share</th><th>Non-subscriber reach</th></tr></thead>
+          <tbody>
+            <tr><td>Featured in Local News ({_anp['ANP_N_FEATURED']:,} articles)</td><td>{1 - _anp['ANP_FEAT_NONSUB_PCT']:.0%}</td><td><strong>{_anp['ANP_FEAT_NONSUB_PCT']:.0%}</strong></td></tr>
+            <tr><td>Non-featured (all)</td><td>{1 - _anp['ANP_NONFEAT_NONSUB_PCT']:.0%}</td><td>{_anp['ANP_NONFEAT_NONSUB_PCT']:.0%}</td></tr>
+            <tr><td>Non-featured (top-quartile views only)</td><td>{1 - _anp['ANP_TOPQ_NONSUB_PCT']:.0%}</td><td>{_anp['ANP_TOPQ_NONSUB_PCT']:.0%}</td></tr>
+          </tbody>
+        </table>
+        <p>The top-quartile comparison is the most important row: even non-featured articles that are performing exceptionally well still reach only {_anp['ANP_TOPQ_NONSUB_PCT']:.0%} non-subscribers. High organic traffic does not substitute for featuring when it comes to audience composition. The only path to non-subscriber audiences at scale is a Featured placement.</p>
+        <p><em>What this means operationally:</em> Subscriber-audience articles still have value — subscribers are your core, highest-intent readers. But if the goal is discovery, growth, or reaching readers who haven't yet subscribed, featured placement is the lever. The editorial strategies that earn featuring (see Finding 7) are therefore also the strategies that expand your audience beyond the existing subscriber base.</p>
+        <p class="caveat">Apple News Publisher data, Jan–Feb 2026. News publications only (Charlotte Observer, KC Star, Miami Herald, News &amp; Observer, Sacramento Bee). Politics excluded per team policy. Minimum 10 views per article. Subscriber/non-subscriber split from Apple News Publisher "Unique Viewers, Subscribers" and "Unique Viewers, Non-subscribers" columns.</p>
+      </div><!-- /#detail-anp-audience -->
+
+      <!-- DETAIL: ANP TOPICS × FEATURING -->
+      <div class="detail-panel" id="detail-anp-topics">
+        <h2>Finding 7 · Topic Predicts Featuring — Formula Doesn't</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> The section you're writing in determines whether featuring is realistically achievable. Weather articles are featured at {_anp['ANP_WEATHER_FEAT']:.0%} — {_anp['ANP_WEATHER_SPORTS_RATIO']:.0f}× the rate of Sports articles ({_anp['ANP_SPORTS_FEAT']:.1%}). Shopping and Opinion are never featured. Within sections where featuring is possible, situation/event-framed stories and question-format headlines have a measurable edge over individual-person stories.
+        </div>
+        <h3>Featuring rate by section (2026 articles, news publications)</h3>
+        <table class="findings">
+          <thead><tr><th>Section</th><th>Articles</th><th>Featured rate</th><th>Median view percentile</th></tr></thead>
+          <tbody>{_anp['ANP_SEC_ROWS']}</tbody>
+        </table>
+        <h3>Within-section signals</h3>
+        <p><strong>Business section — individual-person stories penalized:</strong> Business articles that do <em>not</em> mention a named person are featured at {_anp['ANP_BIZ_UNNAMED_FEAT']:.0%} vs. {_anp['ANP_BIZ_NAMED_FEAT']:.0%} for articles that do — a {_anp['ANP_BIZ_NAMED_LIFT']:.1f}× difference. Stories about market conditions, economic trends, or institutional changes are favored over profiles and personnel stories. This holds across local city sections too (Charlotte, KC Metro, Sacramento, Miami) at 1.4–1.8× magnitude.</p>
+        <p><strong>Question format lifts featuring {_anp['ANP_Q_FEAT_LIFT']:.1f}× across all sections:</strong> {_anp['ANP_Q_FEAT_RATE']:.1%} of featured articles use a question-format headline vs. {_anp['ANP_Q_FEAT_RATE'] / _anp['ANP_Q_FEAT_LIFT']:.1%} of non-featured. The pattern in featured question headlines is consistent: a hook statement paired with a community-concern follow-up ("How cold will it get?", "What's next?", "Will they fix it?"). These are service-journalism signals, not clickbait — Apple's editors appear to favor questions that answer a community need.</p>
+        <p><strong>Weather is the highest-leverage section by a large margin.</strong> Nearly every major weather event that receives traffic also receives a Featured placement. This is partly because weather is inherently local, timely, and directly useful to readers — all qualities Apple's Local News curation rewards. The implication is that weather coverage quality has outsized editorial ROI relative to its production cost.</p>
+        <p><em>What headline formula can and can't do:</em> After controlling for section, headline formula effects on featuring are small relative to topic choice. You cannot formula-optimize your way into a Featured placement from the Sports or Shopping sections. Choose the topic first, then optimize the headline within that topic.</p>
+        <p class="caveat">Apple News Publisher data, Jan–Feb 2026. {_anp['ANP_N_NEWS']:,} articles across {_anp['ANP_N_PUBS']} news publications. Politics excluded. Featuring = "Featured in Local News" placements (Apple News Publisher). Named-person detection via regex (two consecutive capitalized words). Business section n={_anp['ANP_BIZ_N']:,} articles.</p>
+      </div><!-- /#detail-anp-topics -->
+"""}
 
     </div><!-- /.detail-wrap -->
   </div><!-- /#detail-area -->

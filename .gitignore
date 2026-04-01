@@ -1,0 +1,13 @@
+# Raw data files — too large / not for public repo
+*.xlsx
+*.xls
+*.csv
+anp_data/
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+
+# macOS
+.DS_Store
