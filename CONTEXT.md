@@ -48,8 +48,9 @@ For session history: see [sessions/](sessions/)
 - [ ] ANP March drop — Tarrow said he'd add it to the Drive folder the next day (2026-04-01); drop into `anp_data/` when it arrives
 
 **Stakeholder shares:**
-- [ ] Share site with Sarah Price (she's seen the Slack preview; hasn't gotten the direct link yet)
+- [ ] Share site direct link with Sarah Price (she's seen Slack preview; needs direct link)
 - [ ] "What to know" Featured rate → editorial leads (Finding 1)
+- [ ] Share SmartNews local sports findings → distribution team (local sports bottom-performs on Apple; SmartNews is better fit)
 
 ## Session Log
 
