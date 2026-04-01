@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — 5 findings live (curated), playbook (2 tiles), author-playbooks, experiments, full ingest pipeline
-**Status:** Active — monthly cadence; pipeline ready for next Tarrow drop
-**Last session:** 2026-03-31 (findings cull — removed 6 weak findings, renumbered 1–5)
+**Phase:** Phase 2 complete — 7 findings live, playbook (2 tiles), author-playbooks, experiments, full ingest pipeline
+**Status:** Active — monthly Tarrow cadence + weekly ANP drops
+**Last session:** 2026-04-01 (ANP data integrated — findings 6 & 7 added from Apple News Publisher full-article data)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,7 +11,7 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 5 findings (curated), interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Site:** `docs/index.html` — 7 findings (curated), interactive tiles, dark/light mode, sortable tables, PNG/PDF export
 - **Playbook:** `docs/playbook/index.html` — 2 tiles (Featured Targeting, Push Notifications), PNG/PDF export
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker), PNG/PDF export
 - **Generator:** `generate_site.py` — fully typed, documented, DRY; run via `ingest.py`
@@ -21,6 +21,7 @@ For session history: see [sessions/](sessions/)
   - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Apple News notifications, SmartNews, MSN, Yahoo)
   - `Top Stories 2026 Syndication.xlsx` — 2026 YTD (Apple News, Notifications, SmartNews, Yahoo, MSN)
   - `Tracker Template.xlsx` — optional; team performance analysis (Finding 9 removed from site but code remains)
+  - `anp_data/` — Apple News Publisher full-article CSVs (weekly drops; gitignored). Jan–Feb 2026 loaded. Pass `--anp-data <dir>` to override path.
 
 ## Data Status (as of 2026-03-28)
 
@@ -57,6 +58,21 @@ For session history: see [sessions/](sessions/)
 - [ ] "What to know" Featured rate → editorial leads (Finding 1 on site)
 
 ## Session Log
+
+**2026-04-01: ANP data integration — findings 6 & 7 added**
+
+Apple News Publisher full-article CSVs (Jan–Feb 2026, 8 publications, 420K rows / 80K unique articles) from Chris Tarrow via weekly News Publisher automated reports. First analysis of the full article universe (not just top headlines).
+
+Two new findings wired into main page:
+- **Finding 6: Featuring Reaches Non-Subscribers** — Featured articles: 47% non-subscriber audience. Non-featured: 3% non-subscriber, even among top-quartile performers. Featuring = audience acquisition mechanism, not just a traffic bump. p < 0.0001.
+- **Finding 7: Topic Predicts Featuring More Than Formula** — Weather featured at 41%, Sports at 1.4% (28× gap), Shopping/Opinion at 0%. Within Business: situation/event stories featured 2× more than individual-person stories. Question format lifts featuring 2× across sections.
+
+ANP data pipeline:
+- CSVs stored in `anp_data/` (gitignored). Drop new weekly files there — they auto-accumulate.
+- `_load_anp()` + `_anp_analysis()` in `generate_site.py`. `--anp-data <dir>` to override path.
+- `.gitignore` created (was missing).
+
+Not wired in (below findings bar): Us Weekly section-only effect (Style & Beauty > Entertainment > News; formula irrelevant since 100% named-person rate), notification traffic as selection vs. amplification signal.
 
 **2026-03-31: Findings cull — 10 findings → 5, renumbered**
 
