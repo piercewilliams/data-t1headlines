@@ -1353,7 +1353,7 @@ for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
 
 # Prep sn26 for category analysis (Tarrow rebuilt with full breakdown)
-sn26["_sn_month"] = sn26["date"].astype(str)
+sn26["_sn_month"] = sn26["month"].astype(str)
 for _cat in CATS_COMMON:
     if _cat in sn26.columns:
         sn26[_cat] = pd.to_numeric(sn26[_cat], errors="coerce").fillna(0)
