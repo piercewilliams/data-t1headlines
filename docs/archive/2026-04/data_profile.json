@@ -1,0 +1,137 @@
+{
+  "2025/Apple News": {
+    "rows": 3039,
+    "cols": 48,
+    "null_rates": {
+      "Author": 0.931,
+      "Article Shares": 0.08,
+      "Article Shares by Messages": 0.814,
+      "Article Shares by Mail": 0.814,
+      "Article Shares by Twitter": 0.814,
+      "Article Shares by Facebook": 0.814,
+      "Likes": 0.103,
+      "Saves": 0.082,
+      "Featured by Apple": 0.733,
+      "Where Featured by Apple": 0.733,
+      "Unique Viewers, All Users, Subscription Content": 0.066,
+      "Avg. Active Time (in seconds), Subscribers, Subscription Content": 0.286,
+      "Avg. Active Time (in seconds), Subscribers, Free Content": 0.5,
+      "Avg. Active Time (in seconds), Non-subscribers, Free Content": 0.466,
+      "Avg. Active Time (in seconds), Non-subscribers, Subscription Content": 0.389,
+      "Article Shares, Subscribers, Subscription Content": 0.164,
+      "Article Shares, Subscribers, Free Content": 0.113,
+      "Article Shares, Non-subscribers, Free Content": 0.113,
+      "Article Shares, Non-subscribers, Subscription Content": 0.113,
+      "Likes, Subscribers, Subscription Content": 0.121,
+      "Likes, Subscribers, Free Content": 0.136,
+      "Likes, Non-subscribers, Free Content": 0.136,
+      "Likes, Non-subscribers, Subscription Content": 0.136,
+      "Saves, Subscribers, Subscription Content": 0.115,
+      "Saves, Subscribers, Free Content": 0.115,
+      "Saves, Non-subscribers, Free Content": 0.115,
+      "Saves, Non-subscribers, Subscription Content": 0.115,
+      "Total Engaged Minutes, Apple News+ Subscribers": 0.052
+    }
+  },
+  "2025/Apple News notifications": {
+    "rows": 1443,
+    "cols": 12,
+    "null_rates": {}
+  },
+  "2025/Yahoo": {
+    "rows": 2799,
+    "cols": 6,
+    "null_rates": {}
+  },
+  "2025/SmartNews": {
+    "rows": 38251,
+    "cols": 32,
+    "null_rates": {
+      "LGBTQ": 0.074,
+      "Miami Herald": 0.074,
+      "Charlotte Observer": 0.236,
+      "Cannabis": 0.577,
+      "Search": 0.662,
+      "Column 1": 0.912,
+      "Column 2": 1.0
+    }
+  },
+  "2025/MSN": {
+    "rows": 4201,
+    "cols": 10,
+    "null_rates": {}
+  },
+  "2026/Apple News": {
+    "rows": 1569,
+    "cols": 55,
+    "null_rates": {
+      "Author": 0.49,
+      "Article Shares by Messages": 0.741,
+      "Article Shares by Mail": 0.741,
+      "Article Shares by Twitter": 0.741,
+      "Article Shares by Facebook": 0.741,
+      "Featured by Apple": 0.713,
+      "Where Featured by Apple": 0.713,
+      "Unique Viewers, All Users, Subscription Content": 0.064,
+      "Avg. Active Time (in seconds), Subscribers, Subscription Content": 0.449,
+      "Avg. Active Time (in seconds), Subscribers, Free Content": 0.238,
+      "Avg. Active Time (in seconds), Non-subscribers, Free Content": 0.175,
+      "Avg. Active Time (in seconds), Non-subscribers, Subscription Content": 0.475,
+      "Article Shares, Subscribers, Subscription Content": 0.07,
+      "Unique Viewers from Notifications, All Users, Free Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, All Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, Subscription Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, Free Content": 0.094,
+      "Unique Viewers from Notifications, Non-subscribers, Free Content": 0.094,
+      "Unnamed: 53": 0.757,
+      "Unnamed: 54": 0.936
+    }
+  },
+  "2026/Apple News Notifications": {
+    "rows": 503,
+    "cols": 12,
+    "null_rates": {}
+  },
+  "2026/Notifications summary": {
+    "rows": 0,
+    "cols": 0,
+    "null_rates": {}
+  },
+  "2026/MSN": {
+    "rows": 845,
+    "cols": 10,
+    "null_rates": {
+      "Unnamed: 9": 0.419
+    }
+  },
+  "2026/MSN video": {
+    "rows": 1023,
+    "cols": 16,
+    "null_rates": {}
+  },
+  "2026/Yahoo": {
+    "rows": 1043,
+    "cols": 7,
+    "null_rates": {
+      "Content Viewers": 0.662
+    }
+  },
+  "2026/Yahoo video": {
+    "rows": 163,
+    "cols": 9,
+    "null_rates": {
+      "Content Provider GUID": 0.423
+    }
+  },
+  "2026/SmartNews": {
+    "rows": 514,
+    "cols": 31,
+    "null_rates": {
+      "Us Weekly": 0.119,
+      "Search": 0.467,
+      "Unnamed: 28": 0.737,
+      "Unnamed: 29": 0.737,
+      "Unnamed: 30": 0.737
+    }
+  }
+}
