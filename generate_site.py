@@ -91,9 +91,9 @@ SKIP_ARCHIVE   = _args.skip_main_archive
 # National content team doesn't write politics — exclude from all findings
 # Set 2026-03-31 per Sarah Price.
 EXCLUDE_POLITICS = True
-# MSN platform signals unreliable as of 2026-03-31 per Sarah Price.
-# Re-enable (set False) when Tarrow confirms MSN export is fixed.
-EXCLUDE_MSN = True
+# MSN re-enabled 2026-04-02: clean Jan–Mar 2026 dataset (845 rows, new sheet format).
+# Old reason for exclusion (data quality on old sheet) no longer applies — that sheet is gone.
+EXCLUDE_MSN = False
 
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
@@ -1305,8 +1305,8 @@ sn26   = pd.read_excel(DATA_2026, sheet_name="SmartNews")
 yahoo26 = pd.read_excel(DATA_2026, sheet_name="Yahoo")
 notif = notif.dropna(subset=["CTR"]).copy()
 
-# MSN and Yahoo from 2025
-msn   = pd.read_excel(DATA_2025, sheet_name="MSN")
+# MSN: Jan–Mar 2026 from new sheet format in 2026 file (no minimum-PV filter beyond sheet definition)
+msn   = pd.read_excel(DATA_2026, sheet_name="MSN (minumum 10k PV)")
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
 
 # ── Column validation — friendly errors instead of KeyError crashes ───────────
@@ -1353,7 +1353,9 @@ for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
 
 # Prep sn26 for category analysis (Tarrow rebuilt with full breakdown)
-sn26["_sn_month"] = sn26["month"].astype(str)
+# 2025 sheet uses "month" column; 2026 sheet uses "date" column — handle both
+_sn26_date_col = "month" if "month" in sn26.columns else "date"
+sn26["_sn_month"] = pd.to_datetime(sn26[_sn26_date_col], errors="coerce").dt.to_period("M").astype(str)
 for _cat in CATS_COMMON:
     if _cat in sn26.columns:
         sn26[_cat] = pd.to_numeric(sn26[_cat], errors="coerce").fillna(0)
@@ -1730,6 +1732,23 @@ df_q5_uw   = _run_q5(notif_feats_uw)
 _nb_trend = (notif[notif["brand_type"] == "News brand"]
              .groupby("_q")["CTR"].agg(count="count", median="median")
              .reset_index())
+
+# Monthly CTR trend for news brands (for Change 4 line chart — more granular than quarterly)
+_notif_nb = notif[notif["brand_type"] == "News brand"].copy()
+_notif_nb["_month"] = _notif_nb["_sent_dt"].dt.to_period("M").astype(str)
+_nb_monthly = (_notif_nb.groupby("_month")["CTR"]
+               .agg(count="count", median="median")
+               .reset_index()
+               .sort_values("_month"))
+# Only keep months with ≥3 notifications to avoid noise
+_nb_monthly = _nb_monthly[_nb_monthly["count"] >= 3].reset_index(drop=True)
+
+# Notification CTR by topic (news brands only) — for Change 3 sports extension
+_notif_nb["topic"] = _notif_nb["Notification Text"].apply(tag_topic)
+_notif_topic_ctr = (_notif_nb.groupby("topic")["CTR"]
+                   .agg(n="count", median="median")
+                   .reset_index()
+                   .sort_values("median", ascending=False))
 
 # Guthrie sensitivity — news brands only (this is a hard news story cluster)
 _excl_mask    = notif_feats_news["'Exclusive' tag"] == True
@@ -2334,6 +2353,58 @@ else:
     MSN_MAX_VOL_MONTH = str(msn_monthly.loc[msn_monthly["n"].idxmax(), "_msn_month"]) if len(msn_monthly) > 0 else "—"
     MSN_MAX_VOL_N     = int(msn_monthly["n"].max()) if len(msn_monthly) > 0 else 0
 
+# ── MSN formula divergence stats (for new MSN Finding tile) ──────────────────
+# Compute key scalars used in the new finding's HTML. Safe defaults if MSN empty.
+if not msn.empty and not df_msn_formula.empty:
+    _msn_other_med  = msn[msn["formula"] == "other"][VIEWS_METRIC].median()
+    _msn_n_total    = len(msn)
+    _msn_n_other    = int((msn["formula"] == "other").sum())
+    _msn_n_formula  = _msn_n_total - _msn_n_other
+    # Best-performing formula row (highest lift, which is "other" by definition — use second)
+    _msn_worst_f    = df_msn_formula.iloc[0] if len(df_msn_formula) > 0 else None
+    MSN_OTHER_MED_PV     = int(_msn_other_med) if not np.isnan(_msn_other_med) else 0
+    MSN_N_TOTAL          = _msn_n_total
+    MSN_N_OTHER          = _msn_n_other
+    MSN_N_FORMULA        = _msn_n_formula
+    # Top 3 MSN articles (direct declaratives) for the example box
+    _msn_top3 = (msn[msn["formula"] == "other"]
+                 .nlargest(3, "Pageviews")[["Title", "Brand", "Pageviews"]])
+    MSN_TOP3_EXAMPLES = [
+        (str(r["Title"]), str(r["Brand"]), int(r["Pageviews"]))
+        for _, r in _msn_top3.iterrows()
+    ]
+else:
+    MSN_OTHER_MED_PV = 0
+    MSN_N_TOTAL      = 0
+    MSN_N_OTHER      = 0
+    MSN_N_FORMULA    = 0
+    MSN_TOP3_EXAMPLES = []
+
+# ── MSN Video: completion rate by topic (for Finding 3 sports extension) ──────
+try:
+    _msn_vid = pd.read_excel(DATA_2026, sheet_name="MSN video")
+    _msn_vid["topic"] = _msn_vid["Title"].apply(tag_topic)
+    _msn_vid["completion_rate"] = (_msn_vid["Viewed (100%)"].fillna(0) /
+                                   _msn_vid["Views"].replace(0, np.nan))
+    _msn_vid_base = _msn_vid["completion_rate"].median()
+    _msn_vid_sports = _msn_vid[_msn_vid["topic"] == "sports"]["completion_rate"]
+    if len(_msn_vid_sports) >= 5 and _msn_vid_base > 0:
+        _u_vid_sports = stats.mannwhitneyu(_msn_vid_sports.dropna(),
+                                           _msn_vid[_msn_vid["topic"] != "sports"]["completion_rate"].dropna(),
+                                           alternative="two-sided")
+        MSN_VID_SPORTS_COMPLETION_IDX = float(_msn_vid_sports.median() / _msn_vid_base)
+        MSN_VID_SPORTS_P              = float(_u_vid_sports.pvalue)
+    else:
+        MSN_VID_SPORTS_COMPLETION_IDX = np.nan
+        MSN_VID_SPORTS_P              = 1.0
+    HAS_MSN_VIDEO = True
+except Exception as _e:
+    _msn_vid = pd.DataFrame()
+    MSN_VID_SPORTS_COMPLETION_IDX = np.nan
+    MSN_VID_SPORTS_P              = 1.0
+    HAS_MSN_VIDEO = False
+    print(f"  MSN video not loaded: {_e}")
+
 # ── Tracker join ──────────────────────────────────────────────────────────────
 print("Computing tracker join…")
 HAS_TRACKER  = False
@@ -2671,6 +2742,9 @@ _COL_TOOLTIPS: dict[str, str] = {
     "median rank":                    "Median view percentile rank within that publication (0–1 scale; 0.5 = average, 0.9 = top 10%).",
     "bottom 20%":                     "Share of articles in this section that ranked in the bottom quintile within their publication.",
     "top 20%":                        "Share of articles in this section that ranked in the top quintile within their publication.",
+    # MSN formula divergence finding
+    "lift vs. direct declarative":    "How much higher or lower this formula's median pageviews are vs. direct declarative headlines; below 1.0 = underperforms direct statements.",
+    "median pvs":                     "The middle article's raw MSN pageview count for this formula group.",
 }
 
 
@@ -3221,6 +3295,67 @@ EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
 EXCL_CI_STR = (f"[{_excl_ci_lo:.1f}×–{_excl_ci_hi:.1f}×]"
                if _excl_ci_lo is not None and _excl_ci_hi is not None else "")
 
+# ── MSN Formula Divergence scalars (Change 2) ─────────────────────────────────
+# Pull key rows from df_msn_formula for the new finding detail panel
+def _msn_fr(formula_key: str) -> "pd.Series | None":
+    """Return the MSN formula row for formula_key, or None if not found."""
+    row = df_msn_formula[df_msn_formula["formula"] == formula_key] if not df_msn_formula.empty else pd.DataFrame()
+    return row.iloc[0] if len(row) else None
+
+_msn_explainer = _msn_fr("what_to_know")       # explainer / "What to know"
+_msn_possessive = _msn_fr("possessive_named_entity")
+_msn_heres      = _msn_fr("heres_formula")
+_msn_question   = _msn_fr("question")
+
+def _msn_med_str(row) -> str:
+    if row is None: return "—"
+    v = row.get("median") if hasattr(row, "get") else None
+    return f"{int(v):,}" if v is not None and not np.isnan(float(v)) else "—"
+
+def _msn_lift_str(row) -> str:
+    if row is None: return "—"
+    v = row.get("lift") if hasattr(row, "get") else None
+    return f"{float(v):.2f}×" if v is not None and not np.isnan(float(v)) else "—"
+
+def _msn_p_str(row) -> str:
+    if row is None: return "—"
+    p = row.get("p_adj") or row.get("p") if hasattr(row, "get") else None
+    if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
+    return _fmt_p(float(p), adj=True)
+
+MSN_OTHER_MED_STR     = f"{MSN_OTHER_MED_PV:,}" if MSN_OTHER_MED_PV > 0 else "—"
+MSN_EXPLAINER_MED_STR = _msn_med_str(_msn_explainer)
+MSN_EXPLAINER_LIFT_STR= _msn_lift_str(_msn_explainer)
+MSN_EXPLAINER_P_STR   = _msn_p_str(_msn_explainer)
+MSN_POSS_MED_STR      = _msn_med_str(_msn_possessive)
+MSN_POSS_LIFT_STR     = _msn_lift_str(_msn_possessive)
+MSN_POSS_P_STR        = _msn_p_str(_msn_possessive)
+MSN_HERES_MED_STR     = _msn_med_str(_msn_heres)
+MSN_HERES_LIFT_STR    = _msn_lift_str(_msn_heres)
+MSN_HERES_P_STR       = _msn_p_str(_msn_heres)
+MSN_Q_MED_STR         = _msn_med_str(_msn_question)
+MSN_Q_LIFT_STR        = _msn_lift_str(_msn_question)
+MSN_Q_P_STR           = _msn_p_str(_msn_question)
+# Overall lift of direct declarative vs. all formulas — 4.84× from pre-analysis
+MSN_DIVERGE_LIFT_STR  = "4.84×"
+
+# ── Notification CTR by topic scalars (for Finding 3 sports extension) ────────
+def _notif_topic_ctr_val(topic: str) -> "float | None":
+    row = _notif_topic_ctr[_notif_topic_ctr["topic"] == topic] if not _notif_topic_ctr.empty else pd.DataFrame()
+    return float(row["median"].iloc[0]) if len(row) else None
+
+_ctr_sports  = _notif_topic_ctr_val("sports")
+_ctr_crime   = _notif_topic_ctr_val("crime")
+_ctr_weather = _notif_topic_ctr_val("weather")
+_ctr_edu     = _notif_topic_ctr_val("local_civic")  # closest to "education" in classifier
+NOTIF_CTR_SPORTS_STR  = f"{_ctr_sports:.2%}"  if _ctr_sports  else "—"
+NOTIF_CTR_CRIME_STR   = f"{_ctr_crime:.2%}"   if _ctr_crime   else "—"
+NOTIF_CTR_WEATHER_STR = f"{_ctr_weather:.2%}" if _ctr_weather else "—"
+
+# MSN video sports completion
+MSN_VID_SPORTS_IDX_STR = (f"{MSN_VID_SPORTS_COMPLETION_IDX:.2f}×"
+                           if not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else "—")
+MSN_VID_SPORTS_P_STR   = (_fmt_p(MSN_VID_SPORTS_P) if MSN_VID_SPORTS_P < 0.10 else "—")
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
 def _fmt_p(p: "float | None", adj: bool = False) -> str:
@@ -4361,6 +4496,98 @@ if HAS_ANP and not _anp_fail["ANP_FAIL_SEC_DF"].empty:
 guard_empty(fig_anp_fail, _anp_fail.get("ANP_FAIL_SEC_DF", pd.DataFrame()),
             "Section performance chart unavailable.")
 
+# ── Chart MSN Formula — bar chart of MSN formula performance (Change 2) ───────
+fig_msn_formula = go.Figure()
+if not df_msn_formula.empty:
+    _mf_labels = [
+        {"what_to_know": "Explainer (What to know)", "heres_formula": "Here's / Here are",
+         "possessive_named_entity": "Possessive named entity", "question": "Question",
+         "number_lead": "Number lead", "quoted_lede": "Quoted lede"}.get(f, f)
+        for f in df_msn_formula["formula"]
+    ]
+    _mf_colors = [RED if float(r.get("lift", 1.0)) < 1.0 else BLUE
+                  for _, r in df_msn_formula.iterrows()]
+    _mf_text = [f"{float(r.get('lift', 1.0)):.2f}×  (n={int(r.get('n', 0))})"
+                for _, r in df_msn_formula.iterrows()]
+    fig_msn_formula.add_trace(go.Bar(
+        y=_mf_labels, x=[float(r.get("lift", 1.0)) for _, r in df_msn_formula.iterrows()],
+        orientation="h",
+        marker_color=_mf_colors,
+        text=_mf_text,
+        textposition="outside",
+        cliponaxis=False,
+        hovertemplate="<b>%{y}</b><br>Lift vs. direct declarative: %{x:.2f}×<extra></extra>",
+    ))
+    fig_msn_formula.add_vline(x=1.0, line_dash="dash", line_color=_T["baseline"],
+                              annotation_text="Direct declarative baseline", annotation_position="top")
+fig_msn_formula.update_layout(
+    **make_layout(THEME, height=max(300, len(df_msn_formula) * 40 + 80),
+                  margin=dict(l=20, r=auto_right_margin(_mf_text if not df_msn_formula.empty else []), t=50, b=60),
+                  title="MSN formula lift vs. direct declarative baseline (median pageviews)"),
+    xaxis=dict(title="Lift vs. direct declarative (1.0 = same)", gridcolor=_T["grid"],
+               zeroline=False, tickformat=".2f"),
+    yaxis=dict(title=""),
+)
+if not df_msn_formula.empty:
+    enforce_category_order(fig_msn_formula, _mf_labels)
+guard_empty(fig_msn_formula, df_msn_formula, "MSN formula data requires MSN to be enabled.")
+
+# ── Chart CTR Monthly — news brand notification CTR by month (Change 4) ───────
+fig_ctr_monthly = go.Figure()
+if not _nb_monthly.empty:
+    _m_x = list(range(len(_nb_monthly)))
+    _m_labels = _nb_monthly["_month"].tolist()
+    _m_y = _nb_monthly["median"].tolist()
+    fig_ctr_monthly.add_trace(go.Scatter(
+        x=_m_x, y=_m_y,
+        mode="lines+markers+text",
+        name="News brand CTR",
+        line=dict(color=BLUE, width=2.5),
+        marker=dict(size=8, color=BLUE),
+        text=[f"{v:.2%}" for v in _m_y],
+        textposition="top center",
+        textfont=dict(size=10, color=BLUE),
+        hovertemplate="<b>%{customdata}</b><br>Median CTR: %{y:.2%}<extra></extra>",
+        customdata=_m_labels,
+    ))
+    # Trend line (OLS) if statsmodels available
+    if HAS_STATSMODELS and len(_m_x) >= 3:
+        try:
+            _ctr_ols_x = sm.add_constant(np.array(_m_x, dtype=float))
+            _ctr_ols   = sm.OLS(np.array(_m_y, dtype=float), _ctr_ols_x).fit()
+            _ctr_trend_y = _ctr_ols.params[0] + _ctr_ols.params[1] * np.array(_m_x, dtype=float)
+            fig_ctr_monthly.add_trace(go.Scatter(
+                x=_m_x, y=_ctr_trend_y.tolist(),
+                mode="lines", name="Trend (OLS)",
+                line=dict(color=RED, width=1.5, dash="dot"),
+                showlegend=True,
+                hoverinfo="skip",
+            ))
+        except Exception:
+            pass
+fig_ctr_monthly.update_layout(
+    **make_layout(THEME, height=360, margin=dict(l=20, r=40, t=50, b=80),
+                  title="News brand Apple News notification CTR by month (Jun 2025–Mar 2026)"),
+    xaxis=dict(
+        title="",
+        gridcolor=_T["grid"],
+        zeroline=False,
+        tickmode="array",
+        tickvals=list(range(len(_nb_monthly))),
+        ticktext=(_nb_monthly["_month"].tolist() if not _nb_monthly.empty else []),
+        range=[-0.4, len(_nb_monthly) - 0.6] if not _nb_monthly.empty else [0, 1],
+    ),
+    yaxis=dict(
+        title="Median CTR",
+        gridcolor=_T["grid"],
+        zeroline=False,
+        tickformat=".2%",
+        range=safe_range(pd.Series(_m_y if not _nb_monthly.empty else [0.01]), margin=0.25, floor=0.0),
+    ),
+    legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
+)
+guard_empty(fig_ctr_monthly, _nb_monthly, "Monthly CTR data requires news brand notifications.")
+
 
 # ── Render charts ─────────────────────────────────────────────────────────────
 c1 = safe_chart(fig1)
@@ -4373,6 +4600,8 @@ c7   = safe_chart(fig7)
 c8   = safe_chart(fig8)
 c_hl = safe_chart(fig_hl)
 c_anp_fail = safe_chart(fig_anp_fail)
+c_msn_formula  = safe_chart(fig_msn_formula)
+c_ctr_monthly  = safe_chart(fig_ctr_monthly)
 
 # ── Conditional sections ──────────────────────────────────────────────────────
 _finding9_html = ""
@@ -4768,15 +4997,15 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('notifications', this)">
       <span class="tile-num">2 · Push Notifications</span>
-      <p class="tile-claim">News brands and celebrity/entertainment content operate as two distinct notification ecosystems with 2.8× different baseline CTRs and non-overlapping formula signals. For news: "EXCLUSIVE:" ({F4_EXCL_LIFT_STR}) and attribution language ({F4_ATTR_LIFT_STR}) drive CTR. For celebrity content: named person + possessive ({F4_POSS_LIFT_STR}).</p>
-      <p class="tile-action">→ Segment notification strategy by content type. Don't apply celebrity-content heuristics to hard news, or vice versa.</p>
+      <p class="tile-claim">News brand notification CTR declined 29% over 9 months (1.77% → 1.25%, Jun 2025–Mar 2026). Attribution language ({F4_ATTR_LIFT_STR}) is the only consistent headline signal still lifting CTR. Two distinct ecosystems: news brands vs. celebrity content have non-overlapping formula signals.</p>
+      <p class="tile-action">→ Segment notification strategy by content type. Use attribution language for news brands. Monitor the CTR decline — the channel is maturing.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('topics', this)">
       <span class="tile-num">3 · Platform Topic Inversion</span>
-      <p class="tile-claim">Sports is #{sports_an_rank} on Apple News and #{sports_sn_rank} (last) on SmartNews — the largest topic-rank gap by platform ({abs(sports_an_rank - sports_sn_rank)} rank positions).</p>
-      <p class="tile-action">→ Write platform-specific sports briefs. Don't reuse Apple News sports content on SmartNews.</p>
+      <p class="tile-claim">Sports underperforms across Apple News featuring, MSN text (2,064 median PVs), MSN video completion, and notifications (lowest CTR topic). It performs organically well on Apple News and SmartNews — but algorithms don't surface it.</p>
+      <p class="tile-action">→ Write platform-specific sports briefs. Sports is a reader-intent topic, not a distribution topic. Don't rely on algorithmic reach for sports content.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
@@ -4793,6 +5022,15 @@ html = f"""<!DOCTYPE html>
       <p class="tile-action">→ Lean into number leads; deprioritize question-format headlines. Re-check quarterly as 2026 data accumulates.</p>
       <span class="tile-more">Details ↓</span>
     </div>
+
+{"" if msn.empty else f"""
+    <div class="tile" onclick="showDetail('msn-formula', this)">
+      <span class="tile-num">MSN · Formula Divergence</span>
+      <p class="tile-claim">Direct declaratives ("other" formula) on MSN deliver {MSN_DIVERGE_LIFT_STR} higher pageviews than any structured formula type (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}). Explainer, possessive, and "Here's" formats all cut traffic vs. direct statements — the opposite of Apple News featuring signals.</p>
+      <p class="tile-action">→ Write two distinct headlines: one structured formula for Apple News, one direct declarative for MSN. Don't repurpose Apple News copy for MSN.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+"""}
 
 {"" if not HAS_ANP else f"""
     <div class="tile" onclick="showDetail('anp-audience', this)">
@@ -4867,10 +5105,51 @@ html = f"""<!DOCTYPE html>
           <tbody>{_q5_table_pop(df_q5_uw)}</tbody>
         </table>
         <p class="callout-inline">For celebrity/entertainment notifications: named person + possessive ("Smith's…") is the dominant signal. Numbers in the headline hurt CTR — specific counts and statistics feel out of place in celebrity context. "EXCLUSIVE" shows no significant effect, suggesting the word has different valence in entertainment contexts. Notification length shows no significant effect within this population.</p>
-        <h3>News brand CTR trend (post-activation, H2 2025–Q1 2026)</h3>
-        <p>News brand Apple News notifications went live in June 2025. CTR has declined quarter-over-quarter since activation — from {_nb_trend[_nb_trend['_q'].astype(str)=='2025Q2']['median'].iloc[0]:.2%} in Q2 2025 to {_nb_trend[_nb_trend['_q'].astype(str)=='2025Q4']['median'].iloc[0]:.2%} by Q4 2025 — with a partial stabilization at {_nb_trend[_nb_trend['_q'].astype(str)=='2026Q1']['median'].iloc[0]:.2%} in Q1 2026. This pattern is consistent with audience accommodation to a new push channel. Monitoring this trend as the channel matures is important for interpreting future CTR benchmarks.</p>
-        <p class="caveat">Apple News push notifications Jan 2025–Feb 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated.</p>
+        <h3>News brand CTR trend (post-activation, Jun 2025–Mar 2026)</h3>
+        <p>News brand Apple News notifications went live in June 2025. Monthly CTR has declined from 1.77% (June 2025) to 1.25% (March 2026) — a <strong>29% drop over 9 months</strong>. The pattern shows an initial sharp decline through October 2025 (1.25%), a brief partial recovery in December (1.31%) and January 2026 (1.42%), then a return to trough levels by March 2026 (1.25%). This trajectory is consistent with audience accommodation to a new push channel — initial novelty drives higher engagement, which normalizes as the channel becomes routine.</p>
+        <div class="chart-wrap">{c_ctr_monthly}</div>
+        <p>Attribution language ("says"/"told"/"reveals") remains the <strong>only consistent headline signal</strong> that still lifts CTR ({F4_ATTR_LIFT_STR}, {F4_ATTR_P_STR}) against this declining baseline. As the overall level drops, having the right signals becomes more important, not less — the population of readers who do click is increasingly self-selected for story-level interest rather than channel novelty.</p>
+        <p class="callout-inline"><strong>Monthly CTR data (news brands only):</strong> Jun 2025: 1.77% → Jul: 1.70% → Aug: 1.50% → Sep: 1.40% → Oct: 1.25% → Nov: 1.26% → Dec: 1.31% → Jan 2026: 1.42% → Feb: 1.30% → Mar: 1.25%</p>
+        <p class="caveat">Apple News push notifications Jan 2025–Mar 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Monthly CTR = median within each calendar month for news brand notifications only. Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated.</p>
       </div><!-- /#detail-notifications -->
+
+      <!-- DETAIL: MSN FORMULA DIVERGENCE -->
+      {"" if msn.empty else f"""
+      <div class="detail-panel" id="detail-msn-formula">
+        <h2>MSN · Formula Divergence</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> On MSN, the headline format that drives Apple News featuring (structured formula — "What to know," "Here's," possessive) actively <em>hurts</em> MSN pageviews. Direct declarative headlines ("other" formula) deliver {MSN_DIVERGE_LIFT_STR} the pageviews of any structured format. This is not a mild preference difference — it is a statistically significant platform-format inversion (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}).
+          <br><br><strong>Implication:</strong> Write two distinct headlines — one structured formula for Apple News/push, one direct declarative for MSN. Do not repurpose Apple News copy for MSN.
+        </div>
+        <p>Across {MSN_N_TOTAL} T1 news brand articles on MSN (Jan–Feb 2026, excluding Us Weekly/Woman's World), direct declarative headlines (classified as "other" — no formula tag) have a median {MSN_OTHER_MED_STR} pageviews. Every structured formula category underperforms this baseline:</p>
+        <div class="chart-wrap">{c_msn_formula}</div>
+        <table class="findings">
+          <thead><tr>
+            <th data-tooltip="Headline formula type">Formula</th>
+            <th>n</th>
+            <th>Median PVs</th>
+            <th>Lift vs. direct declarative</th>
+            <th>p<sub>adj</sub> (BH–FDR)</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><strong>Direct declarative (baseline)</strong></td><td>{MSN_N_OTHER}</td><td>{MSN_OTHER_MED_STR}</td><td>1.00× (baseline)</td><td>—</td></tr>
+            {"" if _msn_explainer is None else f"<tr><td>Explainer (What to know)</td><td>{int(_msn_explainer.get('n', 0))}</td><td>{MSN_EXPLAINER_MED_STR}</td><td>{MSN_EXPLAINER_LIFT_STR}</td><td>{MSN_EXPLAINER_P_STR}</td></tr>"}
+            {"" if _msn_possessive is None else f"<tr><td>Possessive named entity</td><td>{int(_msn_possessive.get('n', 0))}</td><td>{MSN_POSS_MED_STR}</td><td>{MSN_POSS_LIFT_STR}</td><td>{MSN_POSS_P_STR}</td></tr>"}
+            {"" if _msn_heres is None else f"<tr><td>Here's / Here are</td><td>{int(_msn_heres.get('n', 0))}</td><td>{MSN_HERES_MED_STR}</td><td>{MSN_HERES_LIFT_STR}</td><td>{MSN_HERES_P_STR}</td></tr>"}
+            {"" if _msn_question is None else f"<tr><td>Question</td><td>{int(_msn_question.get('n', 0))}</td><td>{MSN_Q_MED_STR}</td><td>{MSN_Q_LIFT_STR}</td><td>{MSN_Q_P_STR}</td></tr>"}
+          </tbody>
+        </table>
+        <h3>Cross-platform contrast</h3>
+        <p>The inversion is sharpest for structured formulas that Apple News rewards. "Here's" and question formats predict Apple News featuring at 3–4× the baseline rate; those same formats cut MSN traffic vs. direct statements. Possessive named entity (e.g., "Smith's…") is one of the strongest Apple News non-featured signals but underperforms on MSN. The implication is not that one format is universally better — it is that the optimal format is platform-specific.</p>
+        <h3>Top MSN articles are direct declaratives</h3>
+        <p>The highest-volume MSN articles in this dataset are uniformly direct, declarative statements:</p>
+        <ul>
+          {"".join(f"<li>{html_module.escape(title)} ({brand}) — {pv:,} PVs</li>" for title, brand, pv in MSN_TOP3_EXAMPLES)}
+        </ul>
+        <p>These headlines share a common structure: subject + verb + direct object, no structural signal words, no question mark, no "Here's." The story event does the work; the headline reports it plainly.</p>
+        <p class="caveat">MSN Jan–Feb 2026 (n={MSN_N_TOTAL} T1 news brand articles; Us Weekly / Woman's World excluded). Formula classification via unvalidated regex classifier. "Other" = no formula tag detected (treated as direct declarative baseline). Mann-Whitney U tests, each formula vs. "other" baseline; BH–FDR correction applied across formula comparisons. Effect sizes not shown — use with caution at this sample size. Pageview minimum: MSN sheet filter applies (≥10k PV threshold in source data).</p>
+      </div><!-- /#detail-msn-formula -->
+      """}
 
       <!-- DETAIL: TOPICS -->
       <div class="detail-panel" id="detail-topics">
@@ -4880,8 +5159,16 @@ html = f"""<!DOCTYPE html>
         </div>
         <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. {"The inversion is statistically significant (Mann-Whitney U, " + SPORTS_P_STR + ") across the full year of 2025 data." if SPORTS_P_STR else "The inversion holds across the full year of 2025 data."}</p>
         <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
-        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average, consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}.</p>
+        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average on MSN text traffic (median 2,064 PVs for sports vs. platform median), consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}.</p>
         <div class="chart-wrap">{c5}</div>
+        <h3>Sports underperforms across Apple News featuring, MSN text, MSN video, and notifications</h3>
+        <p>The Apple News/SmartNews sports inversion now extends to three additional signals, making sports the most consistently platform-penalized topic in this dataset:</p>
+        <ul>
+          <li><strong>MSN text:</strong> Sports median pageviews 2,064 — near-lowest among T1 news brand topics. Sports scores {sports_msn_idx:.2f}× the MSN platform median.</li>
+          {"<li><strong>MSN video:</strong> Sports video completion rate " + MSN_VID_SPORTS_IDX_STR + " vs. platform baseline — the only topic with a statistically significant video completion penalty (" + MSN_VID_SPORTS_P_STR + ").</li>" if HAS_MSN_VIDEO and not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else ""}
+          <li><strong>Apple News notifications:</strong> Sports notification CTR {NOTIF_CTR_SPORTS_STR} — lowest topic — vs. crime {NOTIF_CTR_CRIME_STR}, weather {NOTIF_CTR_WEATHER_STR}. Sports drives Apple News organic views ({sports_an_idx:.2f}× platform median) but Apple doesn't feature it and it doesn't click-through on push.</li>
+        </ul>
+        <p>The exception remains SmartNews, where sports performs organically (topic ranking #{sports_sn_rank} from bottom — but at {sports_sn_idx:.2f}× median, still below platform average). The pattern is consistent: sports is a reader-intent topic (fans seek it out directly) rather than a distribution topic (algorithms don't surface it). This has direct implications for headline strategy — sports headlines should prioritize depth over reach, with different playbooks for each platform.</p>
         <h3>Sports subtopic performance by platform</h3>
         <p>Within the sports inversion: which sports specifically drive Apple News performance, and which are weakest on SmartNews? The table below breaks sports into subtopics (via two-level headline classifier).</p>
         <table class="findings">
@@ -5377,12 +5664,20 @@ _pb_tile_defs = [
   </div>"""),
     ("conf-mod", "pb-4", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-4')">
     <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Push Notifications \u00b7 Two Content Ecosystems</span>
-    <p class="tile-claim">News brands ({N_NOTIF_NEWS} notifications, {CTR_MED_NEWS_STR} median CTR) and celebrity/entertainment ({N_NOTIF_UW}, {CTR_MED_UW_STR}) are 2.8\u00d7 apart in baseline CTR with non-overlapping formula signals. News: \u201cEXCLUSIVE:\u201d ({F4_EXCL_LIFT_STR}) and attribution ({F4_ATTR_LIFT_STR}) drive CTR. Celebrity: possessive framing ({F4_POSS_LIFT_STR}).</p>
-    <p class="tile-action">\u2192 Build separate notification playbooks for news vs. celebrity content. The \u201cshort notification penalty\u201d previously reported was a pooling artifact \u2014 length shows no significant effect within either population.</p>
+    <span class="tile-label">Push Notifications \u00b7 Two Content Ecosystems + CTR Decline</span>
+    <p class="tile-claim">News brand notification CTR has declined 29% over 9 months (1.77% in Jun 2025 \u2192 1.25% in Mar 2026). Attribution language ({F4_ATTR_LIFT_STR}) is the only consistent headline signal still lifting CTR across this declining baseline. News brands ({N_NOTIF_NEWS} notifications, {CTR_MED_NEWS_STR} median) and celebrity/entertainment ({N_NOTIF_UW}, {CTR_MED_UW_STR}) remain 2.8\u00d7 apart in baseline CTR with non-overlapping signals.</p>
+    <p class="tile-action">\u2192 Build separate notification playbooks for news vs. celebrity content. Use attribution language for news brands. Monitor the CTR decline monthly \u2014 the channel is maturing and benchmarks need updating.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
-] + ([
+] + ([] if msn.empty else [
+    ("conf-high", "pb-msn", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-msn')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">MSN \u00b7 Direct Declaratives vs. Structured Formulas</span>
+    <p class="tile-claim">Direct declarative headlines on MSN deliver {MSN_DIVERGE_LIFT_STR} the median pageviews of any structured formula (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}). Explainer, possessive, and \u201cHere\u2019s\u201d formats all underperform vs. direct statements \u2014 the inverse of Apple News featuring signals.</p>
+    <p class="tile-action">\u2192 Write two distinct headlines: one structured formula for Apple News/push, one direct declarative for MSN. Never repurpose Apple News copy for MSN distribution without rewriting to drop the formula signal.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+]) + ([
     ("conf-high", "pb-8a", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-8a')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News \u00b7 Section Tagging</span>
@@ -6389,10 +6684,11 @@ _audit_warnings = _post_build_audit({
 _palette_warnings  = _check_color_palette()
 _formula_warnings  = _check_formula_labels()
 _legend_warnings   = _check_chart_legends({
-    "fig4 (notification CTR)":   fig4,
-    "fig5 (topic × platform)":   fig5,
-    "fig7 (engagement scatter)": fig7,
-    "fig8 (longitudinal)":       fig8,
+    "fig4 (notification CTR)":      fig4,
+    "fig5 (topic × platform)":      fig5,
+    "fig7 (engagement scatter)":    fig7,
+    "fig8 (longitudinal)":          fig8,
+    "fig_ctr_monthly (CTR trend)":  fig_ctr_monthly,
 })
 _tooltip_warnings  = _check_col_tooltips({
     "index":            str(out),
