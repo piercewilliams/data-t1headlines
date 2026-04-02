@@ -169,8 +169,16 @@
   <div class="pb-tile" onclick="togglePb(this,'pb-2')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Apple News · Featured Targeting</span>
-    <p class="tile-claim">“What to know” is associated with 1.6× Featured placement. But for non-Featured articles, organic view performance trends lower (p<sub>adj</sub>=0.16, not significant at α=0.05, n=17).</p>
+    <p class="tile-claim">“What to know” is associated with 1.8× Featured placement. But for non-Featured articles, organic view performance trends lower (p<sub>adj</sub>=0.10, not significant at α=0.05, n=16).</p>
     <p class="tile-action">→ Reserve “What to know” for intentional Featured campaigns. Don’t apply it broadly for organic reach.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-msn')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">MSN · Direct Declaratives vs. Structured Formulas</span>
+    <p class="tile-claim">Direct declarative headlines on MSN deliver 4.84× the median pageviews of any structured formula (Mann-Whitney p&lt;0.001, n=287). Explainer, possessive, and “Here’s” formats all underperform vs. direct statements—the inverse of Apple News featuring signals.</p>
+    <p class="tile-action">→ Write two distinct headlines: one structured formula for Apple News/push, one direct declarative for MSN. Never repurpose Apple News copy for MSN distribution without rewriting to drop the formula signal.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -192,9 +200,9 @@
 
   <div class="pb-tile" onclick="togglePb(this,'pb-4')">
     <span class="conf-badge conf-high">High confidence</span>
-    <span class="tile-label">Push Notifications · Two Content Ecosystems</span>
-    <p class="tile-claim">News brands (1124 notifications, 1.40% median CTR) and celebrity/entertainment (799, 3.97%) are 2.8× apart in baseline CTR with non-overlapping formula signals. News: “EXCLUSIVE:” (—) and attribution (1.32×) drive CTR. Celebrity: possessive framing (1.18×).</p>
-    <p class="tile-action">→ Build separate notification playbooks for news vs. celebrity content. The “short notification penalty” previously reported was a pooling artifact—length shows no significant effect within either population.</p>
+    <span class="tile-label">Push Notifications · Two Content Ecosystems + CTR Decline</span>
+    <p class="tile-claim">News brand notification CTR has declined 29% over 9 months (1.77% in Jun 2025 → 1.25% in Mar 2026). Attribution language (1.33×) is the only consistent headline signal still lifting CTR across this declining baseline. News brands (1036 notifications, 1.41% median) and celebrity/entertainment (747, 4.01%) remain 2.8× apart in baseline CTR with non-overlapping signals.</p>
+    <p class="tile-action">→ Build separate notification playbooks for news vs. celebrity content. Use attribution language for news brands. Monitor the CTR decline monthly—the channel is maturing and benchmarks need updating.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -205,19 +213,19 @@
 <div id="pb-2" class="pb-detail" style="display:none">
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
-    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong>—Featured rate is 1.6×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.16, not significant at α=0.05, n=17).</li>
-    <li><strong>Featured articles drive 2.1× views vs. non-Featured</strong>—treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
+    <li><strong>"What to know" is a Featured targeting tool, not a views driver</strong>—Featured rate is 1.8×, but organic views for non-Featured "What to know" articles trend lower (p<sub>adj</sub>=0.10, not significant at α=0.05, n=16).</li>
+    <li><strong>Featured articles drive 2.9× views vs. non-Featured</strong>—treat the designation as a channel, not a side effect. It is worth targeting intentionally.</li>
     <li><strong>Don't apply "What to know" broadly</strong>—the view penalty for non-Featured articles makes it a poor default formula outside an explicit Featured campaign.</li>
   </ul>
   <h3 class="rh">Featured rate by formula—Apple News</h3>
   <table>
     <thead><tr><th>Formula</th><th>n</th><th>Featured rate</th><th>Lift</th><th>p<sub>adj</sub> (BH-FDR)</th><th>Within-Featured median %ile</th></tr></thead>
-    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;What to know</td><td>31</td><td>45%</td><td>1.65×</td><td>p<sub>adj</sub>=0.07</td><td>80% (1.27× Featured avg)</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;Question</td><td>199</td><td>44%</td><td>1.61×</td><td>p<sub>adj</sub>&lt;0.001 ***</td><td>44% (0.70× Featured avg)</td></tr>
-<tr><td>Here's / Here are</td><td>28</td><td>39%</td><td>1.43×</td><td>p<sub>adj</sub>=0.27</td><td>54% (0.86× Featured avg)</td></tr>
-<tr><td>Quoted lede</td><td>172</td><td>34%</td><td>1.25×</td><td>p<sub>adj</sub>=0.07</td><td>86% (1.36× Featured avg)</td></tr>
-<tr><td>Possessive named entity</td><td>131</td><td>25%</td><td>0.92×</td><td>p<sub>adj</sub>=0.63</td><td>59% (0.94× Featured avg)</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Number lead</td><td>231</td><td>17%</td><td>0.63×</td><td>p<sub>adj</sub>=0.002 **</td><td>75% (1.19× Featured avg)</td></tr>
+    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;What to know</td><td>29</td><td>45%</td><td>1.79×</td><td>p<sub>adj</sub>=0.03 *</td><td>81% (1.18× Featured avg)</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;Question</td><td>178</td><td>44%</td><td>1.75×</td><td>p<sub>adj</sub>&lt;0.001 ***</td><td>44% (0.64× Featured avg)</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;Here's / Here are</td><td>28</td><td>39%</td><td>1.57×</td><td>p<sub>adj</sub>=0.15</td><td>54% (0.79× Featured avg)</td></tr>
+<tr><td>Quoted lede</td><td>178</td><td>34%</td><td>1.37×</td><td>p<sub>adj</sub>=0.008 **</td><td>86% (1.26× Featured avg)</td></tr>
+<tr><td>Possessive named entity</td><td>124</td><td>23%</td><td>0.93×</td><td>p<sub>adj</sub>=0.74</td><td>63% (0.93× Featured avg)</td></tr>
+<tr><td><span class="tag tag-red">↓</span>&nbsp;Number lead</td><td>219</td><td>15%</td><td>0.60×</td><td>p<sub>adj</sub>=0.002 **</td><td>77% (1.13× Featured avg)</td></tr>
 </tbody>
   </table>
 </div>
@@ -226,20 +234,20 @@
   <h3 class="rh">Rules of thumb</h3>
   <ul class="rules">
     <li><strong>Lead with "EXCLUSIVE:"</strong> on genuine scoops—— CTR lift. The word must be earned; overuse erodes the signal.</li>
-    <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" (1.18× lift).</li>
+    <li><strong>Named person + possessive</strong>: "Smith's connection to…" outperforms "Smith connected to…" (1.17× lift).</li>
     <li><strong>Write longer notifications:</strong> ≤80 chars delivers 26% fewer clicks. Give readers context before asking them to tap.</li>
-    <li><strong>Avoid question format:</strong> hurts CTR (0.93×), consistent with the Apple News finding.</li>
+    <li><strong>Avoid question format:</strong> hurts CTR (0.87×), consistent with the Apple News finding.</li>
     <li><strong>Serial/escalating stories with a named anchor</strong> are the highest-CTR content type—structure updates as installments with possessive framing.</li>
   </ul>
   <h3 class="rh">Features by CTR lift—Push Notifications</h3>
-  <p class="detail-sub">Jan–Feb 2026 · N=1923 notifications · BH-FDR corrected · 4 features significant after correction</p>
+  <p class="detail-sub">Jan–Feb 2026 · N=1783 notifications · BH-FDR corrected · 4 features significant after correction</p>
   <table>
     <thead><tr><th>Feature</th><th>n (present)</th><th>Median CTR (present)</th><th>Median CTR (absent)</th><th>Lift (95% CI)</th><th>Effect size r</th><th>p<sub>adj</sub> (BH-FDR)</th></tr></thead>
-    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;'Exclusive' tag</td><td>74</td><td>3.81%</td><td>2.02%</td><td>1.89× [1.58×–2.13×]</td><td>-0.46</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;Named person + possessive</td><td>432</td><td>3.48%</td><td>1.89%</td><td>1.84× [1.69×–2.01×]</td><td>-0.36</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-green">★</span>&nbsp;Full name present</td><td>1,216</td><td>2.61%</td><td>1.71%</td><td>1.53× [1.38×–1.68×]</td><td>-0.32</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Short (≤80 chars)</td><td>1,215</td><td>1.90%</td><td>2.56%</td><td>0.74× [0.66×–0.80×]</td><td>0.18</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
-<tr><td><span class="tag tag-red">↓</span>&nbsp;Question format</td><td>110</td><td>1.40%</td><td>2.15%</td><td>0.65× [0.57×–0.74×]</td><td>0.37</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+    <tbody><tr><td><span class="tag tag-green">★</span>&nbsp;'Exclusive' tag</td><td>67</td><td>3.95%</td><td>2.05%</td><td>1.93× [1.63×–2.12×]</td><td>-0.48</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;Named person + possessive</td><td>407</td><td>3.55%</td><td>1.92%</td><td>1.85× [1.68×–2.02×]</td><td>-0.36</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-green">★</span>&nbsp;Full name present</td><td>1,125</td><td>2.69%</td><td>1.75%</td><td>1.54× [1.38×–1.69×]</td><td>-0.33</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-red">↓</span>&nbsp;Short (≤80 chars)</td><td>1,142</td><td>1.93%</td><td>2.62%</td><td>0.74× [0.67×–0.81×]</td><td>0.18</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
+<tr><td><span class="tag tag-red">↓</span>&nbsp;Question format</td><td>100</td><td>1.36%</td><td>2.19%</td><td>0.62× [0.53×–0.74×]</td><td>0.38</td><td>p<sub>adj</sub>&lt;0.001 ***</td></tr>
 </tbody>
   </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
@@ -258,7 +266,7 @@
       <th>Formula lift</th>
       <th>Top topic (views)</th>
     </tr></thead>
-    <tbody><tr><td>Us Weekly</td><td>882</td><td>0%</td><td>Possessive named entity</td><td>0.95×</td><td>Weather</td></tr><tr><td>Sacramento Bee</td><td>196</td><td>45%</td><td>What to know</td><td>1.25×</td><td>Business</td></tr><tr><td>The Kansas City Star</td><td>195</td><td>51%</td><td>—</td><td>—</td><td>Sports</td></tr><tr><td>The Charlotte Observer</td><td>183</td><td>83%</td><td>—</td><td>—</td><td>Nature/Wildlife</td></tr><tr><td>Miami Herald</td><td>177</td><td>76%</td><td>—</td><td>—</td><td>Nature/Wildlife</td></tr><tr><td>Kansas City Star</td><td>122</td><td>52%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>Soap Opera Digest</td><td>100</td><td>0%</td><td>—</td><td>—</td><td>Crime</td></tr><tr><td>Woman’s World</td><td>100</td><td>1%</td><td>Possessive named entity</td><td>1.25×</td><td>Sports</td></tr><tr><td>Fort Worth Star-Telegram</td><td>99</td><td>73%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>Biloxi Sun Herald</td><td>98</td><td>14%</td><td>Number lead</td><td>1.03×</td><td>Local/Civic</td></tr><tr><td>Fresno Bee</td><td>98</td><td>60%</td><td>Number lead</td><td>1.12×</td><td>Weather</td></tr><tr><td>Hilton Head Island Packet</td><td>98</td><td>22%</td><td>Number lead</td><td>1.08×</td><td>Local/Civic</td></tr><tr><td>Tacoma News Tribune</td><td>98</td><td>32%</td><td>Number lead</td><td>1.04×</td><td>Lifestyle</td></tr><tr><td>Centre Daily Times</td><td>97</td><td>3%</td><td>Number lead</td><td>0.50×</td><td>Weather</td></tr><tr><td>Wichita Eagle</td><td>97</td><td>22%</td><td>Here&#x27;s / Here are</td><td>0.94×</td><td>Business</td></tr><tr><td>Bellingham Herald</td><td>96</td><td>12%</td><td>Quoted lede</td><td>1.11×</td><td>Weather</td></tr><tr><td>Bradenton Herald</td><td>96</td><td>20%</td><td>Number lead</td><td>0.92×</td><td>Crime</td></tr><tr><td>Merced Sun-Star</td><td>96</td><td>6%</td><td>Number lead</td><td>1.62×</td><td>Weather</td></tr><tr><td>Myrtle Beach Sun News</td><td>96</td><td>20%</td><td>Quoted lede</td><td>1.20×</td><td>Business</td></tr><tr><td>Belleville News-Democrat</td><td>95</td><td>6%</td><td>Number lead</td><td>1.38×</td><td>Weather</td></tr><tr><td>Columbus Ledger-Enquirer</td><td>95</td><td>3%</td><td>Number lead</td><td>1.80×</td><td>Lifestyle</td></tr><tr><td>Rock Hill Herald</td><td>95</td><td>3%</td><td>Quoted lede</td><td>1.12×</td><td>Nature/Wildlife</td></tr><tr><td>Modesto Bee</td><td>94</td><td>7%</td><td>Number lead</td><td>0.94×</td><td>Business</td></tr><tr><td>San Luis Obispo Tribune</td><td>94</td><td>23%</td><td>Number lead</td><td>1.31×</td><td>Weather</td></tr><tr><td>The Olympian</td><td>92</td><td>42%</td><td>Number lead</td><td>0.72×</td><td>Sports</td></tr><tr><td>The State</td><td>91</td><td>22%</td><td>Quoted lede</td><td>1.08×</td><td>Local/Civic</td></tr><tr><td>Raleigh News &amp; Observer</td><td>90</td><td>79%</td><td>—</td><td>—</td><td>Nature/Wildlife</td></tr><tr><td>The Sacramento Bee</td><td>89</td><td>63%</td><td>Question</td><td>0.76×</td><td>Weather</td></tr><tr><td>Tri-City Herald</td><td>87</td><td>8%</td><td>Number lead</td><td>1.00×</td><td>Weather</td></tr><tr><td>Idaho Statesman</td><td>85</td><td>59%</td><td>Quoted lede</td><td>0.99×</td><td>Nature/Wildlife</td></tr><tr><td>Lexington Herald-Leader</td><td>81</td><td>48%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>Durham Herald-Sun</td><td>79</td><td>27%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>McClatchy DC Bureau</td><td>39</td><td>0%</td><td>Question</td><td>0.86×</td><td>Local/Civic</td></tr><tr><td>Macon Telegraph</td><td>35</td><td>0%</td><td>—</td><td>—</td><td>Local/Civic</td></tr><tr><td>Charlotte Observer</td><td>18</td><td>89%</td><td>—</td><td>—</td><td>Weather</td></tr></tbody>
+    <tbody><tr><td>Us Weekly</td><td>797</td><td>0%</td><td>Possessive named entity</td><td>0.98×</td><td>Weather</td></tr><tr><td>Sacramento Bee</td><td>202</td><td>45%</td><td>What to know</td><td>1.22×</td><td>Business</td></tr><tr><td>Miami Herald</td><td>134</td><td>82%</td><td>—</td><td>—</td><td>Lifestyle</td></tr><tr><td>Kansas City Star</td><td>122</td><td>52%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>Soap Opera Digest</td><td>100</td><td>0%</td><td>—</td><td>—</td><td>Crime</td></tr><tr><td>Woman’s World</td><td>100</td><td>1%</td><td>Possessive named entity</td><td>1.24×</td><td>Sports</td></tr><tr><td>Fort Worth Star-Telegram</td><td>99</td><td>73%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>The Kansas City Star</td><td>99</td><td>44%</td><td>—</td><td>—</td><td>Business</td></tr><tr><td>Biloxi Sun Herald</td><td>98</td><td>14%</td><td>Number lead</td><td>1.03×</td><td>Local/Civic</td></tr><tr><td>Fresno Bee</td><td>98</td><td>60%</td><td>Number lead</td><td>1.12×</td><td>Weather</td></tr><tr><td>Hilton Head Island Packet</td><td>98</td><td>22%</td><td>Number lead</td><td>1.08×</td><td>Local/Civic</td></tr><tr><td>Tacoma News Tribune</td><td>98</td><td>32%</td><td>Number lead</td><td>1.07×</td><td>Lifestyle</td></tr><tr><td>Centre Daily Times</td><td>97</td><td>3%</td><td>Number lead</td><td>0.50×</td><td>Weather</td></tr><tr><td>Wichita Eagle</td><td>97</td><td>22%</td><td>Here&#x27;s / Here are</td><td>0.94×</td><td>Business</td></tr><tr><td>Bellingham Herald</td><td>96</td><td>12%</td><td>Quoted lede</td><td>1.11×</td><td>Weather</td></tr><tr><td>Bradenton Herald</td><td>96</td><td>20%</td><td>Number lead</td><td>0.92×</td><td>Crime</td></tr><tr><td>Merced Sun-Star</td><td>96</td><td>6%</td><td>Number lead</td><td>1.62×</td><td>Weather</td></tr><tr><td>Myrtle Beach Sun News</td><td>96</td><td>20%</td><td>Quoted lede</td><td>1.20×</td><td>Business</td></tr><tr><td>Belleville News-Democrat</td><td>95</td><td>6%</td><td>Number lead</td><td>1.38×</td><td>Weather</td></tr><tr><td>Columbus Ledger-Enquirer</td><td>95</td><td>3%</td><td>Number lead</td><td>1.80×</td><td>Lifestyle</td></tr><tr><td>Rock Hill Herald</td><td>95</td><td>3%</td><td>Quoted lede</td><td>1.12×</td><td>Nature/Wildlife</td></tr><tr><td>Modesto Bee</td><td>94</td><td>7%</td><td>Number lead</td><td>1.00×</td><td>Business</td></tr><tr><td>San Luis Obispo Tribune</td><td>94</td><td>23%</td><td>Number lead</td><td>1.29×</td><td>Weather</td></tr><tr><td>The Olympian</td><td>92</td><td>42%</td><td>Number lead</td><td>0.72×</td><td>Sports</td></tr><tr><td>The Charlotte Observer</td><td>91</td><td>90%</td><td>—</td><td>—</td><td>Crime</td></tr><tr><td>The State</td><td>91</td><td>22%</td><td>Quoted lede</td><td>1.09×</td><td>Local/Civic</td></tr><tr><td>Raleigh News &amp; Observer</td><td>90</td><td>79%</td><td>—</td><td>—</td><td>Nature/Wildlife</td></tr><tr><td>Tri-City Herald</td><td>87</td><td>8%</td><td>Number lead</td><td>1.00×</td><td>Weather</td></tr><tr><td>Idaho Statesman</td><td>85</td><td>59%</td><td>Quoted lede</td><td>0.99×</td><td>Nature/Wildlife</td></tr><tr><td>Lexington Herald-Leader</td><td>81</td><td>48%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>Durham Herald-Sun</td><td>79</td><td>27%</td><td>—</td><td>—</td><td>Weather</td></tr><tr><td>McClatchy DC Bureau</td><td>39</td><td>0%</td><td>Question</td><td>0.86×</td><td>Local/Civic</td></tr><tr><td>Macon Telegraph</td><td>35</td><td>0%</td><td>—</td><td>—</td><td>Local/Civic</td></tr><tr><td>Charlotte Observer</td><td>18</td><td>89%</td><td>—</td><td>—</td><td>Weather</td></tr></tbody>
   </table>
   <p class="caveat">Politics excluded. Lift is directional only—sample sizes per publication are small; confirm before changing editorial policy.</p>
 </div>
