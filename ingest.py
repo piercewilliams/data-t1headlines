@@ -20,6 +20,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+GOVERNOR_FILE = Path("GOVERNOR.md")
+
 
 DEFAULT_2025 = "Top syndication content 2025.xlsx"
 DEFAULT_2026 = "Top Stories 2026 Syndication.xlsx"
@@ -127,6 +129,66 @@ OPPORTUNITY_MAP = [
         ),
     },
 ]
+
+
+def _print_governor_briefing() -> None:
+    """Read GOVERNOR.md and print a focused briefing: focus, HIGH-priority probing queue,
+    and a reminder to propose governor updates after analysis."""
+    SEP = "─" * 60
+    if not GOVERNOR_FILE.exists():
+        return
+
+    text = GOVERNOR_FILE.read_text(encoding="utf-8")
+
+    def _extract_section(header: str) -> str:
+        """Extract the content under a markdown heading until the next same-level heading."""
+        pattern = rf"(?:^|\n)({re.escape(header)})\n(.*?)(?=\n#{1,3} |\Z)"
+        m = re.search(pattern, text, re.DOTALL)
+        return m.group(2).strip() if m else ""
+
+    print(f"\n{SEP}")
+    print("GOVERNOR BRIEFING")
+    print(SEP)
+
+    # Stakeholder focus — print just the Primary block
+    focus_raw = _extract_section("### Stakeholder Focus")
+    if focus_raw:
+        focus_lines = [ln for ln in focus_raw.splitlines() if ln.strip()]
+        # Print up to the first blank line after "Primary"
+        printing = False
+        printed = 0
+        for ln in focus_lines:
+            if ln.strip().startswith("**Primary"):
+                printing = True
+            if printing:
+                print(f"  {ln.strip()}")
+                printed += 1
+                if printed > 8:
+                    break
+
+    # Active Probing Queue — HIGH priority only
+    queue_raw = _extract_section("### Active Probing Queue")
+    high_items = []
+    if queue_raw:
+        for ln in queue_raw.splitlines():
+            if "| HIGH" in ln and "|" in ln:
+                parts = [p.strip() for p in ln.split("|") if p.strip()]
+                if len(parts) >= 2:
+                    high_items.append(parts[1])  # Question column
+
+    if high_items:
+        print(f"\n  HIGH-PRIORITY PROBING QUEUE (run on this ingest):")
+        for item in high_items:
+            print(f"    → {item}")
+
+    # Known data quirks count
+    quirks_raw = _extract_section("### Known Data Quirks")
+    quirk_count = sum(1 for ln in quirks_raw.splitlines() if ln.strip().startswith("|") and "Quirk" not in ln and "---" not in ln)
+    if quirk_count:
+        print(f"\n  {quirk_count} known data quirk(s) documented — check GOVERNOR.md before analysis.")
+
+    print(f"\n  After analysis: propose governor updates (probing queue, confirmed signals, quirks).")
+    print(f"{SEP}\n")
 
 
 def _cols_newly_populated(old_sheet, new_sheet, threshold=0.5):
@@ -388,6 +450,9 @@ def main() -> int:
     period = args.release or now.strftime("%Y-%m")
     period_label = datetime.strptime(period, "%Y-%m").strftime("%B %Y")
     generated_date = now.strftime("%Y-%m-%d")
+
+    # 0. Governor briefing — print before any analysis output
+    _print_governor_briefing()
 
     # 1. Profile new data + diff against previous run
     print("Profiling data files…")
