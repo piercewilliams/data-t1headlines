@@ -1,5 +1,5 @@
 # Analysis Governor
-*Read this file at the start of every analysis session and every ingest event.
+*Last updated: 2026-04-03 — Read at every analysis session and every ingest event.
 Apply both parts without exception. Propose updates at the end of every session.*
 
 ---
@@ -36,7 +36,7 @@ Apply both parts without exception. Propose updates at the end of every session.
 *What has landed well — the type of insight, not just the specific finding.
 Updated as Sarah gives tile feedback. Format: [date] | [type] | [why it landed] | [signal source]*
 
-- 2026-04-03 | **Contradiction of conventional wisdom** | "What to Know" hurts on SmartNews — opposite of what the format guide assumed. Sarah reacted positively to format guide evidence report. | Inferred from Sarah's "fantastic" response to the analysis
+- 2026-04-03 | **Contradiction of conventional wisdom** | "What to Know" hurts on SmartNews — opposite of what the format guide assumed. Raw p=0.046; note that at k=7 tests the Bonferroni threshold is α/7=0.0071, so this is **directional** by strict multiple-comparisons standards, not significant. Still the strongest formula signal in the SmartNews data and directionally robust. Sarah reacted positively to format guide evidence report. | Inferred from Sarah's "fantastic" response to the analysis
 - 2026-04-03 | **Platform-specific avoidance rule** | Questions hurt on both Apple News AND SmartNews. Directly actionable: stop doing this. | Inferred from format guide meeting
 - 2026-04-03 | **Precise character count sweet spot** | "70–90 chars on SmartNews, 90–120 on Apple News" with actual top-performer medians. More specific than Apple's own published guidance. | Sarah confirmed character count is an editorial priority
 - 2026-04-03 | **Notifications as the highest-signal channel** | Formula choice has 2–5× larger effect on notification CTR than on views. Direct editorial lever. | Inferred from Sarah's interest in push notifications guidance

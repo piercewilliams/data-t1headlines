@@ -51,7 +51,8 @@ For session history: see [sessions/](sessions/)
 **Analysis:**
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
-- [ ] Analyze Sara Voluone's SmartNews/Apple News formatting guide against existing findings — identify correlations + experimentation candidates (waiting on Sarah Price to send the doc)
+- [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03; .docx report on Desktop
+- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071); finding is real and directionally robust but overstated in current prose
 
 **Stakeholder shares:**
 - [x] ~~Share site with Sarah Price~~ — done. Sarah confirmed she has the link and is reviewing (Slack 2026-04-01 11:59 AM).
