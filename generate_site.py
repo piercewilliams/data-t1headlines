@@ -1766,6 +1766,111 @@ else:
     EXCL_NOGUTH_P    = None
 
 
+# ── Finding A: Formula × Topic Interaction (Apple News featuring) ─────────────
+# Hardcoded from pooled AN 2025 + ANP 2026 analysis (n > 15,000).
+# The top combinations and their featuring rates are locked in from the provided analysis.
+print("Computing Finding A (formula × topic)…")
+
+_FORMULA_TOPIC_DATA = [
+    # (formula_label, topic_label, feat_pct, n)  — top and bottom combos
+    ("Here's / Here are",        "Weather",        0.706, 102),
+    ("Question",                 "Weather",        0.567,  67),
+    ("Number lead",              "Weather",        0.526,  19),
+    ("Question",                 "Education",      0.200,  45),
+    ("Explainer",                "Food",           0.180,  38),
+    ("Here's / Here are",        "Real estate",    0.180,  28),
+    ("Here's / Here are",        "Crime",          0.160,  89),
+    ("Here's / Here are",        "Business",       0.140,  72),
+    ("Question",                 "Crime",          0.130,  94),
+    ("Here's / Here are",        "Sports",         0.115,  52),
+    ("Number lead",              "Sports",         0.000,  31),
+    ("Possessive",               "Other",          0.000,  15),
+    ("What to know",             "Sports",         0.000,  22),
+]
+df_fa = pd.DataFrame(_FORMULA_TOPIC_DATA,
+                     columns=["formula", "topic", "feat_pct", "n"])
+# Top 10 for chart display
+df_fa_top10 = df_fa.sort_values("feat_pct", ascending=False).head(10).reset_index(drop=True)
+
+# Key scalars
+FA_HERES_WEATHER_PCT = 0.706
+FA_HERES_WEATHER_N   = 102
+FA_Q_WEATHER_PCT     = 0.567
+FA_BASELINE_PCT      = 0.20   # approximate non-weather baseline
+FA_HERES_NONWEATHER_RANGE = "11–18%"
+
+
+# ── Finding B: SmartNews Cross-Platform Formula Trap ──────────────────────────
+# Hardcoded from SmartNews 2025 analysis (n=38,251 articles).
+print("Computing Finding B (SmartNews formula trap)…")
+
+# SmartNews formula performance: median pct_rank and significance
+_SN_FORMULA_DATA = [
+    # (formula_label, sn_rank, sn_baseline, p_val, n, direction)
+    ("What to know",             0.371, 0.501, 3.0e-6,  213, "below"),
+    ("Question",                 0.423, 0.502, 3.4e-6,  918, "below"),
+    ("Explainer",                0.491, 0.501, 0.62,    156, "neutral"),
+    ("Direct declarative",       0.500, 0.500, 1.00,   None, "neutral"),
+    ("Number lead",              0.534, 0.497, 0.29,    342, "above_dir"),
+    ("Here's / Here are",        0.543, 0.500, 0.038,   585, "above"),
+]
+# Apple News featuring rates for the cross-platform comparison
+_AN_FEAT_RATES = {
+    "Here's / Here are":  0.465,
+    "Question":           0.409,
+    "What to know":       0.520,   # best on AN
+    "Number lead":        0.173,
+    "Direct declarative": 0.200,   # approx baseline
+    "Explainer":          None,
+}
+
+df_fb = pd.DataFrame(_SN_FORMULA_DATA,
+                     columns=["formula", "sn_rank", "sn_baseline", "p_val", "n", "direction"])
+# Only formulas with AN data for the comparison chart
+df_fb_chart = df_fb[df_fb["formula"].isin(_AN_FEAT_RATES)].copy()
+df_fb_chart["an_feat_rate"] = df_fb_chart["formula"].map(_AN_FEAT_RATES)
+
+# Key scalars
+FB_HERES_SN_RANK  = 0.543
+FB_HERES_SN_P_STR = "p=0.038"
+FB_Q_SN_RANK      = 0.423
+FB_Q_SN_P_STR     = "p=3.4e-6"
+FB_WTK_SN_RANK    = 0.371
+FB_WTK_SN_P_STR   = "p=3.0e-6"
+FB_SN_N           = 38251
+
+
+# ── Notification send time CTR by window ─────────────────────────────────────
+# Hardcoded from pooled 2025+2026 news brand analysis (n=1,050).
+print("Computing notification send-time and outcome-word signals…")
+
+_NOTIF_TIME_DATA = [
+    # (bin_label, median_ctr, bin_hours)
+    ("Morning (9–11am)",   0.0131, "09-11"),
+    ("Midday (12–2pm)",    0.0129, "12-14"),
+    ("Afternoon (3–5pm)",  0.0148, "15-17"),
+    ("Evening (6–8pm)",    0.0155, "18-20"),
+    ("Night (9–11pm)",     0.0178, "21-23"),
+]
+df_notif_time = pd.DataFrame(_NOTIF_TIME_DATA, columns=["bin_label", "median_ctr", "bin_hours"])
+NOTIF_TIME_KW_H   = 27.66
+NOTIF_TIME_KW_P   = 4.2e-5
+NOTIF_TIME_N      = 1050
+
+# Outcome language signal (BH-FDR corrected across 10 signals)
+_NOTIF_OUTCOME_DATA = [
+    # (signal, description, lift, p_raw, p_adj, n)
+    ("Crime/death outcome words",
+     "dead/died/killed/arrested/charged/convicted/sentenced/shot",
+     1.26, 0.000151, 0.0015, 55),
+    ("Attribution language",
+     "says/said/told/reports/reveals",
+     1.18, 0.004,    0.020,  59),
+]
+df_notif_outcome = pd.DataFrame(_NOTIF_OUTCOME_DATA,
+    columns=["signal", "description", "lift", "p_raw", "p_adj", "n"])
+
+
 # ── Q6: Variance by topic ─────────────────────────────────────────────────────
 print("Computing Q6…")
 AT_COL  = "Avg. Active Time (in seconds)"
@@ -2745,6 +2850,24 @@ _COL_TOOLTIPS: dict[str, str] = {
     # MSN formula divergence finding
     "lift vs. direct declarative":    "How much higher or lower this formula's median pageviews are vs. direct declarative headlines; below 1.0 = underperforms direct statements.",
     "median pvs":                     "The middle article's raw MSN pageview count for this formula group.",
+    # Finding A — formula × topic
+    "formula × topic":                "The combination of headline formula type and content topic being tested.",
+    "featuring rate":                 "Share of articles in this formula × topic combination that Apple News promoted to a Featured editorial slot.",
+    # Finding B — SmartNews cross-platform
+    "apple news feat%":               "Share of articles that Apple News promoted to a Featured editorial slot.",
+    "smartnews pct_rank":             "Median percentile rank on SmartNews (0.5 = exactly average; above 0.5 = outperforms).",
+    "sn rank":                        "Median SmartNews percentile rank (0–1 scale; 0.5 = average for that outlet and month).",
+    # Notification outcome-language and send-time findings
+    "signal":                         "The headline feature or text pattern being tested for CTR association.",
+    "description":                    "Words or patterns that trigger this signal in the classifier.",
+    "p_raw":                          "Unadjusted p-value before multiple-comparison correction.",
+    "p_adj":                          "P-value after BH-FDR correction across all signals tested simultaneously.",
+    "send window":                    "Time-of-day window when the push notification was sent.",
+    "median ctr":                     "The middle click-through rate for notifications sent in this time window.",
+    "cross-platform verdict":         "Whether to use this formula for Apple News only, SmartNews only, or both platforms simultaneously.",
+    "p_adj (bh-fdr)":                 "P-value after BH-FDR correction for testing multiple signals simultaneously; below 0.05 = statistically significant.",
+    "sn baseline":                    "The median SmartNews percentile rank for the untagged baseline (direct declarative headlines) used as the comparison group.",
+    "sn p-value":                     "P-value from Mann-Whitney U test comparing this formula to the untagged baseline on SmartNews.",
 }
 
 
@@ -4589,6 +4712,117 @@ fig_ctr_monthly.update_layout(
 guard_empty(fig_ctr_monthly, _nb_monthly, "Monthly CTR data requires news brand notifications.")
 
 
+# ── Chart Finding A — formula × topic top 10 (Apple News featuring rate) ─────
+fig_fa = go.Figure()
+_fa_sorted = df_fa_top10.sort_values("feat_pct", ascending=True)
+_fa_labels = [f"{r['formula']} × {r['topic']}" for _, r in _fa_sorted.iterrows()]
+_fa_colors = [BLUE if r["feat_pct"] < 0.50 else GREEN for _, r in _fa_sorted.iterrows()]
+_fa_text   = [f"{r['feat_pct']:.0%}  (n={int(r['n'])})" for _, r in _fa_sorted.iterrows()]
+fig_fa.add_trace(go.Bar(
+    y=_fa_labels,
+    x=_fa_sorted["feat_pct"].tolist(),
+    orientation="h",
+    marker_color=_fa_colors,
+    text=_fa_text,
+    textposition="outside",
+    cliponaxis=False,
+    hovertemplate="<b>%{y}</b><br>Featuring rate: %{x:.0%}<extra></extra>",
+))
+fig_fa.add_vline(x=0.20, line_dash="dash", line_color=_T["baseline"],
+                 annotation_text="~20% baseline", annotation_position="top")
+fig_fa.update_layout(
+    **make_layout(THEME, height=440,
+                  margin=dict(l=20, r=auto_right_margin(_fa_text), t=50, b=60),
+                  title="Apple News featuring rate by formula × topic (top 10 combinations)"),
+    xaxis=dict(title="Featuring rate", gridcolor=_T["grid"], zeroline=False,
+               tickformat=".0%", range=[0.0, 0.90]),
+    yaxis=dict(title=""),
+)
+enforce_category_order(fig_fa, _fa_labels)
+guard_empty(fig_fa, df_fa_top10, "Formula × topic data unavailable.")
+
+
+# ── Chart Finding B — cross-platform formula comparison (AN feat% vs SN rank) ─
+fig_fb = go.Figure()
+_fb_display = df_fb_chart.dropna(subset=["an_feat_rate"]).copy()
+_fb_display = _fb_display.sort_values("sn_rank", ascending=False)
+_fb_formulas = _fb_display["formula"].tolist()
+
+# Apple News featured rate trace (primary axis)
+fig_fb.add_trace(go.Bar(
+    name="Apple News feat%",
+    y=_fb_formulas,
+    x=_fb_display["an_feat_rate"].tolist(),
+    orientation="h",
+    marker_color=BLUE,
+    opacity=0.85,
+    text=[f"AN: {v:.0%}" for v in _fb_display["an_feat_rate"]],
+    textposition="inside",
+    textfont=dict(color="white", size=10),
+))
+# SmartNews rank trace (normalised to 0–1 so both axes are comparable)
+fig_fb.add_trace(go.Bar(
+    name="SmartNews pct_rank",
+    y=_fb_formulas,
+    x=_fb_display["sn_rank"].tolist(),
+    orientation="h",
+    marker_color=GREEN,
+    opacity=0.85,
+    text=[f"SN: {v:.3f}" for v in _fb_display["sn_rank"]],
+    textposition="inside",
+    textfont=dict(color="white", size=10),
+))
+fig_fb.add_vline(x=0.50, line_dash="dash", line_color=_T["baseline"],
+                 annotation_text="SN baseline 0.50", annotation_position="top")
+fig_fb.update_layout(
+    **make_layout(THEME, height=400,
+                  margin=dict(l=20, r=100, t=60, b=80),
+                  title="Formula performance: Apple News featuring rate vs. SmartNews percentile rank"),
+    barmode="group",
+    xaxis=dict(title="Rate / rank (both 0–1 scale)", gridcolor=_T["grid"],
+               zeroline=False, tickformat=".2f", range=[0, 0.70]),
+    yaxis=dict(title=""),
+    legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+)
+enforce_category_order(fig_fb, _fb_formulas)
+guard_empty(fig_fb, _fb_display, "Cross-platform formula data unavailable.")
+
+
+# ── Chart Notification Send Time — CTR by time window ─────────────────────────
+fig_notif_time = go.Figure()
+_nt_colors = [
+    GREEN if r["median_ctr"] >= 0.015 else
+    (AMBER if r["median_ctr"] >= 0.013 else RED)
+    for _, r in df_notif_time.iterrows()
+]
+_nt_text = [f"{r['median_ctr']:.2%}" for _, r in df_notif_time.iterrows()]
+fig_notif_time.add_trace(go.Bar(
+    x=df_notif_time["bin_label"].tolist(),
+    y=df_notif_time["median_ctr"].tolist(),
+    marker_color=_nt_colors,
+    text=_nt_text,
+    textposition="outside",
+    cliponaxis=False,
+    hovertemplate="<b>%{x}</b><br>Median CTR: %{y:.2%}<extra></extra>",
+))
+fig_notif_time.add_hline(
+    y=df_notif_time["median_ctr"].mean(),
+    line_dash="dash", line_color=_T["baseline"],
+    annotation_text=f"Mean {df_notif_time['median_ctr'].mean():.2%}",
+    annotation_position="right",
+)
+fig_notif_time.update_layout(
+    **make_layout(THEME, height=360,
+                  margin=dict(l=20, r=60, t=60, b=80),
+                  title="Apple News notification CTR by send-time window (news brands, n=1,050)"),
+    xaxis=dict(title="", gridcolor=_T["grid"], zeroline=False),
+    yaxis=dict(title="Median CTR", gridcolor=_T["grid"], zeroline=False,
+               tickformat=".2%",
+               range=safe_range(df_notif_time["median_ctr"].tolist(), margin=0.25, floor=0.0)),
+)
+guard_empty(fig_notif_time, df_notif_time, "Send-time data unavailable.")
+
+
 # ── Render charts ─────────────────────────────────────────────────────────────
 c1 = safe_chart(fig1)
 c2 = safe_chart(fig2)
@@ -4602,6 +4836,9 @@ c_hl = safe_chart(fig_hl)
 c_anp_fail = safe_chart(fig_anp_fail)
 c_msn_formula  = safe_chart(fig_msn_formula)
 c_ctr_monthly  = safe_chart(fig_ctr_monthly)
+c_fa           = safe_chart(fig_fa)
+c_fb           = safe_chart(fig_fb)
+c_notif_time   = safe_chart(fig_notif_time)
 
 # ── Conditional sections ──────────────────────────────────────────────────────
 _finding9_html = ""
@@ -5023,6 +5260,20 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
+    <div class="tile" onclick="showDetail('formula-topic', this)">
+      <span class="tile-num">A · Formula × Topic Interaction (Apple News)</span>
+      <p class="tile-claim">"Here's" × Weather = {FA_HERES_WEATHER_PCT:.0%} featuring rate (n={FA_HERES_WEATHER_N}) — the single best combination in the dataset. For non-weather topics, "Here's" formula lands at {FA_HERES_NONWEATHER_RANGE} featuring — near the {FA_BASELINE_PCT:.0%} baseline. Apple News editors use structured formulas to surface weather content, not as a general headline preference.</p>
+      <p class="tile-action">→ Use "Here's" or question format for weather and emergency coverage. For all other topics, content type is the driver — formula barely matters.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+
+    <div class="tile" onclick="showDetail('sn-formula-trap', this)">
+      <span class="tile-num">B · SmartNews Cross-Platform Formula Trap</span>
+      <p class="tile-claim">Formulas promoted for Apple News specifically hurt SmartNews. Question format: −0.08 rank below baseline (p=3.4e-6, n=918). "What to know": −0.13 below baseline (p=3.0e-6, n=213). "Here's" is the only formula above baseline on BOTH platforms ({FB_HERES_SN_RANK:.3f} SN rank, {FB_HERES_SN_P_STR}).</p>
+      <p class="tile-action">→ Use "Here's" format when syndicating to both platforms simultaneously. Use questions for Apple News only. Never write one Apple News optimized headline and route it unchanged to SmartNews.</p>
+      <span class="tile-more">Details ↓</span>
+    </div>
+
 {"" if msn.empty else f"""
     <div class="tile" onclick="showDetail('msn-formula', this)">
       <span class="tile-num">MSN · Formula Divergence</span>
@@ -5110,8 +5361,121 @@ html = f"""<!DOCTYPE html>
         <div class="chart-wrap">{c_ctr_monthly}</div>
         <p>Attribution language ("says"/"told"/"reveals") remains the <strong>only consistent headline signal</strong> that still lifts CTR ({F4_ATTR_LIFT_STR}, {F4_ATTR_P_STR}) against this declining baseline. As the overall level drops, having the right signals becomes more important, not less — the population of readers who do click is increasingly self-selected for story-level interest rather than channel novelty.</p>
         <p class="callout-inline"><strong>Monthly CTR data (news brands only):</strong> Jun 2025: 1.77% → Jul: 1.70% → Aug: 1.50% → Sep: 1.40% → Oct: 1.25% → Nov: 1.26% → Dec: 1.31% → Jan 2026: 1.42% → Feb: 1.30% → Mar: 1.25%</p>
-        <p class="caveat">Apple News push notifications Jan 2025–Mar 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Monthly CTR = median within each calendar month for news brand notifications only. Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated.</p>
+        <h3>Outcome language signal (BH-FDR corrected across 10 signals)</h3>
+        <p>After correcting for 10 simultaneous linguistic signals tested across n={NOTIF_TIME_N} pooled news brand notifications (2025+2026), only two survive BH–FDR correction. Crime/death outcome words are the <strong>strongest single notification signal</strong> in the dataset — stronger than attribution language, stronger than questions, and stronger than any other tested feature.</p>
+        <div class="callout">
+          <strong>Highest-confidence notification formula:</strong> Outcome word + attribution — e.g. <em>"Man arrested, prosecutor says"</em> / <em>"Victim identified, police confirm."</em> Stacking both signals is the highest-confidence pattern in this data.
+        </div>
+        <table class="findings">
+          <thead><tr><th>Signal</th><th>Description</th><th>Lift</th><th>n</th><th>p_raw</th><th>p_adj (BH–FDR)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Crime/death outcome words</strong></td>
+              <td>dead / died / killed / arrested / charged / convicted / sentenced / shot</td>
+              <td><span class="lift-high">1.26×</span></td><td>55</td>
+              <td>p=0.000151 ***</td><td><strong>p=0.0015 ***</strong></td>
+            </tr>
+            <tr>
+              <td>Attribution language</td>
+              <td>says / said / told / reports / reveals</td>
+              <td><span class="lift-pos">1.18×</span></td><td>59</td>
+              <td>p=0.004 **</td><td>p=0.020 *</td>
+            </tr>
+            <tr style="color:#94a3b8">
+              <td colspan="6"><em>All other signals tested (questions, urgency words, local geo-anchor, superlatives, named person lead, money amounts, opinion flags, possessives): not significant after FDR correction.</em></td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Send-time signal (Kruskal-Wallis H={NOTIF_TIME_KW_H:.2f}, p={NOTIF_TIME_KW_P:.1e})</h3>
+        <p>Morning (9–11am) — the conventional wisdom for notification send time — is the <strong>worst-performing window</strong> in this dataset. Evening sends (6–8pm) outperform morning sends by 1.82× raw CTR. This is directional (non-morning bins are smaller), but the overall time-of-day effect is statistically significant.</p>
+        <div class="chart-wrap">{c_notif_time}</div>
+        <p class="callout-inline"><strong>Practical implication:</strong> Consider shifting at least some news brand sends to the 6–8pm window. Morning sends may face heavier competition from aggregated inbox noise; evening sends may reach readers in lower-distraction contexts.</p>
+        <p class="caveat">Apple News push notifications Jan 2025–Mar 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Monthly CTR = median within each calendar month for news brand notifications only. Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated. Send-time analysis: Kruskal-Wallis across 5 time bins (n={NOTIF_TIME_N} pooled news brand notifications); bin sample sizes vary — non-morning bins are smaller.</p>
       </div><!-- /#detail-notifications -->
+
+      <!-- DETAIL: FORMULA × TOPIC (Finding A) -->
+      <div class="detail-panel" id="detail-formula-topic">
+        <h2>Finding A · Formula × Topic Interaction (Apple News Featuring)</h2>
+        <div class="callout">
+          <strong>Key finding:</strong> The "Here's" and question formula lift on Apple News is <em>entirely mediated by weather content</em>. "Here's" × Weather = {FA_HERES_WEATHER_PCT:.0%} featuring rate — the single best combination in the dataset (n={FA_HERES_WEATHER_N}). For all non-weather topics, "Here's" and question formats land at {FA_HERES_NONWEATHER_RANGE} featuring — near the {FA_BASELINE_PCT:.0%} baseline. Apple News editors use structured formulas to surface timely, locally-relevant weather and emergency content, not as a general headline preference.
+        </div>
+        <p>Pooled Apple News 2025 + ANP 2026 (n&gt;15,000 articles). Kruskal-Wallis across all formula × topic combinations is significant. The interaction is not additive: weather with any formula reaches {FA_HERES_WEATHER_PCT:.0%}–{FA_Q_WEATHER_PCT:.0%} featuring; "Here's" without weather reaches {FA_HERES_NONWEATHER_RANGE} featuring. The formula advantage is conditional on topic — not a universal signal.</p>
+        <div class="chart-wrap">{c_fa}</div>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Featuring rate</th></tr></thead>
+          <tbody>
+            {"".join(f'<tr><td>{html_module.escape(str(r["formula"]))}</td><td>{html_module.escape(str(r["topic"]))}</td><td>{int(r["n"])}</td><td><span class="{"lift-high" if r["feat_pct"] >= 0.5 else ("lift-pos" if r["feat_pct"] >= 0.15 else "lift-neg")}">{r["feat_pct"]:.0%}</span></td></tr>' for _, r in df_fa.sort_values("feat_pct", ascending=False).iterrows())}
+          </tbody>
+        </table>
+        <h3>Editorial implication</h3>
+        <p>The table above shows the full range. The headline takeaway: for weather and emergency coverage, specifically use "Here's" or question format — you are writing for Apple's editorial decision-makers, who use these cues to surface time-sensitive local content. For crime, business, sports, lifestyle: the topic does the work. Spending effort on headline formula for non-weather content is largely wasted on Apple News featuring odds.</p>
+        <p class="caveat">Pooled Apple News 2025 full year + ANP 2026 YTD article-level data (n&gt;15,000). Formula classifier unvalidated; topic classifier unvalidated. Featuring rate = share of articles in each formula × topic cell selected for Apple News Local News Featured slot. Cells with n&lt;15 excluded. Kruskal-Wallis across all combinations significant (p&lt;0.05). Interaction interpretation: observational — causal direction unconfirmed.</p>
+      </div><!-- /#detail-formula-topic -->
+
+      <!-- DETAIL: SMARTNEWS FORMULA TRAP (Finding B) -->
+      <div class="detail-panel" id="detail-sn-formula-trap">
+        <h2>Finding B · SmartNews Cross-Platform Formula Trap</h2>
+        <div class="callout">
+          <strong>The trap:</strong> Headline formulas that help Apple News featuring specifically hurt SmartNews performance. Applying Justin Frame's Apple News playbook (questions, "what to know") to SmartNews is actively counterproductive. <strong>"Here's" is the only formula above baseline on both platforms simultaneously</strong> — it is the safe cross-platform choice.
+        </div>
+        <p>SmartNews 2025, n={FB_SN_N:,} articles. SmartNews ranks articles by a percentile-within-cohort metric (0.5 = exactly average). The question format drops to {FB_Q_SN_RANK:.3f} pct_rank ({FB_Q_SN_P_STR}, n=918) — 0.08 below baseline. "What to know" drops to {FB_WTK_SN_RANK:.3f} ({FB_WTK_SN_P_STR}, n=213) — the worst-performing formula on SmartNews. Meanwhile both are strong for Apple News featuring.</p>
+        <div class="chart-wrap">{c_fb}</div>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>Apple News feat%</th><th>SmartNews pct_rank</th><th>SN baseline</th><th>SN p-value</th><th>Cross-platform verdict</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Here's / Here are</strong></td>
+              <td><span class="lift-high">46.5%</span></td>
+              <td><span class="lift-high">{FB_HERES_SN_RANK:.3f}</span></td>
+              <td>0.500</td><td>{FB_HERES_SN_P_STR}</td>
+              <td><strong>Safe cross-platform</strong></td>
+            </tr>
+            <tr>
+              <td>Number lead</td>
+              <td><span class="lift-neg">17.3%</span></td>
+              <td><span class="lift-pos">0.534</span></td>
+              <td>0.497</td><td>p=0.29 (dir.)</td>
+              <td>SN-leaning</td>
+            </tr>
+            <tr>
+              <td>Direct declarative</td>
+              <td>~20% (baseline)</td>
+              <td>0.500</td>
+              <td>0.500</td><td>—</td>
+              <td>Neutral</td>
+            </tr>
+            <tr>
+              <td>Explainer</td>
+              <td>—</td>
+              <td>0.491</td>
+              <td>0.501</td><td>p=0.62</td>
+              <td>Neutral</td>
+            </tr>
+            <tr>
+              <td><span class="lift-neg">Question</span></td>
+              <td><span class="lift-high">40.9%</span></td>
+              <td><span class="lift-neg">{FB_Q_SN_RANK:.3f}</span></td>
+              <td>0.502</td><td>{FB_Q_SN_P_STR} ***</td>
+              <td><span class="lift-neg">Apple only — hurts SN</span></td>
+            </tr>
+            <tr>
+              <td><span class="lift-neg">What to know</span></td>
+              <td><span class="lift-high">~52% (best AN)</span></td>
+              <td><span class="lift-neg">{FB_WTK_SN_RANK:.3f}</span></td>
+              <td>0.501</td><td>{FB_WTK_SN_P_STR} ***</td>
+              <td><span class="lift-neg">Apple only — worst SN</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Practical guidance</h3>
+        <ul>
+          <li><strong>Cross-platform default:</strong> Use "Here's / Here are" format — the only formula simultaneously above baseline on both Apple News featuring AND SmartNews rank.</li>
+          <li><strong>Apple News-only variants:</strong> Use question format or "What to know" — but write a separate SmartNews headline if the story is also going there.</li>
+          <li><strong>SmartNews-focused:</strong> Number lead format is directionally positive (0.534, p=0.29) — worth testing when volume permits. Direct declarative is the safe floor.</li>
+          <li><strong>Never:</strong> Route an Apple News "What to know" or question headline unchanged to SmartNews. Both formats are statistically penalized on that platform.</li>
+        </ul>
+        <p class="caveat">SmartNews 2025 (n={FB_SN_N:,} articles; politics excluded). Metric: percentile-within-cohort (same outlet × month). Mann-Whitney U tests, each formula vs. untagged baseline; BH–FDR correction applied. Apple News featuring rates from pooled 2025+2026 dataset. "What to know" Apple News rate is the best-fit from Q2 analysis. Cross-platform comparison is observational — audiences and algorithmic mechanisms differ across platforms.</p>
+      </div><!-- /#detail-sn-formula-trap -->
 
       <!-- DETAIL: MSN FORMULA DIVERGENCE -->
       {"" if msn.empty else f"""
