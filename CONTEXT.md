@@ -3,6 +3,7 @@
 **Phase:** Phase 2 active — 13 findings live, playbook (5 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
 **Last session:** 2026-04-02 (March data ingested; 5 new findings added; exhaustive cross-platform analysis complete)
+**Session 2026-04-02b:** Bug fix — MSN · Formula Divergence tile populated; prose updated to reflect actual data
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -31,7 +32,7 @@ For session history: see [sessions/](sessions/)
 | Apple News Notifications 2026 | ✅ In repo | 503 rows, Jan–Mar |
 | SmartNews 2025 | ✅ In repo | Full year, 38,251 rows |
 | SmartNews 2026 | ✅ In repo | 514 rows; **monthly-aggregated by domain** (not article-level) |
-| MSN 2026 | ✅ In repo | Jan–Mar, 845 rows (new clean sheet; EXCLUDE_MSN=False) |
+| MSN 2026 | ✅ In repo | Jan–Mar, 354 rows raw (was 845 — CONTEXT.md was stale); 113 rows after T1 brand + politics filter |
 | MSN video 2026 | ✅ In repo | 1,023 rows; wired into pipeline |
 | Yahoo 2026 | ✅ In repo | 1,043 rows (Yahoo-only after AOL split) |
 | Yahoo video 2026 | ✅ In repo | 163 rows; not yet wired |
@@ -55,6 +56,12 @@ For session history: see [sessions/](sessions/)
 - [ ] Share SmartNews formula trap (question/WTK hurt SN) → distribution team
 
 ## Session Log
+
+**2026-04-02b: MSN · Formula Divergence bug fix**
+
+Three bugs in the MSN formula analysis, all causing the detail table to render empty: (1) `classify_formula()` returns `"untagged"` but baseline lookup used `"other"` — baseline was always empty; (2) `VIEWS_METRIC` (`percentile_within_cohort`, range 0–1) was used instead of raw `"Pageviews"` — median showed as "—"; (3) four hardcoded `_msn_fr()` row lookups targeted formula keys (`what_to_know`, `heres_formula`, etc.) that don't exist in the current MSN data.
+
+Fixes: baseline changed to `"untagged"`; T1 brand filter applied (`_MSN_T1_EXCLUDE` excludes US Weekly, Woman's World, Soap Opera Digest); switched to raw `"Pageviews"` for MSN formula analysis; replaced four hardcoded rows with dynamic `_msn_formula_table()`. MSN raw sheet has 354 rows (US Weekly dominant at 160); after T1 filter + politics = 113 rows. Only `quoted_lede` (n=18) has enough data to test — 0.60×, p=0.037. `MSN_DIVERGE_LIFT_STR` now computed dynamically (was hardcoded "4.84×"). All prose (tile, callout, playbook) updated to reflect actual data: 1.67× lift of direct declarative over quoted lede.
 
 **2026-04-02: March ingest + exhaustive analysis — see `sessions/2026-04.md`**
 
