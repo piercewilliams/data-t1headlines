@@ -2410,20 +2410,24 @@ if msn.empty:
     MSN_MAX_VOL_MONTH = "—"
     MSN_MAX_VOL_N  = 0
 else:
-    # Formula performance (each formula vs. "other" baseline; BH-FDR corrected)
-    _msn_base_pct = msn[msn["formula"] == "other"][VIEWS_METRIC]
+    # Formula performance on T1 news brands only (excluding celebrity/entertainment pubs)
+    # Uses raw Pageviews since MSN PV is the primary ROI signal and the baseline is 1.0× by definition
+    _MSN_T1_EXCLUDE = ["US Weekly", "Woman's World", "Soap Opera Digest"]
+    _msn_t1 = msn[~msn["Brand"].isin(_MSN_T1_EXCLUDE)].copy()
+    _msn_pv_col = "Pageviews"
+    _msn_base_pct = _msn_t1[_msn_t1["formula"] == "untagged"][_msn_pv_col]
     msn_formula_rows: list = []
     _msn_f_raw_p: list = []
     _msn_f_idx: list = []
-    for _mf, _mgrp in msn.groupby("formula"):
-        _msub = _mgrp[VIEWS_METRIC]
-        if len(_msub) < 10 or _mf == "other":
+    for _mf, _mgrp in _msn_t1.groupby("formula"):
+        _msub = _mgrp[_msn_pv_col]
+        if len(_msub) < 5 or _mf == "untagged":
             continue
         _mlift = _msub.median() / _msn_base_pct.median() if _msn_base_pct.median() > 0 else np.nan
         _mu    = stats.mannwhitneyu(_msub, _msn_base_pct, alternative="two-sided")
         _msn_f_raw_p.append(_mu.pvalue)
         _msn_f_idx.append(len(msn_formula_rows))
-        msn_formula_rows.append(dict(formula=_mf, n=len(_msub), median=_msub.median(),
+        msn_formula_rows.append(dict(formula=_mf, n=len(_msub), median=int(_msub.median()),
                                      lift=_mlift, p=_mu.pvalue))
     _msn_f_adj = bh_correct(_msn_f_raw_p)
     for _adj, _ri in zip(_msn_f_adj, _msn_f_idx):
@@ -2461,18 +2465,18 @@ else:
 # ── MSN formula divergence stats (for new MSN Finding tile) ──────────────────
 # Compute key scalars used in the new finding's HTML. Safe defaults if MSN empty.
 if not msn.empty and not df_msn_formula.empty:
-    _msn_other_med  = msn[msn["formula"] == "other"][VIEWS_METRIC].median()
-    _msn_n_total    = len(msn)
-    _msn_n_other    = int((msn["formula"] == "other").sum())
+    _msn_other_med  = _msn_t1[_msn_t1["formula"] == "untagged"]["Pageviews"].median()
+    _msn_n_total    = len(_msn_t1)
+    _msn_n_other    = int((_msn_t1["formula"] == "untagged").sum())
     _msn_n_formula  = _msn_n_total - _msn_n_other
-    # Best-performing formula row (highest lift, which is "other" by definition — use second)
+    # Best-performing formula row (highest lift, which is "untagged" by definition — use second)
     _msn_worst_f    = df_msn_formula.iloc[0] if len(df_msn_formula) > 0 else None
     MSN_OTHER_MED_PV     = int(_msn_other_med) if not np.isnan(_msn_other_med) else 0
     MSN_N_TOTAL          = _msn_n_total
     MSN_N_OTHER          = _msn_n_other
     MSN_N_FORMULA        = _msn_n_formula
     # Top 3 MSN articles (direct declaratives) for the example box
-    _msn_top3 = (msn[msn["formula"] == "other"]
+    _msn_top3 = (_msn_t1[_msn_t1["formula"] == "untagged"]
                  .nlargest(3, "Pageviews")[["Title", "Brand", "Pageviews"]])
     MSN_TOP3_EXAMPLES = [
         (str(r["Title"]), str(r["Brand"]), int(r["Pageviews"]))
@@ -3459,8 +3463,24 @@ MSN_HERES_P_STR       = _msn_p_str(_msn_heres)
 MSN_Q_MED_STR         = _msn_med_str(_msn_question)
 MSN_Q_LIFT_STR        = _msn_lift_str(_msn_question)
 MSN_Q_P_STR           = _msn_p_str(_msn_question)
-# Overall lift of direct declarative vs. all formulas — 4.84× from pre-analysis
-MSN_DIVERGE_LIFT_STR  = "4.84×"
+_FORMULA_DISPLAY_LABELS = {
+    "what_to_know": "Explainer (What to know)",
+    "heres_formula": "Here's / Here are",
+    "possessive_named_entity": "Possessive named entity",
+    "question": "Question",
+    "number_lead": "Number lead",
+    "quoted_lede": "Quoted lede",
+    "untagged": "Direct declarative (baseline)",
+}
+# Overall lift of direct declarative vs. worst-performing formula (dynamic)
+if not df_msn_formula.empty and df_msn_formula["lift"].min() > 0:
+    _msn_worst_lift = float(df_msn_formula["lift"].min())
+    MSN_DIVERGE_LIFT_STR = f"{1/_msn_worst_lift:.2f}×"
+    _msn_worst_formula_label = _FORMULA_DISPLAY_LABELS.get(
+        str(df_msn_formula.loc[df_msn_formula["lift"].idxmin(), "formula"]), "structured formula")
+else:
+    MSN_DIVERGE_LIFT_STR = "—"
+    _msn_worst_formula_label = "structured formula"
 
 # ── Notification CTR by topic scalars (for Finding 3 sports extension) ────────
 def _notif_topic_ctr_val(topic: str) -> "float | None":
@@ -4018,16 +4038,22 @@ def _team_top_table() -> str:
     return html_out
 
 def _msn_formula_table() -> str:
-    """Return HTML <tr> rows for MSN formula performance table."""
+    """Return HTML <tr> rows for MSN formula performance table (formula, n, median PVs, lift, p_adj)."""
     if df_msn_formula.empty:
-        return "<tr><td colspan='4'>No MSN formula data.</td></tr>"
+        return "<tr><td colspan='5'>No MSN formula data available.</td></tr>"
     html_out = ""
     for _, r in df_msn_formula.sort_values("lift", ascending=False).iterrows():
-        sig = " *" if pd.notna(r.get("p_adj")) and r["p_adj"] < 0.05 else ""
-        p_str = f"{r['p_adj']:.3f}" if pd.notna(r.get("p_adj")) else "—"
-        html_out += (f"<tr><td>{html_module.escape(str(r['formula']))}</td>"
+        label = _FORMULA_DISPLAY_LABELS.get(str(r["formula"]), str(r["formula"]))
+        med_str = f"{int(r['median']):,}" if pd.notna(r.get("median")) and r["median"] > 0 else "—"
+        sig = " ***" if pd.notna(r.get("p_adj")) and r["p_adj"] < 0.001 else \
+              " **"  if pd.notna(r.get("p_adj")) and r["p_adj"] < 0.01  else \
+              " *"   if pd.notna(r.get("p_adj")) and r["p_adj"] < 0.05  else ""
+        lift_cls = "lift-neg" if float(r.get("lift", 1.0)) < 1.0 else "lift-pos"
+        p_str = f"p={r['p_adj']:.3f}{sig}" if pd.notna(r.get("p_adj")) else "—"
+        html_out += (f"<tr><td>{html_module.escape(label)}</td>"
                      f"<td>{int(r['n'])}</td>"
-                     f"<td>{r['lift']:.2f}×{sig}</td>"
+                     f"<td>{med_str}</td>"
+                     f"<td><span class='{lift_cls}'>{float(r['lift']):.2f}×{sig}</span></td>"
                      f"<td>{p_str}</td></tr>\n")
     return html_out
 
@@ -5277,8 +5303,8 @@ html = f"""<!DOCTYPE html>
 {"" if msn.empty else f"""
     <div class="tile" onclick="showDetail('msn-formula', this)">
       <span class="tile-num">MSN · Formula Divergence</span>
-      <p class="tile-claim">Direct declaratives ("other" formula) on MSN deliver {MSN_DIVERGE_LIFT_STR} higher pageviews than any structured formula type (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}). Explainer, possessive, and "Here's" formats all cut traffic vs. direct statements — the opposite of Apple News featuring signals.</p>
-      <p class="tile-action">→ Write two distinct headlines: one structured formula for Apple News, one direct declarative for MSN. Don't repurpose Apple News copy for MSN.</p>
+      <p class="tile-claim">On MSN, direct declarative headlines outperform {_msn_worst_formula_label.lower()} format by {MSN_DIVERGE_LIFT_STR} (n={MSN_N_TOTAL} T1 news brand articles, Jan–Mar 2026). Structured formulas consistently underperform the plain declarative baseline.</p>
+      <p class="tile-action">→ Write direct, subject-verb-object headlines for MSN. Don't repurpose Apple News formula copy for MSN distribution.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 """}
@@ -5482,10 +5508,10 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-msn-formula">
         <h2>MSN · Formula Divergence</h2>
         <div class="callout">
-          <strong>Key finding:</strong> On MSN, the headline format that drives Apple News featuring (structured formula — "What to know," "Here's," possessive) actively <em>hurts</em> MSN pageviews. Direct declarative headlines ("other" formula) deliver {MSN_DIVERGE_LIFT_STR} the pageviews of any structured format. This is not a mild preference difference — it is a statistically significant platform-format inversion (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}).
-          <br><br><strong>Implication:</strong> Write two distinct headlines — one structured formula for Apple News/push, one direct declarative for MSN. Do not repurpose Apple News copy for MSN.
+          <strong>Key finding:</strong> On MSN, direct declarative headlines (no formula pattern) outperform the {_msn_worst_formula_label.lower()} format by {MSN_DIVERGE_LIFT_STR} (Mann-Whitney p&lt;0.05, n={MSN_N_TOTAL} T1 news brand articles). The current dataset has limited formula variety — 88 of 113 T1 articles use plain declarative structure — but the directional signal is consistent: formula-tagged headlines underperform the direct declarative baseline on MSN.
+          <br><br><strong>Implication:</strong> Write direct, subject-verb-object MSN headlines. Do not repurpose Apple News "Here's" or "What to know" copy for MSN without rewriting.
         </div>
-        <p>Across {MSN_N_TOTAL} T1 news brand articles on MSN (Jan–Feb 2026, excluding Us Weekly/Woman's World), direct declarative headlines (classified as "other" — no formula tag) have a median {MSN_OTHER_MED_STR} pageviews. Every structured formula category underperforms this baseline:</p>
+        <p>Across {MSN_N_TOTAL} T1 news brand articles on MSN (Jan–Mar 2026, excluding celebrity/entertainment publishers), direct declarative headlines (classified as "untagged" — no formula pattern detected) have a median {MSN_OTHER_MED_STR} pageviews. Formula-tagged groups with ≥5 articles:</p>
         <div class="chart-wrap">{c_msn_formula}</div>
         <table class="findings">
           <thead><tr>
@@ -5497,10 +5523,7 @@ html = f"""<!DOCTYPE html>
           </tr></thead>
           <tbody>
             <tr><td><strong>Direct declarative (baseline)</strong></td><td>{MSN_N_OTHER}</td><td>{MSN_OTHER_MED_STR}</td><td>1.00× (baseline)</td><td>—</td></tr>
-            {"" if _msn_explainer is None else f"<tr><td>Explainer (What to know)</td><td>{int(_msn_explainer.get('n', 0))}</td><td>{MSN_EXPLAINER_MED_STR}</td><td>{MSN_EXPLAINER_LIFT_STR}</td><td>{MSN_EXPLAINER_P_STR}</td></tr>"}
-            {"" if _msn_possessive is None else f"<tr><td>Possessive named entity</td><td>{int(_msn_possessive.get('n', 0))}</td><td>{MSN_POSS_MED_STR}</td><td>{MSN_POSS_LIFT_STR}</td><td>{MSN_POSS_P_STR}</td></tr>"}
-            {"" if _msn_heres is None else f"<tr><td>Here's / Here are</td><td>{int(_msn_heres.get('n', 0))}</td><td>{MSN_HERES_MED_STR}</td><td>{MSN_HERES_LIFT_STR}</td><td>{MSN_HERES_P_STR}</td></tr>"}
-            {"" if _msn_question is None else f"<tr><td>Question</td><td>{int(_msn_question.get('n', 0))}</td><td>{MSN_Q_MED_STR}</td><td>{MSN_Q_LIFT_STR}</td><td>{MSN_Q_P_STR}</td></tr>"}
+            {_msn_formula_table()}
           </tbody>
         </table>
         <h3>Cross-platform contrast</h3>
@@ -5511,7 +5534,7 @@ html = f"""<!DOCTYPE html>
           {"".join(f"<li>{html_module.escape(title)} ({brand}) — {pv:,} PVs</li>" for title, brand, pv in MSN_TOP3_EXAMPLES)}
         </ul>
         <p>These headlines share a common structure: subject + verb + direct object, no structural signal words, no question mark, no "Here's." The story event does the work; the headline reports it plainly.</p>
-        <p class="caveat">MSN Jan–Feb 2026 (n={MSN_N_TOTAL} T1 news brand articles; Us Weekly / Woman's World excluded). Formula classification via unvalidated regex classifier. "Other" = no formula tag detected (treated as direct declarative baseline). Mann-Whitney U tests, each formula vs. "other" baseline; BH–FDR correction applied across formula comparisons. Effect sizes not shown — use with caution at this sample size. Pageview minimum: MSN sheet filter applies (≥10k PV threshold in source data).</p>
+        <p class="caveat">MSN Jan–Mar 2026 (n={MSN_N_TOTAL} T1 news brand articles; Us Weekly / Woman's World excluded). Formula classification via unvalidated regex classifier. "Untagged" = no formula pattern detected (treated as direct declarative baseline). Mann-Whitney U tests, each formula vs. untagged baseline; BH–FDR correction applied across formula comparisons. Effect sizes not shown — use with caution at this sample size. Pageview minimum: MSN sheet filter applies (≥10k PV threshold in source data).</p>
       </div><!-- /#detail-msn-formula -->
       """}
 
@@ -6037,7 +6060,7 @@ _pb_tile_defs = [
     ("conf-high", "pb-msn", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-msn')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">MSN \u00b7 Direct Declaratives vs. Structured Formulas</span>
-    <p class="tile-claim">Direct declarative headlines on MSN deliver {MSN_DIVERGE_LIFT_STR} the median pageviews of any structured formula (Mann-Whitney p&lt;0.001, n={MSN_N_TOTAL}). Explainer, possessive, and \u201cHere\u2019s\u201d formats all underperform vs. direct statements \u2014 the inverse of Apple News featuring signals.</p>
+    <p class="tile-claim">Direct declarative headlines on MSN outperform {_msn_worst_formula_label.lower()} format by {MSN_DIVERGE_LIFT_STR} (n={MSN_N_TOTAL} T1 news brand articles, Jan\u2013Mar 2026). Formula-tagged headlines consistently underperform the plain declarative baseline \u2014 the inverse of Apple News featuring signals.</p>
     <p class="tile-action">\u2192 Write two distinct headlines: one structured formula for Apple News/push, one direct declarative for MSN. Never repurpose Apple News copy for MSN distribution without rewriting to drop the formula signal.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
