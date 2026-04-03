@@ -131,64 +131,170 @@ OPPORTUNITY_MAP = [
 ]
 
 
+# Maximum number of Primary focus lines to print in the governor briefing.
+# The Primary block is typically 6–8 bullets; cap prevents runaway output if
+# the section grows but keeps the briefing scannable at a glance.
+_GOVERNOR_MAX_FOCUS_LINES: int = 10
+
+# Column index (0-based, after splitting on "|" and stripping empties) for the
+# "Question" column in the Active Probing Queue table.
+# Table format: | Priority | Question | Rationale | Data available? |
+#               ^parts[0]  ^parts[1]  ^parts[2]   ^parts[3]
+_GOVERNOR_QUEUE_PRIORITY_COL: int = 0
+_GOVERNOR_QUEUE_QUESTION_COL: int = 1
+
+
 def _print_governor_briefing() -> None:
-    """Read GOVERNOR.md and print a focused briefing: focus, HIGH-priority probing queue,
-    and a reminder to propose governor updates after analysis."""
+    """Read GOVERNOR.md and print a concise session briefing to stdout.
+
+    Emits three blocks:
+      1. Primary stakeholder focus (up to _GOVERNOR_MAX_FOCUS_LINES lines)
+      2. HIGH-priority items from the Active Probing Queue — these should be
+         run during the current ingest even if not explicitly requested
+      3. Count of documented Known Data Quirks as a reminder to check them
+
+    Safe to call unconditionally: silently returns if GOVERNOR.md is absent
+    or unreadable, and wraps all parsing in a broad try/except so a malformed
+    governor file never blocks an ingest run.
+
+    The governor file path is controlled by the module-level GOVERNOR_FILE
+    constant (default: Path("GOVERNOR.md"), relative to CWD). ingest.py is
+    always invoked from the repo root, so this resolves correctly in practice.
+    """
     SEP = "─" * 60
+
     if not GOVERNOR_FILE.exists():
+        # Silently skip — GOVERNOR.md is optional infrastructure, not a hard
+        # dependency.  A missing file should never block data ingestion.
         return
 
-    text = GOVERNOR_FILE.read_text(encoding="utf-8")
+    try:
+        text = GOVERNOR_FILE.read_text(encoding="utf-8")
+    except OSError as exc:
+        # Unreadable file (permissions, I/O error, etc.) — warn and continue.
+        print(f"  ⚠  Could not read {GOVERNOR_FILE}: {exc}")
+        return
 
     def _extract_section(header: str) -> str:
-        """Extract the content under a markdown heading until the next same-level heading."""
-        pattern = rf"(?:^|\n)({re.escape(header)})\n(.*?)(?=\n#{1,3} |\Z)"
+        """Return the body of the markdown section whose heading exactly matches
+        *header*, stripping leading/trailing whitespace.
+
+        Captures content from the line after *header* up to — but not including
+        — the next markdown heading at any level (``#`` through ``######``) or
+        the end of the file.  Uses ``re.DOTALL`` so ``.`` matches newlines,
+        enabling multi-line section bodies.
+
+        Returns an empty string if the heading is not found.
+
+        Args:
+            header: The full heading text including ``#`` characters and
+                    trailing space, e.g. ``"### Active Probing Queue"``.
+        """
+        # (?:^|\n)   — heading must start at beginning of string or after a newline
+        # re.escape  — treat header text literally (handles special chars in titles)
+        # #+\s       — stop at ANY heading depth (1–6 hashes) followed by a space,
+        #              not just h1–h3; prevents bleeding into deep subsections
+        # \Z         — also stop at end-of-string
+        pattern = rf"(?:^|\n){re.escape(header)}\n(.*?)(?=\n#+ |\Z)"
         m = re.search(pattern, text, re.DOTALL)
-        return m.group(2).strip() if m else ""
+        return m.group(1).strip() if m else ""
 
-    print(f"\n{SEP}")
-    print("GOVERNOR BRIEFING")
-    print(SEP)
+    try:
+        print(f"\n{SEP}")
+        print("GOVERNOR BRIEFING")
+        print(SEP)
 
-    # Stakeholder focus — print just the Primary block
-    focus_raw = _extract_section("### Stakeholder Focus")
-    if focus_raw:
-        focus_lines = [ln for ln in focus_raw.splitlines() if ln.strip()]
-        # Print up to the first blank line after "Primary"
-        printing = False
-        printed = 0
-        for ln in focus_lines:
-            if ln.strip().startswith("**Primary"):
-                printing = True
-            if printing:
-                print(f"  {ln.strip()}")
-                printed += 1
-                if printed > 8:
+        # ── 1. Primary stakeholder focus ──────────────────────────────────────
+        # Print only the "**Primary" block so the briefing stays compact.
+        # The Secondary and Out-of-scope blocks are useful reference but
+        # don't need to appear at every ingest.
+        focus_raw = _extract_section("### Stakeholder Focus")
+        if focus_raw:
+            focus_lines = [ln for ln in focus_raw.splitlines() if ln.strip()]
+            in_primary = False
+            printed = 0
+            for ln in focus_lines:
+                stripped = ln.strip()
+                # Start printing when we hit the Primary heading.
+                if stripped.startswith("**Primary"):
+                    in_primary = True
+                # Stop when we reach the next bold heading (Secondary / Out of scope)
+                # so we don't bleed into unrelated focus blocks.
+                elif in_primary and stripped.startswith("**") and not stripped.startswith("**Primary"):
                     break
+                if in_primary:
+                    print(f"  {stripped}")
+                    printed += 1
+                    if printed >= _GOVERNOR_MAX_FOCUS_LINES:
+                        print(f"  … (see GOVERNOR.md for full focus)")
+                        break
 
-    # Active Probing Queue — HIGH priority only
-    queue_raw = _extract_section("### Active Probing Queue")
-    high_items = []
-    if queue_raw:
-        for ln in queue_raw.splitlines():
-            if "| HIGH" in ln and "|" in ln:
-                parts = [p.strip() for p in ln.split("|") if p.strip()]
-                if len(parts) >= 2:
-                    high_items.append(parts[1])  # Question column
+        # ── 2. HIGH-priority probing queue ────────────────────────────────────
+        # Items marked HIGH should be run on every ingest even without an
+        # explicit user request.  Extract only those rows.
+        #
+        # Expected table format (column order must match these indices):
+        #   | Priority | Question | Rationale | Data available? |
+        # _GOVERNOR_QUEUE_PRIORITY_COL = 0  → "HIGH" / "MED" / "LOW"
+        # _GOVERNOR_QUEUE_QUESTION_COL = 1  → the question text to display
+        queue_raw = _extract_section("### Active Probing Queue")
+        high_items: list[str] = []
+        if queue_raw:
+            for ln in queue_raw.splitlines():
+                stripped = ln.strip()
+                # Only process pipe-delimited table rows; skip headers and
+                # separator rows (which contain "---").
+                if not stripped.startswith("|") or "---" in stripped:
+                    continue
+                parts = [p.strip() for p in stripped.split("|") if p.strip()]
+                # Guard: need at least Priority + Question columns.
+                if len(parts) <= _GOVERNOR_QUEUE_QUESTION_COL:
+                    continue
+                priority = parts[_GOVERNOR_QUEUE_PRIORITY_COL]
+                # Match exactly "HIGH" in the Priority cell — avoids false
+                # positives if a question text happens to contain the word.
+                if priority == "HIGH":
+                    high_items.append(parts[_GOVERNOR_QUEUE_QUESTION_COL])
 
-    if high_items:
-        print(f"\n  HIGH-PRIORITY PROBING QUEUE (run on this ingest):")
-        for item in high_items:
-            print(f"    → {item}")
+        if high_items:
+            print(f"\n  HIGH-PRIORITY PROBING QUEUE (run on this ingest):")
+            for item in high_items:
+                print(f"    → {item}")
 
-    # Known data quirks count
-    quirks_raw = _extract_section("### Known Data Quirks")
-    quirk_count = sum(1 for ln in quirks_raw.splitlines() if ln.strip().startswith("|") and "Quirk" not in ln and "---" not in ln)
-    if quirk_count:
-        print(f"\n  {quirk_count} known data quirk(s) documented — check GOVERNOR.md before analysis.")
+        # ── 3. Known data quirks count ────────────────────────────────────────
+        # Print the count as a prompt to read the full list before analysis.
+        # Count only genuine data rows: pipe-delimited lines that are not
+        # the header row (first pipe row) or the separator row ("---").
+        quirks_raw = _extract_section("### Known Data Quirks")
+        quirk_count = 0
+        if quirks_raw:
+            header_seen = False
+            for ln in quirks_raw.splitlines():
+                stripped = ln.strip()
+                if not stripped.startswith("|"):
+                    continue
+                if "---" in stripped:
+                    # Separator row — marks that we're past the header
+                    header_seen = True
+                    continue
+                if header_seen:
+                    # Every pipe row after the separator is a data row
+                    quirk_count += 1
+        if quirk_count:
+            print(
+                f"\n  {quirk_count} known data quirk(s) documented — "
+                f"read GOVERNOR.md § Known Data Quirks before any analysis."
+            )
 
-    print(f"\n  After analysis: propose governor updates (probing queue, confirmed signals, quirks).")
-    print(f"{SEP}\n")
+        print(f"\n  After analysis: propose governor updates (queue, signals, quirks, log).")
+        print(f"{SEP}\n")
+
+    except Exception as exc:  # noqa: BLE001
+        # Parsing errors in a malformed governor file must never crash an
+        # ingest run.  Print a warning and continue — the build is more
+        # important than the briefing.
+        print(f"  ⚠  Governor briefing failed (malformed GOVERNOR.md?): {exc}")
+        print(f"{SEP}\n")
 
 
 def _cols_newly_populated(old_sheet, new_sheet, threshold=0.5):

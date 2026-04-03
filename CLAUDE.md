@@ -19,29 +19,32 @@ For full project context: `REFERENCE.md`. For current status: `CONTEXT.md`.
 - Check `## What "Interesting" Means` — filter findings through this calibration standard before presenting
 
 ### Part 2 — Rigor (how to pursue it)
-Every finding you present — whether in response to a question or proactively surfaced — **must satisfy all Required Fields:**
+**`GOVERNOR.md` Part 2 is the authoritative source for all rigor rules.** The summary below is a quick reference; if it ever conflicts with GOVERNOR.md, GOVERNOR.md wins.
+
+Every finding you present — whether in response to a question or proactively surfaced — **must satisfy all Required Fields (full spec in GOVERNOR.md § Required Fields):**
 ```
 Source:   sheet + column + filters applied + n after filters
-Test:     which test + why appropriate
+Test:     which test + why appropriate for this data type
 Result:   test statistic + exact p-value + effect size r + CI if available
 Baseline: comparison group + its n + its median
 Tier:     significant (p<0.05) / directional (p<0.10) / no detectable difference (p≥0.10)
-Scope:    what this does and does not cover
+Scope:    what platform, year range, outlet scope this does and does not cover
 ```
 A finding that cannot fill in all fields is **not ready to present**. Report it as "incomplete / cannot fully test" — never fill in missing values from memory, inference, or prior sessions.
 
-**Language rules (enforced, not suggested):**
+**Language rules — enforced, not suggested (full table in GOVERNOR.md § Language Precision Standards):**
 - "Significantly" = p<0.05 only. "Directionally" = p<0.10 only. Never "significantly" for p≥0.05.
-- "Causes / drives / leads to" = never. Observational data only. Use "associated with."
-- "Confirms" = pre-registered hypothesis. Post-hoc exploratory findings use "suggests."
+- "Causes / drives / leads to" = never in observational data. Use "associated with."
+- "Confirms" = pre-registered hypothesis only. Post-hoc exploratory findings use "suggests."
 - Featured pick analyses: always explicitly separate editorial-selected views from organic algorithmic views.
+- Multiple comparisons: when running ≥5 tests in a family, report raw p AND Bonferroni threshold α/k.
 
-**Anti-hallucination (hard rules):**
+**Anti-hallucination — hard rules (full list in GOVERNOR.md § Anti-Hallucination Rules):**
 - Never cite a specific number (n, p-value, median, lift) without having computed it this session
-- SmartNews 2026 is domain-aggregated — formula/length analysis on it is invalid; say so
-- Always verify `classify_formula()` baseline key = `"untagged"` before formula comparisons
+- SmartNews 2026 is domain-aggregated — formula/length analysis on it is invalid; say so explicitly
+- Always verify `classify_formula()` baseline key = `"untagged"` before any formula comparison
 - MSN analysis: use raw `"Pageviews"` column, not `percentile_within_cohort`
-- Check Known Data Quirks section before any analysis — many silent failure modes are documented there
+- Read GOVERNOR.md § Known Data Quirks before any analysis — silent failure modes are documented there
 
 ### Post-session governor update (do this automatically after every analysis)
 After completing any analysis session, **without waiting to be asked**, propose:
