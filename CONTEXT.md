@@ -16,6 +16,7 @@ For session history: see [sessions/](sessions/)
 - **Playbook:** `docs/playbook/index.html` — 5 tiles (Featured Targeting, Push Notifications, Section Tagging, Local vs. National, MSN Formula)
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
 - **Generator:** `generate_site.py` — run via `ingest.py`; `_build_nav()` / `_NAV_PAGES` single source of truth; `EXCLUDE_MSN = False`
+- **Governor:** `GOVERNOR.md` — analysis relevance + rigor rules; `governor_log/` for session history
 - **Data in use:**
   - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Notifications, SmartNews, MSN, Yahoo)
   - `Top Stories 2026 Syndication.xlsx` — 2026 Jan–Feb (Apple News, Notifications, SmartNews, Yahoo, MSN) — **NOTE: repo root file is Feb build; April 2 Tarrow drop (Mar data) was processed via ingest.py but file not retained in repo**
