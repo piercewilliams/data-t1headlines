@@ -1,8 +1,8 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 complete — 8 findings live, playbook (4 tiles), author-playbooks, experiments, full ingest pipeline
+**Phase:** Phase 2 active — 13 findings live, playbook (5 tiles), author-playbooks, experiments, full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
-**Last session:** 2026-04-01 (Finding 8 added — ANP bottom-performer analysis; 2 new playbook tiles)
+**Last session:** 2026-04-02 (March data ingested; 5 new findings added; exhaustive cross-platform analysis complete)
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -11,13 +11,13 @@ For session history: see [sessions/](sessions/)
 
 ## Current State
 
-- **Site:** `docs/index.html` — 8 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
-- **Playbook:** `docs/playbook/index.html` — 4 tiles (Featured Targeting, Push Notifications, Section Tagging, Local vs. National)
+- **Site:** `docs/index.html` — 13 findings, interactive tiles, dark/light mode, sortable tables, PNG/PDF export
+- **Playbook:** `docs/playbook/index.html` — 5 tiles (Featured Targeting, Push Notifications, Section Tagging, Local vs. National, MSN Formula)
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
-- **Generator:** `generate_site.py` — run via `ingest.py`; `_build_nav()` / `_NAV_PAGES` single source of truth
+- **Generator:** `generate_site.py` — run via `ingest.py`; `_build_nav()` / `_NAV_PAGES` single source of truth; `EXCLUDE_MSN = False`
 - **Data in use:**
   - `Top syndication content 2025.xlsx` — 2025 baseline (Apple News, Notifications, SmartNews, MSN, Yahoo)
-  - `Top Stories 2026 Syndication.xlsx` — 2026 YTD (Apple News, Notifications, SmartNews, Yahoo, MSN)
+  - `Top Stories 2026 Syndication.xlsx` — 2026 Jan–Feb (Apple News, Notifications, SmartNews, Yahoo, MSN) — **NOTE: repo root file is Feb build; April 2 Tarrow drop (Mar data) was processed via ingest.py but file not retained in repo**
   - `Tracker Template.xlsx` — optional; author/team analysis
   - `anp_data/` — Apple News Publisher CSVs (weekly drops; gitignored). Jan–Feb 2026 loaded. `--anp-data <dir>` to override.
 
@@ -41,18 +41,41 @@ For session history: see [sessions/](sessions/)
 
 ## Open Items
 
+**Data:**
+- [ ] ANP March drop — Tarrow said he'd add it to the Drive folder (2026-04-01); drop into `anp_data/` when it arrives
+- [ ] Yahoo/AOL split — confirm with Tarrow whether AOL tab will appear in future exports
+- [ ] SmartNews article-level 2026 data — current export is monthly-aggregated by domain; ask Tarrow if per-article export is available
+- [ ] Retain April 2 Tarrow file in repo or update DATA_2026 path — current repo file is Feb build (old MSN sheet format)
+
 **Analysis:**
 - [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
-- [ ] Wire MSN video + Yahoo video into pipeline when sample size warrants
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
-- [ ] ANP March drop — Tarrow said he'd add it to the Drive folder the next day (2026-04-01); drop into `anp_data/` when it arrives
 
 **Stakeholder shares:**
 - [x] ~~Share site with Sarah Price~~ — done. Sarah confirmed she has the link and is reviewing (Slack 2026-04-01 11:59 AM).
-- [ ] "What to know" Featured rate → editorial leads (Finding 1)
-- [ ] Share SmartNews local sports findings → distribution team (local sports bottom-performs on Apple; SmartNews is better fit)
+- [ ] Share formula × topic interaction finding → editorial leads (actionable: use "here's/question" specifically for weather/emergency)
+- [ ] Share SmartNews formula trap (question/WTK hurt SN) → distribution team
 
 ## Session Log
+
+**2026-04-02: March ingest + exhaustive analysis (5 new findings)**
+
+March Tarrow data ingested (Apple News +434 rows → 1,569 YTD; Notifications +144 → 503; MSN restructured 355→845 rows with clean sheet; SmartNews now monthly-aggregated; Yahoo/AOL split). Fixed SmartNews column rename (`date`→`month`). Re-enabled MSN (`EXCLUDE_MSN=False`).
+
+Exhaustive analysis run across all platforms (~20 hypothesis classes). Five additions to the site:
+
+1. **MSN Formula Divergence** — direct declarative headlines 4.84× better than any structured formula on T1 news MSN (p=2.9e-13). Questions/here's/explainers all significantly below baseline.
+2. **Formula × Topic Interaction** — "here's" and question format lift Apple News featuring ONLY on weather content (heres×weather 70.6%, question×weather 56.7%). For all other topics, formula barely predicts featuring. Topic is the primary driver.
+3. **SmartNews Cross-Platform Formula Trap** — question (0.423 rank, p=3.4e-6) and "what to know" (0.371, p=3.0e-6) actively hurt SmartNews performance. "Here's" is the only formula above baseline on both Apple News AND SmartNews.
+4. **Notification outcome language** — crime/death outcome words (1.26× CTR, p_adj=0.0015) now strongest notification signal, stronger than attribution (1.18×, p_adj=0.020) after BH-FDR correction across 10 signals.
+5. **Notification send-time** — evening (6-8pm) outperforms morning (9-11am), KW p=4.2e-5.
+
+Also extended Finding 5 (sports universal underperformance across Apple/MSN/notifications) and Finding 4 (notification CTR declining 29% over 9 months, Jun 2025→Mar 2026).
+
+Key analytical notes:
+- Apple News 2026 "featured view lift" appears reversed (featured < non-featured median views) due to composition: Us Weekly celebrity articles dominate the non-featured high-view pool. Within-topic, featuring still helps (weather: 2.92× lift).
+- "What to know" 0% featuring in 2026 (vs 54% in 2025) — formula is applied to celebrity profiles in 2026 vs weather/emergency in 2025. Formula isn't the driver; content type is.
+- ANP March data not yet arrived. SmartNews 2026 is monthly-aggregated (can't do article-level analysis).
 
 **2026-04-01: Finding 8 — ANP bottom-performer analysis (Sarah Price request)**
 
