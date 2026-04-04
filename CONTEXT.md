@@ -2,9 +2,9 @@
 
 **Phase:** Phase 2 active — 13 findings live, playbook (5 tiles), author-playbooks, experiments page (auto-generated), full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
-**Last session:** 2026-04-03b (Experiments page built + audited; all four nav pages now auto-generated)
+**Last session:** 2026-04-03c (Build hardening: Bonferroni check, smoke tests, pyproject.toml, SyntaxWarning fix; manager briefing doc written)
+**Session 2026-04-03b:** Experiments page built + audited; all four nav pages now auto-generated
 **Session 2026-04-03a:** Pierce/Sarah alignment call; SEMrush access confirmed; formatting guide incoming; tile feedback requested
-**Session 2026-04-02b:** Bug fix — MSN · Formula Divergence tile populated; prose updated to reflect actual data
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -81,6 +81,10 @@ For session history: see [sessions/](sessions/)
 - [ ] Sarah to review site tiles (1–13), flag which are useful/not and which parts within useful tiles matter — no rush, feeds report tuning over time
 
 ## Session Log
+
+**2026-04-03c: Build hardening + manager briefing doc**
+
+Added `_check_sn_bonferroni()` to the build report — flags any SmartNews formula in `_SN_FORMULA_DATA` significant at p<0.05 that doesn't survive Bonferroni correction at α/k, catching the WTK discrepancy automatically on every future ingest. Created `tests/smoke_test.py` (15 tests: AST-parse checks for both scripts, full unit coverage of `_validate_exp_suggestion()` and `_append_experiment_log()` including OSError path) — all pass, zero warnings. Created `pyproject.toml` with ruff config and pytest `testpaths`. Fixed invalid Python escape sequences (`\(`, `\s`, `\d`) in JS regex inside the HTML template (were heading toward SyntaxError in future Python). Wrote manager briefing `.docx` to Desktop: executive summary of the analytics sandbox, honest two-week iteration narrative, six-phase build guide, and 51-entry chronological build log appendix.
 
 **2026-04-03b: Experiments page + audit**
 
