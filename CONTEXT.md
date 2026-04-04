@@ -5,7 +5,7 @@
 **Last session:** 2026-04-03d (Pipeline run; experiments page live; build report fully clean; "Here's" downgraded to directional)
 **Session 2026-04-03c:** Build hardening: Bonferroni check, smoke tests, pyproject.toml, SyntaxWarning fix; manager briefing doc written
 **Session 2026-04-03b:** Experiments page built + audited; all four nav pages now auto-generated
-**Session 2026-04-03a:** Pierce/Sarah alignment call; SEMrush access confirmed; formatting guide incoming; tile feedback requested
+**Session 2026-04-03a:** Pierce/Sarah alignment call; SEMrush access confirmed; formatting guide incoming; tile feedback requested. **Key alignment: Sarah's focus = headlines only (syndication format variation paused). Governor should weight headline formula findings highest.**
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
