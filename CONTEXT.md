@@ -2,7 +2,8 @@
 
 **Phase:** Phase 2 active — 13 findings live, playbook (5 tiles), author-playbooks, experiments page (auto-generated), full ingest pipeline
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops
-**Last session:** 2026-04-03c (Build hardening: Bonferroni check, smoke tests, pyproject.toml, SyntaxWarning fix; manager briefing doc written)
+**Last session:** 2026-04-03d (Pipeline run; experiments page live; build report fully clean; "Here's" downgraded to directional)
+**Session 2026-04-03c:** Build hardening: Bonferroni check, smoke tests, pyproject.toml, SyntaxWarning fix; manager briefing doc written
 **Session 2026-04-03b:** Experiments page built + audited; all four nav pages now auto-generated
 **Session 2026-04-03a:** Pierce/Sarah alignment call; SEMrush access confirmed; formatting guide incoming; tile feedback requested
 
@@ -51,11 +52,12 @@ For session history: see [sessions/](sessions/)
 - [ ] Tarot data holes — Sarah Price offered to co-approach Chris Tarot with Pierce; March is first solid data set; Jan/Feb had incomplete polls
 
 **Analysis:**
-- [ ] Add Mann-Whitney significance tests to sports/biz/pol subtopic tables (3 standing rigor warnings per build)
+- [x] ~~Add Mann-Whitney significance tests to sports/biz/pol subtopic tables~~ — done 2026-04-03d; sports/biz now compute MW vs. rest-of-Apple-News; pol suppressed when n=0 (politics excluded)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 - [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03; .docx report on Desktop
-- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071); finding is real and directionally robust but overstated in current prose. Experiments page already reflects this correctly (listed as Bonferroni-fail).
-- [ ] Verify _HERES_BONF_K = 6 constant in generate_site.py experiments section still matches the actual number of SmartNews formula families in _SN_FORMULA_DATA after any data update
+- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071); finding is real and directionally robust but overstated in current prose. Experiments page already reflects this correctly (listed as Bonferroni-fail). NOTE: _SN_FORMULA_DATA has WTK at p=3.0e-6 (different run) — needs human resolution before touching site prose.
+- [x] ~~"Here's" SmartNews prose~~ — downgraded to "directionally above baseline" in tile, detail callout, table, and practical guidance; `_SN_FORMULA_DATA` direction changed to `above_dir`; `_check_sn_bonferroni()` updated to skip already-directional rows
+- [ ] Active time outliers in source Excel (3 rows with values up to 23,496s — likely milliseconds stored as seconds); pipeline caps at 600s but Tarrow should be notified to fix source data
 
 **Stakeholder shares:**
 - [x] ~~Share site with Sarah Price~~ — done. Sarah confirmed she has the link and is reviewing (Slack 2026-04-01 11:59 AM).
@@ -70,7 +72,7 @@ For session history: see [sessions/](sessions/)
 **PRD / Product:**
 - [ ] Update PRD with backlinking use case rationale: borrow "flare or credibility" from well-performing evergreen pieces (clarified by Sarah Price 2026-04-03)
 - [ ] Evergreen backlinking experiment: track ~25 URLs; measure improvement after adding backlinks to high-performing evergreen article (~800 views/day)
-- [ ] Experiments tab: wire directional findings → suggested experiment stubs (per Sarah Price's vision: "analyze data → come back and say test this")
+- [x] ~~Experiments tab: wire directional findings → suggested experiment stubs~~ — done; 8-card grid live at `docs/experiments/index.html`; export PNG button added
 - [ ] PRD currently slim on Sarah Price's and Sara Voluone's processes — add their workflow detail
 
 **Snowflake / Sigma:**
@@ -81,6 +83,10 @@ For session history: see [sessions/](sessions/)
 - [ ] Sarah to review site tiles (1–13), flag which are useful/not and which parts within useful tiles matter — no rush, feeds report tuning over time
 
 ## Session Log
+
+**2026-04-03d: Pipeline run + full build report cleanup**
+
+First full pipeline run since experiments page was built — `docs/experiments/index.html` now live with 8 suggestion cards. Ran `generate_experiment.py` on `experiments/what-to-know-featured-rate.md`: WTK Apple News featured rate 2.11× over untagged (p=0.017, n=16 — preliminary, below n≥30 threshold). Fixed all remaining build report issues: (1) Mann-Whitney tests added for sports/biz subtopic comparisons (vs. rest of Apple News) — 2 standing rigor warnings resolved; (2) pol_subtopic rigor warning suppressed when n=0 since politics is always excluded; (3) experiments page `domtoimage` audit failure fixed — `_exportExpPage()` function added with Export PNG button in run-meta line; (4) "Here's / Here are" SmartNews direction changed from `"above"` to `"above_dir"` in `_SN_FORMULA_DATA`; all prose updated to "directionally above baseline" with Bonferroni caveat; `_check_sn_bonferroni()` updated to skip already-directional rows. Build report now clean: 6 ✓ checks, 3 informational engagement-outlier warnings (source data issue — active time values up to 23,496s in Tarrow's Excel, capped at 600s).
 
 **2026-04-03c: Build hardening + manager briefing doc**
 
