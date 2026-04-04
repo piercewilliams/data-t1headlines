@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E = pycodestyle errors, W = pycodestyle warnings, F = pyflakes, I = isort
+select = ["E", "W", "F", "I"]
+ignore = [
+    # generate_site.py is a single-file pipeline script — many module-level
+    # statements and long strings are intentional.
+    "E501",   # line too long (the HTML template blocks routinely exceed 100 chars)
+    "E402",   # module-level import not at top of file (pipeline imports are conditional)
+    "F401",   # imported but unused (some imports are optional-dependency guards)
+    "E741",   # ambiguous variable name (l, O, I) — not present but kept as a safety guard
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["generate_site", "ingest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

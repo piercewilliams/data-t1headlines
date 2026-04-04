@@ -47,7 +47,8 @@
       "Bash(done)",
       "Bash(mkdir -p /Users/pierce/Documents/GitHub/data-t1headlines/anp_data)",
       "Bash(cp ~/Downloads/drive-download-20260401T041113Z-1-001/*.csv /Users/pierce/Documents/GitHub/data-t1headlines/anp_data/)",
-      "Bash(git -C /Users/pierce/Documents/GitHub/data-t1headlines ls-files --others --exclude-standard)"
+      "Bash(git -C /Users/pierce/Documents/GitHub/data-t1headlines ls-files --others --exclude-standard)",
+      "Bash(ruff check:*)"
     ]
   }
 }
