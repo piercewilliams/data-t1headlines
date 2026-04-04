@@ -3,8 +3,9 @@ generate_site.py — T1 Headline Analysis site generator.
 
 Reads two Excel exports (2025 and 2026 YTD) from Chris Tarrow's Google Sheet,
 runs 9 statistical analyses, and writes:
-  - docs/index.html          — main analysis page (interactive finding tiles)
-  - docs/playbook/index.html — editorial playbooks (sorted by confidence level)
+  - docs/index.html               — main analysis page (interactive finding tiles)
+  - docs/playbook/index.html      — editorial playbooks (sorted by confidence level)
+  - docs/experiments/index.html   — suggested experiments (directional findings; auto-regenerated)
 
 Usage:
     python3 generate_site.py [--data-2025 FILE] [--data-2026 FILE]
@@ -5715,7 +5716,7 @@ function _hexFromColor(c) {{
   if (!c || typeof c !== 'string') return null;
   c = c.trim().toLowerCase();
   if (/^#[0-9a-f]{{6}}$/.test(c)) return c;
-  var m = c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  var m = c.match(/^rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)/);
   if (m) return '#' + [m[1], m[2], m[3]].map(function(n) {{
     return ('0' + (+n).toString(16)).slice(-2);
   }}).join('');
@@ -6785,6 +6786,978 @@ author_pb_html = author_pb_html.replace(" \u2014 ", "\u2014")
 author_pb_out.write_text(author_pb_html, encoding="utf-8")
 print(f"Author Playbooks written to {author_pb_out}  ({len(author_pb_html):,} chars)")
 
+
+# ── Experiments page ──────────────────────────────────────────────────────────
+# Auto-generated page of suggested experiments derived from directional findings
+# in the current analysis run.  Fully replaces docs/experiments/index.html on
+# every run — past suggestions are never lost because an append-only log is
+# maintained alongside the page at experiments/experiment_log.md.
+#
+# Routing rule (per GOVERNOR.md Part 2 — Rigor):
+#   Confirmed finding (p<0.05, n≥30, survives multiple-comparison correction)
+#     → main analysis tiles  +  playbook tiles
+#   Directional finding (any of: p<0.10 but not p<0.05; p<0.05 but Bonferroni
+#     fail at family α/k; n<30 per group; HIGH-priority queue item with data)
+#     → experiments page only — no style recommendation is made
+
+_EXP_TIER_LABELS: dict[str, str] = {
+    "bonferroni-fail": "Bonferroni fail",
+    "underpowered":    "Underpowered",
+    "directional":     "Directional",
+    "untested":        "Untested",
+}
+_EXP_PRIORITY_LABELS: dict[str, str] = {
+    "high":   "\u2191 High",
+    "medium": "Medium",
+    "low":    "Low",
+}
+
+
+def _collect_experiment_suggestions() -> list[dict]:
+    """Collect all directional findings that warrant a suggested experiment.
+
+    A suggestion is generated for any finding meeting one or more of:
+      - Bonferroni fail  raw p < 0.05 but doesn't survive α/k family correction
+      - Underpowered     n < 30 per group (below reliable-inference threshold)
+      - Directional      0.05 ≤ p < 0.10 after BH-FDR correction
+      - Untested         HIGH/MED-priority probing-queue item with data available
+
+    All variables referenced here are module-level scalars already computed
+    above.  The function must be called after all analysis variables are set.
+
+    Returns a list of dicts, each with keys:
+      id        — URL-safe slug
+      platform  — short platform label (e.g. "Apple News")
+      title     — card heading
+      signal    — what the data currently shows and why this was flagged
+      gap       — what keeps this directional / why we can't act yet
+      question  — specific testable hypothesis
+      design    — how to run the experiment: variants, measurement, sample size, method
+      impact    — what confirmation or refutation means for style guidance and editorial action
+      tier      — "bonferroni-fail" | "underpowered" | "directional" | "untested"
+      priority  — "high" | "medium" | "low"
+    """
+    suggs: list[dict] = []
+
+    # ── 1. Here's / Here are on SmartNews — Bonferroni failure ───────────────
+    # Pull p-value and n directly from _SN_FORMULA_DATA so they stay in sync
+    # if the source data ever changes.  _HERES_BONF_K is a policy decision
+    # (how many formula families to correct for) and stays as a named constant.
+    _heres_row = next(
+        (r for r in _SN_FORMULA_DATA if r[0] == "Here's / Here are"), None
+    )
+    # _SN_FORMULA_DATA columns: (formula_label, sn_rank, sn_baseline, p_val, n, direction)
+    _HERES_SN_RAW_P    = float(_heres_row[3]) if _heres_row else 0.038  # p_val column
+    _HERES_SN_N        = int(_heres_row[4])   if _heres_row else 585    # n column
+    # Count tested formula families dynamically — rows with a real n (not the
+    # baseline "Direct declarative" row, which has n=None).  This stays correct
+    # if _SN_FORMULA_DATA is updated without a corresponding manual constant update.
+    _HERES_BONF_K = sum(1 for r in _SN_FORMULA_DATA if r[4] is not None)
+    _HERES_BONF_THRESH = 0.05 / _HERES_BONF_K
+    if _HERES_BONF_THRESH <= _HERES_SN_RAW_P < 0.05:  # directional but Bonferroni fail
+        suggs.append({
+            "id":       "heres-sn-bonferroni",
+            "platform": "SmartNews",
+            "title":    "\u201cHere\u2019s / Here are\u201d Lift \u2014 Needs Confirmation",
+            "signal": (
+                f"Articles using \u201cHere\u2019s / Here are\u201d on SmartNews score "
+                f"a median percentile rank of {FB_HERES_SN_RANK:.3f} vs. 0.500 for the "
+                f"direct-declarative baseline (n={_HERES_SN_N:,}, raw p={_HERES_SN_RAW_P}). "
+                f"Direction is positive \u2014 opposite to question and "
+                f"\u201cWhat to know\u201d on the same platform."
+            ),
+            "gap": (
+                f"Raw p={_HERES_SN_RAW_P} does not survive Bonferroni correction at "
+                f"k={_HERES_BONF_K} formula families "
+                f"(threshold \u03b1/k\u2009=\u2009{_HERES_BONF_THRESH:.3f}). "
+                f"All data is observational; no A/B comparison is available. Topic "
+                f"confounding (\u201cHere\u2019s\u201d may correlate with better-performing "
+                f"story types) has not been controlled for."
+            ),
+            "question": (
+                "If T1 editors A/B tested \u201cHere\u2019s / Here are\u201d against a "
+                "direct-declarative version of the same story on SmartNews, would the formula "
+                "version consistently outperform? Does the effect hold across topics (sports, "
+                "crime, weather) or appear only in a topic subset?"
+            ),
+            "design": (
+                "For 30\u201350 stories over 4\u20136 weeks, write two headline versions per "
+                "story: (A) \u201cHere\u2019s / Here are\u201d format and (B) a direct "
+                "declarative covering the same facts. If the CMS supports A/B headline "
+                "testing, use it; otherwise alternate formula by publication day or assign "
+                "by outlet. Record SmartNews views at 7 days post-publish. "
+                "Test: Mann-Whitney U on SmartNews views (A vs. B), rank-biserial r as "
+                "effect size. Minimum n\u2009=\u200930 matched story pairs for reliable "
+                "inference. Stratify by topic (sports/crime/weather vs. other) to check "
+                "whether any interaction hides or drives the aggregate result. "
+                "Do not use the same story on Apple News A/B \u2014 keep platforms "
+                "separate to avoid contamination."
+            ),
+            "impact": (
+                "Confirmed: adds a positive SmartNews formula signal \u2014 currently all "
+                "confirmed SmartNews guidance is avoidance-only. Editors could be told "
+                "\u201cHere\u2019s works on SmartNews, unlike Apple News where WTK dominates "
+                "featuring.\u201d  "
+                "Not confirmed: SmartNews playbook stays avoidance-only; the directional "
+                "positive for \u201cHere\u2019s\u201d is noise or topic-driven."
+            ),
+            "tier":     "bonferroni-fail",
+            "priority": "high",
+        })
+
+    # ── 2. Number lead — round vs. specific numbers on Apple News ─────────────
+    # Often underpowered because only a fraction of number-lead headlines parse
+    # cleanly to a numeric value with determinable roundness.
+    _nl_p     = NL_ROUND_VS_SPECIFIC_P
+    _nl_n_r   = len(nl_round)
+    _nl_n_s   = len(nl_specific)
+    _nl_low_n = _nl_n_r < 30 or _nl_n_s < 30
+    _nl_dir   = _nl_p is not None and 0.05 <= _nl_p < 0.10
+    _nl_none  = _nl_p is None
+    if _nl_low_n or _nl_dir or _nl_none:
+        _nl_signal = (
+            f"Specific numbers (e.g. \u2018$487M\u2019, \u201813 deaths\u2019) score a "
+            f"median rank of {NL_SPECIFIC_MED:.3f} vs. {NL_ROUND_MED:.3f} for round "
+            f"numbers on Apple News (n\u2009=\u2009{_nl_n_s} specific, {_nl_n_r} round)"
+            if not (np.isnan(NL_SPECIFIC_MED) or np.isnan(NL_ROUND_MED))
+            else "Specific vs. round comparison could not be computed (insufficient parseable number leads)"
+        )
+        _nl_gap = (
+            f"Only {_nl_n_r} round-number and {_nl_n_s} specific-number articles parsed "
+            f"(below the 30-article-per-group threshold for reliable inference). "
+            f"Mann-Whitney p\u2009=\u2009{_nl_p:.3f} (unadjusted)."
+            if _nl_dir
+            else (
+                f"Groups too small for a reliable test: round n={_nl_n_r}, "
+                f"specific n={_nl_n_s}."
+            )
+            if _nl_low_n
+            else "Test could not run \u2014 insufficient parseable number leads in the dataset."
+        )
+        suggs.append({
+            "id":       "number-lead-specificity-an",
+            "platform": "Apple News",
+            "title":    "Number Lead Specificity \u2014 Round vs. Exact Figures",
+            "signal":   _nl_signal,
+            "gap":      _nl_gap,
+            "question": (
+                "Do Apple News headlines with precise numeric values "
+                "(e.g. \u2018$487 million,\u2019 \u201813 officers\u2019) consistently "
+                "outperform rounded equivalents (\u2018$500 million,\u2019 "
+                "\u201810+ officers\u2019) for views, controlling for topic and story type?"
+            ),
+            "design": (
+                "When writing number-lead headlines, deliberately tag each as "
+                "\u2018round\u2019 (e.g. \u2018$500M,\u2019 \u201810 people\u2019) or "
+                "\u2018specific\u2019 (e.g. \u2018$487M,\u2019 \u201813 people\u2019) in "
+                "a shared tracking sheet. Collect at least 30 Apple News articles per type "
+                "before running the test. No CMS change needed \u2014 this is a tagging "
+                "discipline applied during headline writing. "
+                "Analysis: Mann-Whitney U on Apple News percentile rank at 7 days "
+                "(specific vs. round), rank-biserial r as effect size. Stratify by topic "
+                "(financial stories likely have more specificity variance than crime or "
+                "sports). "
+                "Existing pipeline: classify_number_lead() already extracts the numeric "
+                "value \u2014 add a roundness tag to the tracking sheet and re-run once "
+                "30+ per group are tagged."
+            ),
+            "impact": (
+                "Confirmed: adds precision-number guidance to the style guide "
+                "(\u201cuse exact figures in number leads, not rounded approximations\u201d). "
+                "Editors who default to rounded figures for readability would be asked to "
+                "reverse that practice.  "
+                "Not confirmed: round vs. specific distinction does not affect views; the "
+                "number-lead signal is format-driven rather than specificity-driven."
+            ),
+            "tier":     "underpowered" if (_nl_low_n or _nl_none) else "directional",
+            "priority": "medium",
+        })
+
+    # ── 3. Headline length on SmartNews — not significant ─────────────────────
+    # Apple News length effect (Q4 vs Q1) is significant; SmartNews is not.
+    if not _hl_sn_sig:
+        _sn_p_disp = (
+            f"adjusted p\u2009=\u2009{HL_SN_Q4Q1_P:.3f}"
+            if not np.isnan(HL_SN_Q4Q1_P) else "p not computed"
+        )
+        suggs.append({
+            "id":       "headline-length-sn",
+            "platform": "SmartNews",
+            "title":    "Headline Length \u2014 SmartNews Sweet Spot Unconfirmed",
+            "signal": (
+                f"Headline length shows a directional pattern on SmartNews "
+                f"({_sn_p_disp}, not significant at \u03b1=0.05). Apple News shows a "
+                f"{'confirmed' if _hl_an_sig else 'directional'} length effect: very long "
+                f"headlines ({AN_LEN_Q4_CHARS_STR} chars) outperform short ones "
+                f"({AN_LEN_Q1_CHARS_STR} chars). The SmartNews optimal range may differ."
+            ),
+            "gap": (
+                "BH-FDR adjusted p\u2009\u2265\u20090.05 on SmartNews. Headline length "
+                "and formula type are correlated (structured formulas tend to be longer), "
+                "so the apparent length signal may partly reflect formula confounding. "
+                "SmartNews 2026 data is domain-aggregated (not article-level), limiting "
+                "the 2026 contribution to the significance test."
+            ),
+            "question": (
+                "Does headline length independently predict SmartNews performance after "
+                "controlling for formula type and topic? Is there a specific character-count "
+                "range (e.g. 70\u201390 chars) that outperforms both shorter and longer "
+                "headlines, or is the effect monotonic?"
+            ),
+            "design": (
+                "This requires article-level SmartNews 2026 data (currently domain-aggregated; "
+                "ask Tarrow for a per-article export). Once available, classify all SmartNews "
+                "articles into length quartiles and re-run the Mann-Whitney Q4 vs. Q1 test "
+                "with formula type as a stratification variable. "
+                "Alternatively, for a prospective test: write two headline versions per story "
+                "for 4\u20136 weeks \u2014 one in the 70\u201390-char range, one 90\u2013120 "
+                "chars \u2014 and publish alternately to SmartNews. Measure views at 7 days. "
+                "Minimum n\u2009=\u200930 per length bucket. Control: ensure formula type is "
+                "held constant within pairs (both declarative, both \u201cHere\u2019s,\u201d "
+                "etc.) so length is the only variable. "
+                "Analysis: Mann-Whitney U, rank-biserial r. Then add formula type as a "
+                "second grouping variable to check for formula\u00d7length interaction."
+            ),
+            "impact": (
+                "Confirmed: pairs SmartNews character-count guidance with the existing Apple "
+                "News length guidance (90\u2013120 chars). Editors get a complete "
+                "cross-platform length spec.  "
+                "Not confirmed: length is a formula proxy on SmartNews \u2014 guidance stays "
+                "formula-only for SmartNews and the character-count rule applies to Apple "
+                "News only."
+            ),
+            "tier":     "directional" if not np.isnan(HL_SN_Q4Q1_P) else "underpowered",
+            "priority": "medium",
+        })
+
+    # ── 4. MSN formula groups — below reliable-inference threshold ────────────
+    # After T1 brand filter (113 rows total), most formula groups have n < 30.
+    # The dataset grows ~100 rows/month; groups should become testable in 2–3 months.
+    if not msn.empty and not df_msn_formula.empty:
+        _msn_weak = df_msn_formula[
+            (df_msn_formula["formula"] != "untagged") & (df_msn_formula["n"] < 30)
+        ]
+        if len(_msn_weak) > 0:
+            # Single pass over the weak-formula slice to build both display strings.
+            _msn_weak_rows = [
+                (
+                    _FORMULA_DISPLAY_LABELS.get(str(r["formula"]), str(r["formula"])),
+                    int(r["n"]),
+                )
+                for _, r in _msn_weak.iterrows()
+            ]
+            _weak_labels = ", ".join(label for label, _ in _msn_weak_rows)
+            _weak_ns = " \u00b7 ".join(
+                f"{label} (n={n})" for label, n in _msn_weak_rows
+            )
+            suggs.append({
+                "id":       "msn-formula-underpowered",
+                "platform": "MSN",
+                "title":    "MSN Formula Groups \u2014 Insufficient Data for Confirmation",
+                "signal": (
+                    f"{len(_msn_weak)} formula group(s) show directional patterns on MSN "
+                    f"but cannot be confirmed: {_weak_labels}. "
+                    f"{MSN_N_TOTAL} total T1 news brand articles after filtering. "
+                    f"Groups with n\u2009<\u200930: {_weak_ns}."
+                ),
+                "gap": (
+                    "All flagged groups have n\u2009<\u200930, below the minimum for reliable "
+                    "inference (GOVERNOR.md Part 2). Only the quoted-lede group currently "
+                    "has enough data to test, and it is the one confirmed MSN finding. "
+                    "The MSN dataset grows approximately 100 rows/month; most formula groups "
+                    "should cross n=30 within 2\u20133 months of continued data collection."
+                ),
+                "question": (
+                    "As MSN data accumulates, which formula groups consistently underperform "
+                    "the direct-declarative baseline? Is the underperformance pattern broad "
+                    "(all structured formulas hurt on MSN) or specific to certain formats?"
+                ),
+                "design": (
+                    "Natural experiment \u2014 no new data collection needed. The MSN dataset "
+                    "grows approximately 100 rows/month after the T1 brand filter. Re-run the "
+                    "Mann-Whitney formula analysis each monthly ingest; generate_site.py already "
+                    "does this automatically and the build report surfaces newly-significant "
+                    "groups. "
+                    "Threshold: treat any formula group as testable once it crosses n\u2009=\u200930. "
+                    "Expected timeline: most groups should reach n=30 within 2\u20133 monthly "
+                    "ingest cycles. "
+                    "Analysis: Mann-Whitney U (each formula group vs. untagged baseline), "
+                    "BH-FDR corrected across all tested groups simultaneously, rank-biserial r "
+                    "as effect size. Language tier: significant only if p_adj\u2009<\u20090.05; "
+                    "directional if p_adj\u2009<\u20090.10. Baseline key must be \u2018untagged\u2019 "
+                    "(not \u2018other\u2019) \u2014 see GOVERNOR.md Rigor Failures Log."
+                ),
+                "impact": (
+                    "Confirmed broad pattern: extends the MSN rule from \u2018avoid quoted "
+                    "lede\u2019 to \u2018avoid all structured formulas.\u2019 Gives editors "
+                    "the strongest possible two-headline guidance: Apple News \u2192 use "
+                    "formulas; MSN \u2192 drop them entirely.  "
+                    "Confirmed specific subset: MSN avoidance list grows to the confirmed "
+                    "formula types while others remain neutral.  "
+                    "Not confirmed: MSN formula penalty is limited to quoted lede only."
+                ),
+                "tier":     "underpowered",
+                "priority": "high",
+            })
+
+    # ── 5. MSN video — sports completion directional ──────────────────────────
+    # MSN_VID_SPORTS_P defaults to 1.0 when MSN video data is unavailable,
+    # so the 0.05 ≤ p < 0.10 guard ensures this only surfaces when meaningful.
+    if 0.05 <= MSN_VID_SPORTS_P < 0.10:
+        suggs.append({
+            "id":       "msn-video-sports",
+            "platform": "MSN",
+            "title":    "MSN Video \u2014 Sports Completion Rate Signal",
+            "signal": (
+                f"Sports video on MSN shows {MSN_VID_SPORTS_IDX_STR} higher median "
+                f"completion index vs. non-sports video "
+                f"(directional, p\u2009=\u2009{MSN_VID_SPORTS_P:.3f}). "
+                f"Dataset: 1,023 MSN video rows."
+            ),
+            "gap": (
+                f"p\u2009=\u2009{MSN_VID_SPORTS_P:.3f} is directional (p\u2009<\u20090.10) "
+                f"but not significant (p\u2009<\u20090.05). MSN video data is not filtered "
+                f"to T1 brands. Completion rate definition may differ from article pageviews, "
+                f"and its relationship to MSN distribution frequency is unknown."
+            ),
+            "question": (
+                "Does sports video on MSN consistently achieve higher completion rates than "
+                "other topic categories? Does higher completion translate to increased "
+                "distribution or recommendation frequency from MSN\u2019s algorithm?"
+            ),
+            "design": (
+                "Natural experiment \u2014 continue collecting MSN video data monthly via "
+                "Tarrow's export. Current dataset: 1,023 rows total. When the sports "
+                "video subgroup reaches n\u2009\u226560 (roughly 2\u20134 months of additional "
+                "data), re-run the Mann-Whitney test. "
+                "Analysis: Mann-Whitney U (sports vs. non-sports completion rate), "
+                "rank-biserial r. Also add a Spearman correlation between completion rate "
+                "and pageviews for MSN video articles to establish whether completion rate "
+                "is a meaningful proxy for distribution. "
+                "If MSN provides a \u2018shares\u2019 or \u2018recommendations\u2019 metric "
+                "in the export, add that as a secondary outcome. "
+                "Do not segment by brand until n per brand crosses 20 \u2014 use topic "
+                "as the primary variable for now."
+            ),
+            "impact": (
+                "Confirmed: supports explicitly routing sports video to MSN as a platform "
+                "where it over-indexes. Could inform content packaging decisions for sports "
+                "coverage across platforms.  "
+                "Not confirmed: the sports completion advantage is noise; video routing "
+                "should not be platform-differentiated on this basis."
+            ),
+            "tier":     "directional",
+            "priority": "low",
+        })
+
+    # ── 6–10: Probing queue — HIGH/MED priority, data available, not yet run ──
+    # These are appended unconditionally each run because the data to test them
+    # exists but the analysis has not been implemented.  They persist in the log
+    # until implemented and moved to confirmed tiles or marked low-signal in
+    # GOVERNOR.md.
+
+    suggs.append({
+        "id":       "char-length-x-formula-an",
+        "platform": "Apple News",
+        "title":    "Character Length \u00d7 Formula Type Interaction",
+        "signal": (
+            "Character length (90\u2013120 chars) and formula type independently predict "
+            "Apple News views. Whether these signals interact \u2014 e.g., whether possessive "
+            "named entity needs to be longer to achieve its lift, or whether "
+            "\u201cHere\u2019s\u201d works at any length \u2014 has not been tested."
+        ),
+        "gap": (
+            "Cross-tabulating formula buckets with length quartiles fragments an already-"
+            "segmented dataset. Most formula \u00d7 length cells will have n\u2009<\u200930, "
+            "requiring aggregation trade-offs that risk obscuring the interaction signal. "
+            "Analysis not yet run."
+        ),
+        "question": (
+            "Do specific formula types require specific length ranges to achieve their Apple "
+            "News performance lift? E.g., does \u201cHere\u2019s / Here are\u201d need 90+ "
+            "chars to work, or does it lift at any length? Does possessive named entity "
+            "perform best at shorter lengths where the name dominates the headline?"
+        ),
+        "design": (
+            "Run on existing Apple News 2025+2026 data \u2014 no new collection needed. "
+            "Cross-tabulate by formula type \u00d7 length quartile. For each formula with "
+            "n\u2009\u226530 total, split into Q1 (shortest) and Q4 (longest) length buckets "
+            "and run Mann-Whitney U within each formula group vs. the untagged baseline at "
+            "the same length. Compare the lift magnitude across length buckets. "
+            "If any formula\u00d7length cell has n\u2009<\u200915, aggregate: fold Q1+Q2 "
+            "into \u2018short\u2019 and Q3+Q4 into \u2018long.\u2019 "
+            "Report as an interaction: does the formula\u2019s lift increase, decrease, or "
+            "stay flat as length increases? Plot as a 2\u00d72 heatmap (formula \u00d7 "
+            "length bucket, colored by median rank). "
+            "Apply BH-FDR correction across all formula\u00d7length cells tested. "
+            "Bonferroni fallback: if more than 10 cells are tested, apply Bonferroni at "
+            "k=10 as a secondary check."
+        ),
+        "impact": (
+            "Confirmed interaction: compound guidance (formula + length range) replaces two "
+            "independent rules. Editors get: \u201cUse Here\u2019s at 90\u2013110 chars; "
+            "use possessive at 70\u201390 chars.\u201d More actionable than current guidance.  "
+            "No interaction: the two independent rules are stable and can be applied "
+            "separately without worrying about their interaction."
+        ),
+        "tier":     "untested",
+        "priority": "high",
+    })
+
+    suggs.append({
+        "id":       "notif-ctr-char-length",
+        "platform": "Notifications",
+        "title":    "Notification CTR \u00d7 Character Length",
+        "signal": (
+            "Formula choice has a 2\u20135\u00d7 effect on notification CTR (confirmed). "
+            "Character length has been tested for Apple News views but not for notification "
+            "CTR. Notifications truncate at ~80 chars on most devices, making length more "
+            "likely to matter here than in feed headlines."
+        ),
+        "gap": (
+            "Character length vs. notification CTR has not been run. The notifications "
+            "dataset covers 2025\u20132026 (1,050+ news brand pushes with CTR data) \u2014 "
+            "sufficient for a Mann-Whitney test across length quartiles."
+        ),
+        "question": (
+            "Do shorter notifications (\u226480 chars) outperform longer ones for CTR, "
+            "controlling for formula type? Is there a character-count range where CTR peaks, "
+            "or is the relationship monotonic (shorter\u202f=\u202fbetter)?"
+        ),
+        "design": (
+            "Run on the existing notifications dataset (1,050+ news brand pushes with CTR). "
+            "No new data collection needed. "
+            "Bin notification headlines into four length quartiles. Run Kruskal-Wallis across "
+            "quartiles first to check for any length\u2013CTR association. If significant "
+            "(p\u2009<\u20090.05), follow with Mann-Whitney U pairwise comparisons "
+            "(Q1 vs. Q4 as primary), BH-FDR corrected. "
+            "Control for formula type via stratification: run the length\u2013CTR analysis "
+            "separately within each formula group that has n\u2009\u226530 "
+            "(attribution language, question, direct declarative). If length effect "
+            "disappears within formula groups, length is a formula proxy, not an independent "
+            "signal. "
+            "Secondary analysis: Spearman correlation between character count and CTR "
+            "(raw correlation, no quartiling). This gives a monotonicity check "
+            "without binning artifacts. "
+            "Implement in generate_site.py as an extension of the existing Q5 "
+            "notification analysis block."
+        ),
+        "impact": (
+            "Confirmed: adds a second actionable lever for push copy editors beyond formula "
+            "choice. Current guidance (\u201cuse attribution language\u201d) would be "
+            "extended with a specific character-count target.  "
+            "Not confirmed: formula dominates; length doesn\u2019t independently move CTR "
+            "and editors can focus solely on formula selection for notifications."
+        ),
+        "tier":     "untested",
+        "priority": "high",
+    })
+
+    suggs.append({
+        "id":       "wtn-featured-organic-by-year",
+        "platform": "Apple News",
+        "title":    "\u201cWhat to Know\u201d \u2014 Featured vs. Organic Stability by Year",
+        "signal": (
+            f"Apple editors select \u201cWhat to Know\u201d at {WTN_FEAT_LIFT:.1f}\u00d7 "
+            f"the baseline rate for Featured placement. Organic (non-Featured) articles "
+            f"using WTK show no significant view lift ({WTN_ORGANIC_P_STR}). This "
+            f"editorial/algorithmic split is a key project finding \u2014 but whether it "
+            f"is stable across 2025 and 2026 separately is unknown."
+        ),
+        "gap": (
+            "The current analysis pools 2025 and 2026 Apple News data. If Apple has updated "
+            "curation signals, or if T1 editors have changed how they use WTK, the featuring "
+            "lift or organic penalty could be shifting \u2014 which would change whether the "
+            "two-headline strategy is durable guidance."
+        ),
+        "question": (
+            "Is the WTK featuring lift consistent when 2025 and 2026 are analyzed "
+            "separately? Has the gap between editorial selection rate and organic algorithmic "
+            "performance been stable, or is it narrowing/widening over time?"
+        ),
+        "design": (
+            "Run on existing Apple News data \u2014 no new collection needed. "
+            "Split the Apple News dataset by year (2025 and 2026 separately). "
+            "For each year, run: (1) Q2 chi-square or Fisher\u2019s exact test for WTK "
+            "featuring rate vs. all other formulas; (2) Q1 Mann-Whitney U for WTK organic "
+            "view rank vs. untagged baseline (non-Featured articles only). "
+            "Compare the featuring lift ratio (WTK featured rate / baseline featured rate) "
+            "and the organic p-value across years. A narrowing featured rate ratio or a "
+            "trending organic p-value signals platform behavior change. "
+            "Implement as a year-stratified extension of the existing Q1 and Q2 analysis "
+            "blocks in generate_site.py. Report: a 2\u00d72 table of year\u00d7metric "
+            "(featuring lift and organic p) alongside a directional trend flag. "
+            "Note: Apple News 2026 covers Jan\u2013Mar only; interpret with caution until "
+            "Q3 2026 data is available."
+        ),
+        "impact": (
+            "Stable across years: confirms structural platform behavior. The \u201cWTK for "
+            "Featured campaigns, avoid for organic\u201d rule is durable.  "
+            "Shifting: guidance needs to evolve. If organic performance is catching up to "
+            "editorial selection, the two-headline distinction may already be outdated."
+        ),
+        "tier":     "untested",
+        "priority": "medium",
+    })
+
+    _pne_n_str = (
+        f"n={int(_r1_pne['n'])}"
+        if _r1_pne is not None and "n" in _r1_pne.index
+        else "n\u2248117"
+    )
+    suggs.append({
+        "id":       "possessive-named-entity-by-topic",
+        "platform": "Apple News",
+        "title":    "Possessive Named Entity \u2014 Topic Concentration",
+        "signal": (
+            f"Possessive named entity headlines ({_pne_n_str}) show moderate overall "
+            "performance on Apple News. The signal may be concentrated in sports and crime "
+            "\u2014 topics where named individuals are central to the story \u2014 but "
+            "aggregate analysis cannot confirm this."
+        ),
+        "gap": (
+            f"Overall {_pne_n_str} is small enough that splitting by topic reduces per-cell "
+            "counts below the 30-article threshold for reliable inference. The aggregate "
+            "analysis masks any strong within-topic signal."
+        ),
+        "question": (
+            "Do possessive named entity headlines specifically outperform in sports and crime "
+            "topics on Apple News, where named individuals are central? Is the aggregate "
+            "signal driven by a strong within-topic effect, or is it distributed broadly "
+            "across all topics?"
+        ),
+        "design": (
+            "Run on existing Apple News 2025+2026 data. Filter to possessive named entity "
+            "headlines. Split by topic: sports+crime (the \u2018high named-entity\u2019 "
+            "group) vs. all other topics. Run Mann-Whitney U (sports+crime PNE articles vs. "
+            "untagged baseline within the same topics), rank-biserial r as effect size. "
+            "Repeat for the \u2018other topics\u2019 group. "
+            "Compare lift magnitudes: if the sports+crime lift is substantially larger "
+            "(r\u2009\u22650.1 higher) than the other-topics lift, the signal is "
+            "topic-concentrated. If lifts are similar, the rule applies broadly. "
+            "If either per-topic cell has n\u2009<\u200920, flag as preliminary and hold "
+            "until data grows. Do not split into individual topics at this sample size \u2014 "
+            "aggregate sports+crime as one group. "
+            "Implement as a topic-stratified extension of the Q1 analysis in generate_site.py."
+        ),
+        "impact": (
+            "Confirmed topic-specific: changes guidance from a broad rule to a targeted one "
+            "(\u201cuse possessive named entity for sports/crime stories specifically\u201d). "
+            "Editors know exactly when to apply it.  "
+            "Evenly distributed: the broad rule stands. Possessive named entity is generally "
+            "useful, not vertically restricted."
+        ),
+        "tier":     "untested",
+        "priority": "medium",
+    })
+
+    suggs.append({
+        "id":       "number-lead-type-sn",
+        "platform": "SmartNews",
+        "title":    "Number Lead Type \u2014 Which Numbers Drive the SmartNews Signal?",
+        "signal": (
+            "Number leads show a positive directional trend on SmartNews (median rank 0.534 "
+            "vs. 0.497 baseline; direction: above_dir). They are the only SmartNews formula "
+            "with a positive directional signal. Whether count/list (\u20183 ways\u2019), "
+            "dollar amounts (\u2018$2 billion\u2019), or percentages (\u201847%\u2019) "
+            "drive this has not been tested."
+        ),
+        "gap": (
+            "Number-type classification (classify_number_lead()) is implemented in the "
+            "pipeline but per-type SmartNews performance has not been computed. SmartNews "
+            "2026 data is domain-aggregated (not article-level), limiting this analysis "
+            "to the 2025 dataset (n=38,251 articles)."
+        ),
+        "question": (
+            "Which number-lead subtype drives the SmartNews directional signal: count/list, "
+            "dollar amounts, or percentages? Or is the effect evenly distributed across "
+            "number types, suggesting format (any number in the lead) matters more than type?"
+        ),
+        "design": (
+            "Run on SmartNews 2025 number-lead articles (n\u2009\u2248342 total). "
+            "classify_number_lead() already extracts ntype (\u2018count_list,\u2019 "
+            "\u2018dollar_amount,\u2019 \u2018percentage,\u2019 \u2018other\u2019). "
+            "Group by ntype and run Mann-Whitney U for each group vs. the untagged baseline, "
+            "BH-FDR corrected across the three tested types. "
+            "Expected n per type: count_list is likely the largest (list articles are common); "
+            "dollar_amount and percentage groups may be small. Flag any group with "
+            "n\u2009<\u200920 as preliminary. "
+            "If all subtypes have low n, aggregate and report directionally only: "
+            "\u201ccounts/lists trend higher (n=X, p=Y)\u201d without a significance claim. "
+            "Implement by extending the existing number-lead deep-dive block "
+            "(classify_number_lead() section) in generate_site.py to add a per-type "
+            "Mann-Whitney analysis. Note: SmartNews 2026 is domain-aggregated and cannot "
+            "contribute to this analysis \u2014 2025 data only."
+        ),
+        "impact": (
+            "Confirmed specific type: editors can be told \u201ccount/list numbers work on "
+            "SmartNews; dollar amounts and percentages are neutral.\u201d More precise than "
+            "the current directional number-lead guidance.  "
+            "Equally distributed: the rule is format-driven (\u201cany number in the lead "
+            "is better than none\u201d). Simpler and more broadly applicable."
+        ),
+        "tier":     "untested",
+        "priority": "medium",
+    })
+
+    return suggs
+
+
+def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
+    """Render the full docs/experiments/index.html from a suggestion list.
+
+    Suggestions are grouped by priority (high → medium → low) and rendered as
+    static cards (no collapse/expand — all detail visible by default).
+    The page uses the same CSS design-token system as the rest of the site
+    (dark/light theme, same custom properties).
+
+    Args:
+        suggs:       Output of _collect_experiment_suggestions().
+        report_date: YYYY-MM slug used in the header and meta tag.
+
+    Returns:
+        Complete HTML string ready to write to disk.
+    """
+    # ── Group by priority (pre-populate to guarantee high→medium→low order) ──
+    by_priority: dict[str, list[dict]] = {"high": [], "medium": [], "low": []}
+    for s in suggs:
+        by_priority[s["priority"]].append(s)  # key always present; no setdefault needed
+
+    # ── Priority section headings (defined once, shared by _section()) ───────
+    _priority_headings: dict[str, str] = {
+        "high":   "High Priority",
+        "medium": "Medium Priority",
+        "low":    "Low Priority",
+    }
+
+    # ── Card renderer ────────────────────────────────────────────────────────
+    def _card(s: dict) -> str:
+        tier_lbl = _EXP_TIER_LABELS.get(s["tier"], s["tier"])
+        prio_lbl = _EXP_PRIORITY_LABELS.get(s["priority"], s["priority"])
+        return (
+            f'  <div class="exp-card tier-{s["tier"]}" id="exp-{html_module.escape(s["id"])}">\n'
+            f'    <div class="exp-meta">\n'
+            f'      <span class="exp-platform">{html_module.escape(s["platform"])}</span>\n'
+            f'      <span class="tier-badge tier-badge-{s["tier"]}">'
+            f'{html_module.escape(tier_lbl)}</span>\n'
+            f'      <span class="exp-priority">{html_module.escape(prio_lbl)}</span>\n'
+            f'    </div>\n'
+            f'    <h3 class="exp-title">{s["title"]}</h3>\n'
+            f'    <div class="exp-fields">\n'
+            f'      <div class="exp-field">\n'
+            f'        <span class="field-label">Current signal</span>\n'
+            f'        <p>{html_module.escape(s["signal"])}</p>\n'
+            f'      </div>\n'
+            f'      <div class="exp-field">\n'
+            f'        <span class="field-label">What\u2019s missing</span>\n'
+            f'        <p>{html_module.escape(s["gap"])}</p>\n'
+            f'      </div>\n'
+            f'      <div class="exp-field">\n'
+            f'        <span class="field-label">Test question</span>\n'
+            f'        <p>{html_module.escape(s["question"])}</p>\n'
+            f'      </div>\n'
+            f'      <div class="exp-field">\n'
+            f'        <span class="field-label">How to run it</span>\n'
+            f'        <p>{html_module.escape(s["design"])}</p>\n'
+            f'      </div>\n'
+            f'      <div class="exp-field">\n'
+            f'        <span class="field-label">What the result unlocks</span>\n'
+            f'        <p>{html_module.escape(s["impact"])}</p>\n'
+            f'      </div>\n'
+            f'    </div>\n'
+            f'  </div>'
+        )
+
+    def _section(priority: str) -> str:
+        """Render all experiment cards for one priority level as a <section> block.
+
+        Returns an empty string if there are no cards for this priority,
+        so the caller can filter with a truthiness check.
+        """
+        cards = by_priority.get(priority, [])
+        if not cards:
+            return ""
+        return (
+            f'<section class="priority-section">\n'
+            f'  <h2 class="priority-heading">{_priority_headings[priority]}</h2>\n'
+            f'  <div class="exp-grid">\n'
+            + "\n\n".join(_card(c) for c in cards)
+            + "\n  </div>\n</section>"
+        )
+
+    sections_html = "\n\n".join(
+        _section(p) for p in ("high", "medium", "low") if by_priority.get(p)
+    )
+    if not sections_html:
+        sections_html = (
+            '<div class="exp-empty">\n'
+            "  <p>No directional findings this run. All tested hypotheses either confirmed "
+            "(moved to main analysis tiles) or fell below the directional threshold.</p>\n"
+            "</div>"
+        )
+
+    nav     = _build_nav("Experiments", 1)
+    n_cards = len(suggs)
+    s_sfx   = "s" if n_cards != 1 else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="data-run" content="{report_date}">
+<title>T1 Headline Analysis \u00b7 Suggested Experiments</title>
+<script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
+<style>
+  /* \u2500\u2500 Theme tokens (match main site) \u2500\u2500 */
+  body.theme-light {{
+    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
+    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
+    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --nav-bg:rgba(255,255,255,0.88);
+    --amber:#d97706; --orange:#ea580c;
+  }}
+  body.theme-dark {{
+    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
+    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
+    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
+    --nav-bg:rgba(15,23,42,0.88);
+    --amber:#f59e0b; --orange:#f97316;
+  }}
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
+  nav {{ background:var(--nav-bg); backdrop-filter:blur(20px);
+         -webkit-backdrop-filter:blur(20px); padding:0 2rem;
+         display:flex; align-items:center; gap:0; height:44px;
+         border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }}
+  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
+            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:12px;
+                  transition:color 0.15s; }}
+  .nav-links a:hover {{ color:var(--text); }}
+  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
+  .nav-meta {{ display:flex; align-items:center; gap:12px; }}
+  .theme-btn {{ background:none; border:none; cursor:pointer; font-size:14px;
+                padding:4px; color:var(--text-muted); }}
+  /* Layout */
+  .container {{ max-width:900px; margin:0 auto; padding:3rem 2rem 5rem; }}
+  .eyebrow {{ font-size:11px; font-weight:700; letter-spacing:0.12em;
+              text-transform:uppercase; color:var(--text-muted); }}
+  h1 {{ font-size:2rem; font-weight:700; margin:0.4rem 0 0.75rem;
+        letter-spacing:-0.02em; }}
+  .sub {{ color:var(--text-secondary); max-width:700px; margin-bottom:0.4rem; }}
+  .run-meta {{ font-size:12px; color:var(--text-muted); margin-bottom:1.75rem; }}
+  /* Legend */
+  .legend {{ display:flex; gap:1.25rem; flex-wrap:wrap; margin-bottom:2.5rem;
+             padding:0.75rem 1rem; background:var(--bg-muted);
+             border-radius:8px; border:1px solid var(--border); }}
+  .legend-item {{ display:flex; align-items:center; gap:0.4rem; font-size:12px;
+                  color:var(--text-secondary); }}
+  .legend-dot {{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }}
+  .ld-bonferroni-fail {{ background:var(--amber); }}
+  .ld-underpowered    {{ background:var(--orange); }}
+  .ld-directional     {{ background:var(--accent); }}
+  .ld-untested        {{ background:var(--border); }}
+  /* Priority sections */
+  .priority-section {{ margin-bottom:3rem; }}
+  .priority-heading {{ font-size:0.7rem; font-weight:700; text-transform:uppercase;
+                       letter-spacing:0.12em; color:var(--text-muted); margin-bottom:1rem;
+                       padding-bottom:0.5rem; border-bottom:1px solid var(--border); }}
+  /* Experiment cards */
+  .exp-grid {{ display:grid; gap:1.25rem; }}
+  .exp-card {{ background:var(--bg-card); border:1px solid var(--border);
+               border-radius:12px; padding:1.5rem;
+               border-left:4px solid var(--border); }}
+  .exp-card.tier-bonferroni-fail {{ border-left-color:var(--amber); }}
+  .exp-card.tier-underpowered    {{ border-left-color:var(--orange); }}
+  .exp-card.tier-directional     {{ border-left-color:var(--accent); }}
+  .exp-card.tier-untested        {{ border-left-color:var(--border-subtle); }}
+  .exp-meta {{ display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;
+               margin-bottom:0.75rem; }}
+  .exp-platform {{ font-size:11px; font-weight:600; text-transform:uppercase;
+                   letter-spacing:0.08em; background:var(--bg-muted);
+                   color:var(--text-secondary); padding:2px 8px; border-radius:4px; }}
+  .tier-badge {{ font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px;
+                 text-transform:uppercase; letter-spacing:0.05em; }}
+  .tier-badge-bonferroni-fail {{ background:rgba(217,119,6,0.12); color:var(--amber); }}
+  .tier-badge-underpowered    {{ background:rgba(234,88,12,0.12);  color:var(--orange); }}
+  .tier-badge-directional     {{ background:rgba(59,130,246,0.12); color:var(--accent); }}
+  .tier-badge-untested        {{ background:var(--bg-subtle); color:var(--text-muted); }}
+  .exp-priority {{ font-size:11px; color:var(--text-muted); margin-left:auto;
+                   font-weight:500; }}
+  .exp-title {{ font-size:1rem; font-weight:600; color:var(--text); margin-bottom:1rem; }}
+  .exp-fields {{ display:grid; gap:0.75rem; }}
+  .exp-field {{ border-top:1px solid var(--border-subtle); padding-top:0.6rem; }}
+  .field-label {{ font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:0.1em; color:var(--text-muted); display:block;
+                  margin-bottom:0.2rem; }}
+  .exp-field p {{ font-size:0.875rem; color:var(--text-secondary); line-height:1.65;
+                  margin:0; }}
+  .exp-empty {{ color:var(--text-muted); font-style:italic; padding:2rem 0; }}
+</style>
+</head>
+<body class="theme-dark">
+{nav}
+
+<div class="container">
+  <span class="eyebrow">McClatchy CSA \u00b7 T1 Headlines</span>
+  <h1>Suggested Experiments</h1>
+  <p class="sub">
+    Directional findings from the current analysis run that show a potential signal
+    but cannot yet support a style recommendation. Each card explains what to test,
+    what is currently missing, and what different results would mean for guidance.
+  </p>
+  <p class="run-meta">
+    Run: {html_module.escape(report_date)}
+    \u00b7 {n_cards} suggestion{s_sfx}
+    \u00b7 Page auto-regenerated each analytics run
+  </p>
+
+  <div class="legend">
+    <span class="legend-item">
+      <span class="legend-dot ld-bonferroni-fail"></span>
+      Bonferroni fail \u2014 p&lt;0.05 raw but doesn\u2019t survive α/k correction
+    </span>
+    <span class="legend-item">
+      <span class="legend-dot ld-underpowered"></span>
+      Underpowered \u2014 too few data points for reliable inference
+    </span>
+    <span class="legend-item">
+      <span class="legend-dot ld-directional"></span>
+      Directional \u2014 0.05 \u2264 p &lt; 0.10 after BH-FDR correction
+    </span>
+    <span class="legend-item">
+      <span class="legend-dot ld-untested"></span>
+      Untested \u2014 data available, analysis not yet run
+    </span>
+  </div>
+
+{sections_html}
+</div>
+
+<script>
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
+}}
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
+(function() {{
+  try {{
+    var t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') applyTheme(t);
+  }} catch(e) {{}}
+}})();
+</script>
+</body>
+</html>"""
+
+
+def _append_experiment_log(
+    suggs: list[dict],
+    report_date: str,
+    log_path: Path,
+) -> None:
+    """Append this run's suggestions to the append-only experiment log file.
+
+    The log file is plain Markdown. Each run appends a dated section.
+    The file is never rewritten — only appended \u2014 so every past suggestion
+    is preserved across runs, including ones later confirmed or retired.
+
+    Args:
+        suggs:       Output of _collect_experiment_suggestions().
+        report_date: YYYY-MM slug used as the section identifier.
+        log_path:    Path to experiments/experiment_log.md.
+    """
+    generated_at = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    lines: list[str] = [
+        f"\n## Run: {report_date} (generated {generated_at})\n\n",
+        f"_{len(suggs)} suggestion(s) this run_\n",
+    ]
+    for s in suggs:
+        tier_lbl = _EXP_TIER_LABELS.get(s["tier"], s["tier"])
+        prio_lbl = _EXP_PRIORITY_LABELS.get(s["priority"], s["priority"])
+        lines.append(
+            f"\n### [{prio_lbl} \u00b7 {tier_lbl}] "
+            f"{s['platform']} \u2014 {s['title']}\n\n"
+            f"**Signal:** {s['signal']}\n\n"
+            f"**Gap:** {s['gap']}\n\n"
+            f"**Question:** {s['question']}\n\n"
+            f"**How to run it:** {s['design']}\n\n"
+            f"**What the result unlocks:** {s['impact']}\n"
+        )
+    lines.append("\n---\n")
+
+    # Write header on first use; always append the run section.
+    # Wrapped in try/except so a permissions or disk-space error on the log
+    # does not abort the full build — the HTML page is more important.
+    try:
+        if not log_path.exists() or log_path.stat().st_size == 0:
+            log_path.write_text(
+                "# Experiment Suggestion Log\n\n"
+                "Auto-generated. Appended each analytics run. Never manually edited.\n"
+                "Each run records the full set of directional suggestions at that point in time.\n\n"
+                "---\n",
+                encoding="utf-8",
+            )
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write("".join(lines))
+    except OSError as exc:
+        print(f"  \u26a0  Could not write experiment log ({log_path}): {exc}")
+
+
+# ── Validate experiment suggestions before rendering ─────────────────────────
+# Catch any missing keys or invalid tier/priority values at collection time,
+# before they can cause a silent KeyError inside the HTML renderer.
+_EXP_REQUIRED_KEYS = frozenset({
+    "id", "platform", "title", "signal", "gap",
+    "question", "design", "impact", "tier", "priority",
+})
+
+def _validate_exp_suggestion(s: dict) -> bool:
+    """Return True if suggestion dict has all required keys and valid tier/priority values."""
+    missing = _EXP_REQUIRED_KEYS - s.keys()
+    if missing:
+        print(f"  \u26a0  Experiment suggestion missing keys {sorted(missing)}: "
+              f"id={s.get('id', '???')!r} — skipped")
+        return False
+    if s["tier"] not in _EXP_TIER_LABELS:
+        print(f"  \u26a0  Experiment suggestion has unknown tier {s['tier']!r}: "
+              f"id={s['id']!r} — skipped")
+        return False
+    if s["priority"] not in _EXP_PRIORITY_LABELS:
+        print(f"  \u26a0  Experiment suggestion has unknown priority {s['priority']!r}: "
+              f"id={s['id']!r} — skipped")
+        return False
+    return True
+
+
+# ── Generate and write the experiments page ───────────────────────────────────
+_exp_suggs_raw  = _collect_experiment_suggestions()
+_exp_suggs      = [s for s in _exp_suggs_raw if _validate_exp_suggestion(s)]
+_exp_html       = _generate_experiments_page(_exp_suggs, REPORT_DATE_SLUG)
+experiments_out = Path("docs/experiments/index.html")
+experiments_out.parent.mkdir(exist_ok=True)
+experiments_out.write_text(_exp_html, encoding="utf-8")
+print(
+    f"Experiments written to {experiments_out}  "
+    f"({len(_exp_html):,} chars, {len(_exp_suggs)} suggestion(s))"
+)
+
+_exp_log_path = Path("experiments/experiment_log.md")
+_exp_log_path.parent.mkdir(exist_ok=True)
+_append_experiment_log(_exp_suggs, REPORT_DATE_SLUG, _exp_log_path)
+print(f"Experiment log appended \u2192 {_exp_log_path}")
+
+
 # ── Build report ─────────────────────────────────────────────────────────────
 _conf_counts = {"High confidence": 0, "Moderate": 0, "Directional": 0}
 for _, _, _t in _pb_tile_defs:
@@ -7031,6 +8004,37 @@ def _check_col_tooltips(paths: dict) -> list[str]:
     return warnings
 
 
+def _check_sn_bonferroni() -> list[str]:
+    """Flag SmartNews formula rows where raw p<0.05 but p doesn't survive Bonferroni.
+
+    Uses _SN_FORMULA_DATA as the single source of truth.  The Bonferroni threshold
+    is computed dynamically from the number of tested rows (rows with a real n value,
+    excluding the baseline 'Direct declarative' row which has n=None).
+
+    A warning here means the site prose may be over-stating significance for that
+    formula.  The finding should be downgraded to "directional" in the tile copy
+    and the WTK entry in the Experiments page is the canonical home for it.
+
+    Returns:
+        List of warning strings (empty = no Bonferroni violations in _SN_FORMULA_DATA).
+    """
+    warnings: list[str] = []
+    k = sum(1 for r in _SN_FORMULA_DATA if r[4] is not None)   # tested families only
+    if k == 0:
+        return warnings
+    bonf_threshold = 0.05 / k
+    for label, _rank, _base, p_val, n, _direction in _SN_FORMULA_DATA:
+        if n is None:
+            continue                          # baseline row — not a hypothesis test
+        if p_val is not None and p_val < 0.05 and p_val >= bonf_threshold:
+            warnings.append(
+                f"[sn_bonferroni] '{label}': raw p={p_val:.4g} < 0.05 but does NOT "
+                f"survive Bonferroni at k={k} (threshold={bonf_threshold:.4g}). "
+                f"Downgrade from 'significant' to 'directional' in site prose."
+            )
+    return warnings
+
+
 def _check_chart_legends(figures: dict) -> list[str]:
     """Verify every chart with per-bar coloring (marker.color is a list) has showlegend=True.
 
@@ -7060,16 +8064,19 @@ def _check_chart_legends(figures: dict) -> list[str]:
 
 _js_errors = (_validate_js(str(out), "index") +
               _validate_js(str(playbook_out), "playbook") +
-              _validate_js(str(author_pb_out), "author-playbooks"))
+              _validate_js(str(author_pb_out), "author-playbooks") +
+              _validate_js(str(experiments_out), "experiments"))
 
 _audit_warnings = _post_build_audit({
     "index":            str(out),
     "playbook":         str(playbook_out),
     "author-playbooks": str(author_pb_out),
+    "experiments":      str(experiments_out),
 })
 
 _palette_warnings  = _check_color_palette()
 _formula_warnings  = _check_formula_labels()
+_bonferroni_warns  = _check_sn_bonferroni()
 _legend_warnings   = _check_chart_legends({
     "fig4 (notification CTR)":      fig4,
     "fig5 (topic × platform)":      fig5,
@@ -7136,6 +8143,13 @@ if _formula_warnings:
     print("     → Fix: update _FORMULA_LABELS dict keys to match the return values in classify_formula().")
 else:
     print("  ✓  Formula labels consistent (_FORMULA_LABELS keys match classify_formula()).")
+if _bonferroni_warns:
+    print(f"\n  ⚠  {len(_bonferroni_warns)} SMARTNEWS BONFERRONI WARNING(S) — formula(s) significant at p<0.05 but not after correction:")
+    for _w in _bonferroni_warns:
+        print(f"     • {_w}")
+    print("     → Fix: downgrade prose from 'significant' to 'directional'; Experiments page already routes these correctly.")
+else:
+    print("  ✓  SmartNews Bonferroni check passed (no over-stated significance in _SN_FORMULA_DATA).")
 if _legend_warnings:
     print(f"\n  ✗  {len(_legend_warnings)} CHART LEGEND MISSING — per-bar color charts need a legend key:")
     for _w in _legend_warnings:
