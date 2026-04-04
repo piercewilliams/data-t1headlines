@@ -1813,7 +1813,7 @@ _SN_FORMULA_DATA = [
     ("Explainer",                0.491, 0.501, 0.62,    156, "neutral"),
     ("Direct declarative",       0.500, 0.500, 1.00,   None, "neutral"),
     ("Number lead",              0.534, 0.497, 0.29,    342, "above_dir"),
-    ("Here's / Here are",        0.543, 0.500, 0.038,   585, "above"),
+    ("Here's / Here are",        0.543, 0.500, 0.038,   585, "above_dir"),
 ]
 # Apple News featuring rates for the cross-platform comparison
 _AN_FEAT_RATES = {
@@ -2018,7 +2018,13 @@ for sub in ["football","basketball","baseball","hockey","soccer","college","spor
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_sports_subtopic = pd.DataFrame(sports_subtopic_rows).sort_values("an_med", ascending=False)
-_require_test("sports_subtopic", None, len(sports_an), len(sports_sn))
+_sports_an_vals   = sports_an[VIEWS_METRIC].dropna()
+_sports_rest_vals = an[an["topic"] != "sports"][VIEWS_METRIC].dropna()
+if len(_sports_an_vals) >= 3 and len(_sports_rest_vals) >= 3:
+    _sp_stat, _sp_p = stats.mannwhitneyu(_sports_an_vals, _sports_rest_vals, alternative="two-sided")
+    _require_test("sports_subtopic", _sp_p, len(_sports_an_vals), len(_sports_rest_vals))
+else:
+    _require_test("sports_subtopic", None, len(_sports_an_vals), len(_sports_rest_vals))
 
 # Crime subtopic on Apple News
 crime_an = an[an["topic"] == "crime"].copy()
@@ -2046,7 +2052,13 @@ for sub in ["retail","real_estate","jobs_labor","finance_macro","tech","business
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_biz_subtopic = pd.DataFrame(biz_subtopic_rows).sort_values("an_med", ascending=False)
-_require_test("biz_subtopic", None, len(biz_an), len(biz_sn))
+_biz_an_vals   = biz_an[VIEWS_METRIC].dropna()
+_biz_rest_vals = an[an["topic"] != "business"][VIEWS_METRIC].dropna()
+if len(_biz_an_vals) >= 3 and len(_biz_rest_vals) >= 3:
+    _biz_stat, _biz_p = stats.mannwhitneyu(_biz_an_vals, _biz_rest_vals, alternative="two-sided")
+    _require_test("biz_subtopic", _biz_p, len(_biz_an_vals), len(_biz_rest_vals))
+else:
+    _require_test("biz_subtopic", None, len(_biz_an_vals), len(_biz_rest_vals))
 
 # ── Politics subtopic drill-down ─────────────────────────────────────────────
 pol_an = an[an["topic"] == "politics"].copy()
@@ -2062,7 +2074,9 @@ for sub in ["federal","state","local_govt","election","politics_other"]:
         sn_med=sn_vals.median() if len(sn_vals) >= 3 else np.nan,
     ))
 df_pol_subtopic = pd.DataFrame(pol_subtopic_rows).sort_values("an_med", ascending=False)
-_require_test("pol_subtopic", None, len(pol_an), len(pol_sn))
+# Politics is excluded via EXCLUDE_POLITICS — n is always 0; suppress the standing warning.
+if len(pol_an) > 0 or len(pol_sn) > 0:
+    _require_test("pol_subtopic", None, len(pol_an), len(pol_sn))
 
 # ── Headline length analysis ──────────────────────────────────────────────────
 an["_hl_len"] = an["Article"].str.len()
@@ -5296,7 +5310,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('sn-formula-trap', this)">
       <span class="tile-num">B · SmartNews Cross-Platform Formula Trap</span>
-      <p class="tile-claim">Formulas promoted for Apple News specifically hurt SmartNews. Question format: −0.08 rank below baseline (p=3.4e-6, n=918). "What to know": −0.13 below baseline (p=3.0e-6, n=213). "Here's" is the only formula above baseline on BOTH platforms ({FB_HERES_SN_RANK:.3f} SN rank, {FB_HERES_SN_P_STR}).</p>
+      <p class="tile-claim">Formulas promoted for Apple News specifically hurt SmartNews. Question format: −0.08 rank below baseline (p=3.4e-6, n=918). "What to know": −0.13 below baseline (p=3.0e-6, n=213). "Here's" is the only formula directionally above baseline on BOTH platforms ({FB_HERES_SN_RANK:.3f} SN rank, {FB_HERES_SN_P_STR}, does not survive Bonferroni correction).</p>
       <p class="tile-action">→ Use "Here's" format when syndicating to both platforms simultaneously. Use questions for Apple News only. Never write one Apple News optimized headline and route it unchanged to SmartNews.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -5443,7 +5457,7 @@ html = f"""<!DOCTYPE html>
       <div class="detail-panel" id="detail-sn-formula-trap">
         <h2>Finding B · SmartNews Cross-Platform Formula Trap</h2>
         <div class="callout">
-          <strong>The trap:</strong> Headline formulas that help Apple News featuring specifically hurt SmartNews performance. Applying Justin Frame's Apple News playbook (questions, "what to know") to SmartNews is actively counterproductive. <strong>"Here's" is the only formula above baseline on both platforms simultaneously</strong> — it is the safe cross-platform choice.
+          <strong>The trap:</strong> Headline formulas that help Apple News featuring specifically hurt SmartNews performance. Applying Justin Frame's Apple News playbook (questions, "what to know") to SmartNews is actively counterproductive. <strong>"Here's" is the only formula directionally above baseline on both platforms simultaneously</strong> — it is the safest cross-platform choice (directional signal, p=0.038, does not survive Bonferroni correction at k=5).
         </div>
         <p>SmartNews 2025, n={FB_SN_N:,} articles. SmartNews ranks articles by a percentile-within-cohort metric (0.5 = exactly average). The question format drops to {FB_Q_SN_RANK:.3f} pct_rank ({FB_Q_SN_P_STR}, n=918) — 0.08 below baseline. "What to know" drops to {FB_WTK_SN_RANK:.3f} ({FB_WTK_SN_P_STR}, n=213) — the worst-performing formula on SmartNews. Meanwhile both are strong for Apple News featuring.</p>
         <div class="chart-wrap">{c_fb}</div>
@@ -5454,8 +5468,8 @@ html = f"""<!DOCTYPE html>
               <td><strong>Here's / Here are</strong></td>
               <td><span class="lift-high">46.5%</span></td>
               <td><span class="lift-high">{FB_HERES_SN_RANK:.3f}</span></td>
-              <td>0.500</td><td>{FB_HERES_SN_P_STR}</td>
-              <td><strong>Safe cross-platform</strong></td>
+              <td>0.500</td><td>{FB_HERES_SN_P_STR} (dir.)</td>
+              <td><strong>Safest cross-platform (directional)</strong></td>
             </tr>
             <tr>
               <td>Number lead</td>
@@ -5496,7 +5510,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <h3>Practical guidance</h3>
         <ul>
-          <li><strong>Cross-platform default:</strong> Use "Here's / Here are" format — the only formula simultaneously above baseline on both Apple News featuring AND SmartNews rank.</li>
+          <li><strong>Cross-platform default:</strong> Use "Here's / Here are" format — the only formula directionally above baseline on both Apple News featuring AND SmartNews rank (p=0.038, directional — does not survive Bonferroni correction, but is the best available cross-platform option).</li>
           <li><strong>Apple News-only variants:</strong> Use question format or "What to know" — but write a separate SmartNews headline if the story is also going there.</li>
           <li><strong>SmartNews-focused:</strong> Number lead format is directionally positive (0.534, p=0.29) — worth testing when volume permits. Direct declarative is the safe floor.</li>
           <li><strong>Never:</strong> Route an Apple News "What to know" or question headline unchanged to SmartNews. Both formats are statistically penalized on that platform.</li>
@@ -7617,6 +7631,9 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
     Run: {html_module.escape(report_date)}
     \u00b7 {n_cards} suggestion{s_sfx}
     \u00b7 Page auto-regenerated each analytics run
+    \u00b7 <button id="exp-export-btn" onclick="_exportExpPage()"
+        style="background:none;border:1px solid var(--border);color:var(--text-muted);
+               font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;">Export PNG</button>
   </p>
 
   <div class="legend">
@@ -7648,6 +7665,23 @@ function applyTheme(t) {{
 }}
 function toggleTheme() {{
   applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
+function _exportExpPage() {{
+  var btn = document.getElementById('exp-export-btn');
+  if (btn) btn.textContent = 'Exporting…';
+  var target = document.querySelector('.container');
+  domtoimage.toPng(target, {{bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f172a'}})
+    .then(function(dataUrl) {{
+      var a = document.createElement('a');
+      a.download = 'experiments-{report_date}.png';
+      a.href = dataUrl;
+      a.click();
+      if (btn) btn.textContent = 'Export PNG';
+    }})
+    .catch(function(err) {{
+      console.error('Export failed:', err);
+      if (btn) btn.textContent = 'Export failed';
+    }});
 }}
 (function() {{
   try {{
@@ -8023,9 +8057,11 @@ def _check_sn_bonferroni() -> list[str]:
     if k == 0:
         return warnings
     bonf_threshold = 0.05 / k
-    for label, _rank, _base, p_val, n, _direction in _SN_FORMULA_DATA:
+    for label, _rank, _base, p_val, n, direction in _SN_FORMULA_DATA:
         if n is None:
             continue                          # baseline row — not a hypothesis test
+        if direction == "above_dir":
+            continue                          # already treated as directional in code + prose
         if p_val is not None and p_val < 0.05 and p_val >= bonf_threshold:
             warnings.append(
                 f"[sn_bonferroni] '{label}': raw p={p_val:.4g} < 0.05 but does NOT "
