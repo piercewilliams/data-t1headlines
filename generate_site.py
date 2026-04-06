@@ -601,6 +601,7 @@ _NAV_PAGES = [
     ("Editorial Playbooks", "playbook"),
     ("Author Playbooks",    "author-playbooks"),
     ("Experiments",         "experiments"),
+    ("Headline Grader",     "grader"),
 ]
 
 def _build_nav(active: str, depth: int, theme_toggle: bool = True) -> str:
