@@ -51,7 +51,8 @@
       "Bash(ruff check:*)",
       "Read(//Users/pierce/Downloads/**)",
       "Bash(ollama list:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git ls-remote:*)"
     ]
   }
 }
