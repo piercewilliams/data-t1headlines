@@ -54,6 +54,7 @@ For session history: see [sessions/](sessions/)
 **Analysis:**
 - [x] ~~Add Mann-Whitney significance tests to sports/biz/pol subtopic tables~~ — done 2026-04-03d; sports/biz now compute MW vs. rest-of-Apple-News; pol suppressed when n=0 (politics excluded)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
+- [ ] Automate Sarah Price's Amplitude → Tracker join — she manually exports + joins monthly; ideal end state is PVs auto-populated into Vallone's live tracker; matching on title/URL/author; Pierce likely has Amplitude API access; engagement metrics also wanted eventually
 - [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03; .docx report on Desktop
 - [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071); finding is real and directionally robust but overstated in current prose. Experiments page already reflects this correctly (listed as Bonferroni-fail). NOTE: _SN_FORMULA_DATA has WTK at p=3.0e-6 (different run) — needs human resolution before touching site prose.
 - [x] ~~"Here's" SmartNews prose~~ — downgraded to "directionally above baseline" in tile, detail callout, table, and practical guidance; `_SN_FORMULA_DATA` direction changed to `above_dir`; `_check_sn_bonferroni()` updated to skip already-directional rows
