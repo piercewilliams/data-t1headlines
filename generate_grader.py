@@ -35,7 +35,7 @@ SHEET_ID      = "14_0eK46g3IEj7L_yp9FIdWwvnuYI5f-vAuP7DDhSPg8"
 SA_FILE       = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE",
                            str(Path.home() / ".credentials" / "pierce-tools.json"))
 OUTPUT_PATH   = Path("docs/grader/index.html")
-DEFAULT_LOOKBACK = 2
+DEFAULT_LOOKBACK = 1
 GROQ_MODEL    = "llama-3.3-70b-versatile"
 GROQ_FALLBACK = "llama3-8b-8192"
 
