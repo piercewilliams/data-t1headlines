@@ -356,7 +356,7 @@ def _headline_card(record, res, sc):
     color  = _score_color(sc)
 
     h_esc  = _esc(h)
-    hl_html = (f'<a href="{url}" target="_blank" rel="noopener" class="hl-link">{h_esc}</a>'
+    hl_html = (f'<a href="{url}" target="_blank" rel="noopener" class="hl-link" onclick="event.stopPropagation()">{h_esc}</a>'
                if url else h_esc)
 
     tiers_html = ""
@@ -369,10 +369,13 @@ def _headline_card(record, res, sc):
                        f'<span class="tier-lbl">{label}</span>'
                        f'<div class="badges">{badges}</div></div>')
 
-    return f"""<div class="hcard">
+    return f"""<div class="hcard" onclick="this.classList.toggle('expanded')">
   <div class="hcard-top">
     <span class="hcard-meta">{author} · {brand} · {date}</span>
-    <span class="hcard-score" style="color:{color}">{sc}%</span>
+    <span style="display:flex;align-items:center">
+      <span class="hcard-score" style="color:{color}">{sc}%</span>
+      <span class="hcard-toggle">▸</span>
+    </span>
   </div>
   <div class="hcard-hl">{hl_html}</div>
   <div class="hcard-criteria">{tiers_html}</div>
@@ -514,13 +517,22 @@ _CSS = """
   .method-llm{background:rgba(124,157,247,.12);color:#7c9df7;border:1px solid rgba(124,157,247,.25)}
   .hcard{background:var(--card);border:1px solid var(--border);border-radius:10px;
          padding:16px 18px;margin-bottom:14px}
-  .hcard-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .hcard-top{display:flex;justify-content:space-between;align-items:baseline;
+             margin-bottom:5px;cursor:pointer;user-select:none}
   .hcard-meta{font-size:.78em;color:var(--muted)}
   .hcard-score{font-size:1.1em;font-weight:700;font-family:monospace}
-  .hcard-hl{font-size:.95em;font-weight:600;margin-bottom:10px;line-height:1.4}
+  .hcard-toggle{font-size:.65em;color:var(--muted);margin-left:8px;flex-shrink:0;
+                align-self:center}
+  .hcard-hl{font-size:.95em;font-weight:600;margin-bottom:0;line-height:1.4;
+            cursor:pointer;user-select:none}
   .hl-link{color:var(--text);text-decoration:none}
   .hl-link:hover{color:var(--accent);text-decoration:underline}
-  .hcard-criteria{display:flex;flex-direction:column;gap:5px}
+  .hcard-criteria{display:none;flex-direction:column;gap:5px;
+                  margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  .hcard.expanded .hcard-criteria{display:flex}
+  .hcard.expanded .hcard-toggle{transform:rotate(90deg)}
+  .hcard.expanded .hcard-hl{margin-bottom:0}
+  .hl-link{pointer-events:auto}
   .tier-row{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
   .tier-lbl{font-size:.68em;color:var(--muted);text-transform:uppercase;
              letter-spacing:.05em;white-space:nowrap;padding-top:3px;min-width:130px}
