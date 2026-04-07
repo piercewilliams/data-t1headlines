@@ -72,7 +72,7 @@ For session history: see [sessions/](sessions/)
 - [ ] Build SEMrush layer on top of API — point-and-click signal tracking for Sarah without requiring her to touch the API directly
 
 **PRD / Product:**
-- [ ] Update PRD with backlinking use case rationale: borrow "flare or credibility" from well-performing evergreen pieces (clarified by Sarah Price 2026-04-03)
+- [x] ~~Update PRD with backlinking use case rationale~~ — done. Incorporated in PRD V0.4 (2026-04-06): evergreen backlinking as specific internal links use case per Sarah Price's input.
 - [ ] Evergreen backlinking experiment: track ~25 URLs; measure improvement after adding backlinks to high-performing evergreen article (~800 views/day)
 - [x] ~~Experiments tab: wire directional findings → suggested experiment stubs~~ — done; 8-card grid live at `docs/experiments/index.html`; export PNG button added
 - [ ] PRD currently slim on Sarah Price's and Sara Voluone's processes — add their workflow detail
@@ -80,6 +80,10 @@ For session history: see [sessions/](sessions/)
 **Snowflake / Sigma:**
 - [ ] Sarah to reach out to Dearra/Dedra (2026-04-06) to schedule meeting with Chad re: Snowflake navigation
 - [ ] Pierce added to Snowflake but doesn't know where to start — need Chad session
+
+**Headline Grader — criteria definition (C&P Weekly 2026-04-06):**
+- [ ] Sara Vallone + Sarah Price to define headline grading criteria/rules list — Pierce committed at C&P Weekly to build grader from a criteria list they provide. Once criteria are defined, update `generate_grader.py` rule tiers accordingly.
+- [ ] Individual performance tracking — identify which writers consistently beat tool suggestions (C&P Weekly request). Would require per-author breakdown in grader output; author field already in Sara's tracker sheet.
 
 **Sarah Price ask (ongoing):**
 - [ ] Sarah to review site tiles (1–13), flag which are useful/not and which parts within useful tiles matter — no rush, feeds report tuning over time
