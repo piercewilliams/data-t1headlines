@@ -81,9 +81,10 @@ For session history: see [sessions/](sessions/)
 - [ ] Sarah to reach out to Dearra/Dedra (2026-04-06) to schedule meeting with Chad re: Snowflake navigation
 - [ ] Pierce added to Snowflake but doesn't know where to start — need Chad session
 
-**Headline Grader — criteria definition (C&P Weekly 2026-04-06):**
-- [ ] Sara Vallone + Sarah Price to define headline grading criteria/rules list — Pierce committed at C&P Weekly to build grader from a criteria list they provide. Once criteria are defined, update `generate_grader.py` rule tiers accordingly.
-- [ ] Individual performance tracking — identify which writers consistently beat tool suggestions (C&P Weekly request). Would require per-author breakdown in grader output; author field already in Sara's tracker sheet.
+**Headline Grader — live + delivered (2026-04-06):**
+- [x] ~~Built and delivered~~ — Grader live at `docs/grader/index.html`; site link delivered to Sara Vallone + Sarah Price 2026-04-06. 14 criteria built from requirements gathered at C&P Weekly and prior sessions, refined by Pierce.
+- [ ] Criteria refinement — Sara Vallone + Sarah Price reviewing; update `generate_grader.py` rule tiers as their feedback comes in.
+- [ ] Individual performance tracking — add per-author breakdown to grader to identify writers who consistently beat tool suggestions (C&P Weekly request). Author field already in Sara's Tracker sheet.
 
 **Sarah Price ask (ongoing):**
 - [ ] Sarah to review site tiles (1–13), flag which are useful/not and which parts within useful tiles matter — no rush, feeds report tuning over time
