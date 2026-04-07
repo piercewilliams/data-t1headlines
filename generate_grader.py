@@ -8,7 +8,7 @@ Usage:
     python3 generate_grader.py [--lookback N] [--skip-llm] [--dry-run]
 
 Options:
-    --lookback N    Days to look back (default: 2)
+    --lookback N    Days to look back (default: 1)
     --skip-llm      Skip Groq LLM eval (objective criteria only)
     --dry-run       Print results, do not write HTML
 
@@ -293,7 +293,9 @@ def worst_criterion(agg):
 def load_history():
     if HISTORY_PATH.exists():
         try:
-            return json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+            data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return data
         except Exception:
             pass
     return []
