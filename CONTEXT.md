@@ -75,7 +75,7 @@ For session history: see [sessions/](sessions/)
 - [x] ~~Update PRD with backlinking use case rationale~~ — done. Incorporated in PRD V0.4 (2026-04-06): evergreen backlinking as specific internal links use case per Sarah Price's input.
 - [ ] Evergreen backlinking experiment: track ~25 URLs; measure improvement after adding backlinks to high-performing evergreen article (~800 views/day)
 - [x] ~~Experiments tab: wire directional findings → suggested experiment stubs~~ — done; 8-card grid live at `docs/experiments/index.html`; export PNG button added
-- [ ] PRD currently slim on Sarah Price's and Sara Voluone's processes — add their workflow detail
+- [x] ~~PRD currently slim on Sarah Price's and Sara Voluone's processes~~ — V0.4 delivered 2026-04-06; workflow detail and backlinking rationale incorporated
 
 **Snowflake / Sigma:**
 - [ ] Sarah to reach out to Dearra/Dedra (2026-04-06) to schedule meeting with Chad re: Snowflake navigation
