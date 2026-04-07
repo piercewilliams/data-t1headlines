@@ -137,7 +137,7 @@ def _build_nav(active: str, depth: int) -> str:
     )
     return (
         f'<nav>\n'
-        f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
+        f'  <span class="brand">McClatchy CSA</span>\n'
         f'  <div class="nav-links">\n'
         f'{links_html}\n'
         f'  </div>{meta}\n'

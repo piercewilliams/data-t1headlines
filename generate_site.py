@@ -633,7 +633,7 @@ def _build_nav(active: str, depth: int, theme_toggle: bool = True) -> str:
     )
     return (
         f'<nav>\n'
-        f'  <span class="brand">McClatchy CSA \u00b7 T1 Headlines</span>\n'
+        f'  <span class="brand">McClatchy CSA</span>\n'
         f'  <div class="nav-links">\n'
         f'{links_html}\n'
         f'  </div>{meta}\n'
@@ -6286,7 +6286,7 @@ playbook_html = f"""<!DOCTYPE html>
 {_build_nav("Editorial Playbooks", 1)}
 <div class="container">
 
-<span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+<span class="eyebrow">McClatchy CSA</span>
 <h1>Editorial Playbooks</h1>
 <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
@@ -6493,7 +6493,7 @@ _ap_n_articles   = sum(n for _, n, _, _, _ in _author_playbook_defs)
 if _ap_n_authors == 0:
     _ap_body = """
 <div class="container">
-  <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+  <span class="eyebrow">McClatchy CSA</span>
   <h1>Author Playbooks</h1>
   <p class="sub">No tracker data loaded this run. Place <code>Tracker Template.xlsx</code>
   in the repo root and re-run <code>ingest.py</code> to generate per-author guidance.</p>
@@ -6501,7 +6501,7 @@ if _ap_n_authors == 0:
 else:
     _ap_body = f"""
 <div class="container">
-  <span class="eyebrow">McClatchy CSA · T1 Headlines</span>
+  <span class="eyebrow">McClatchy CSA</span>
   <h1>Author Playbooks</h1>
   <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
@@ -7621,7 +7621,7 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
 {nav}
 
 <div class="container">
-  <span class="eyebrow">McClatchy CSA \u00b7 T1 Headlines</span>
+  <span class="eyebrow">McClatchy CSA</span>
   <h1>Suggested Experiments</h1>
   <p class="sub">
     Directional findings from the current analysis run that show a potential signal

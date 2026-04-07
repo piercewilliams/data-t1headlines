@@ -521,7 +521,7 @@ def _update_archive_index(
 </head>
 <body>
 <nav>
-  <span class="brand">McClatchy CSA · T1 Headlines</span>
+  <span class="brand">McClatchy CSA</span>
   <a href="../index.html">← Current analysis</a>
 </nav>
 <!--ENTRIES:{entries_json}-->
