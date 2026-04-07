@@ -52,7 +52,10 @@
       "Read(//Users/pierce/Downloads/**)",
       "Bash(ollama list:*)",
       "Bash(git stash:*)",
-      "Bash(git ls-remote:*)"
+      "Bash(git ls-remote:*)",
+      "Bash(crontab -l)",
+      "Bash(/bin/bash run_grader.sh)",
+      "Read(//tmp/**)"
     ]
   }
 }
