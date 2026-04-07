@@ -22,7 +22,7 @@ PYTHON=$(command -v python3 || echo "/usr/bin/python3")
 "$PYTHON" generate_grader.py >> "$LOG" 2>&1
 
 # Stage only the grader output (don't auto-commit other changes)
-git add docs/grader/index.html
+git add docs/grader/index.html docs/grader/history.json
 
 # Commit only if there's something new
 if git diff --cached --quiet; then

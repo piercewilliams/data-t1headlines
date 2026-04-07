@@ -35,6 +35,8 @@ SHEET_ID      = "14_0eK46g3IEj7L_yp9FIdWwvnuYI5f-vAuP7DDhSPg8"
 SA_FILE       = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE",
                            str(Path.home() / ".credentials" / "pierce-tools.json"))
 OUTPUT_PATH   = Path("docs/grader/index.html")
+HISTORY_PATH  = Path("docs/grader/history.json")
+HISTORY_MAX   = 30
 DEFAULT_LOOKBACK = 1
 GROQ_MODEL    = "llama-3.3-70b-versatile"
 GROQ_FALLBACK = "llama3-8b-8192"
@@ -286,6 +288,30 @@ def worst_criterion(agg):
     k, r = min(scored, key=lambda x: x[1])
     return META[k]["name"], r
 
+# ── 30-day history log ───────────────────────────────────────────────────────
+
+def load_history():
+    if HISTORY_PATH.exists():
+        try:
+            return json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return []
+
+
+def update_history(history, entry):
+    """Upsert today's entry (same-day reruns overwrite), trim to HISTORY_MAX."""
+    history = [e for e in history if e.get("date") != entry["date"]]
+    history.append(entry)
+    history.sort(key=lambda e: e["date"])
+    return history[-HISTORY_MAX:]
+
+
+def save_history(history):
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    HISTORY_PATH.write_text(json.dumps(history, indent=2), encoding="utf-8")
+
+
 # ── HTML helpers ──────────────────────────────────────────────────────────────
 
 def _score_color(s):
@@ -380,6 +406,40 @@ def _criterion_table(agg):
             f'</tr></thead><tbody>{rows}</tbody></table>')
 
 
+def _history_strip(history):
+    if not history:
+        return ""
+    days_html = ""
+    for entry in reversed(history):  # most recent first
+        avg  = entry.get("avg", 0)
+        n    = entry.get("n", 0)
+        issue = entry.get("top_issue", "—")
+        date  = entry.get("date", "")
+        # Short date label: "Apr 6"
+        try:
+            d = datetime.date.fromisoformat(date)
+            label = d.strftime("%-m/%-d")
+        except Exception:
+            label = date
+        color = _score_color(avg)
+        tip = f"{date}: {n} headlines, avg {avg}%, top issue: {issue}"
+        tip = tip.replace('"', "&quot;")
+        days_html += (
+            f'<div class="hist-day" title="{tip}">'
+            f'<div class="hist-date">{label}</div>'
+            f'<div class="hist-avg" style="color:{color}">{avg}%</div>'
+            f'<div class="hist-n">{n} hdls</div>'
+            f'<div class="hist-issue">{issue}</div>'
+            f'</div>'
+        )
+    return (
+        f'<div class="hist-section">'
+        f'<h2>30-Day History</h2>'
+        f'<div class="hist-strip">{days_html}</div>'
+        f'</div>'
+    )
+
+
 def _nav():
     pages = [
         ("Current Analysis",   "../"),
@@ -468,9 +528,24 @@ _CSS = """
         border-radius:6px;padding:8px 14px;font-size:.8em;color:var(--dir);margin-top:10px}
   .footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);
           color:var(--muted);font-size:.75em}
+  /* 30-day history strip */
+  .hist-section{margin:28px 0 8px}
+  .hist-section h2{margin-bottom:10px}
+  .hist-strip{display:flex;gap:6px;flex-wrap:wrap}
+  .hist-day{display:flex;flex-direction:column;align-items:center;gap:3px;
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:8px;padding:8px 10px;min-width:72px;cursor:default;
+            transition:border-color .15s}
+  .hist-day:hover{border-color:var(--accent)}
+  .hist-date{font-size:.65em;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+  .hist-avg{font-size:1.05em;font-weight:700}
+  .hist-n{font-size:.65em;color:var(--muted)}
+  .hist-issue{font-size:.62em;color:var(--muted);text-align:center;
+              max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   body.light{--bg:#f4f6fb;--surface:#fff;--card:#fff;--border:#dde1f0;
               --text:#1a1d27;--muted:#5a6070;--accent:#3d5af1}
-  @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}}
+  @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}
+    .hist-strip{gap:4px}.hist-day{min-width:60px;padding:6px 7px}}
 """
 
 _JS = """
@@ -484,7 +559,7 @@ window.addEventListener('DOMContentLoaded', () => {
 """
 
 
-def build_html(graded, lookback_days, run_ts):
+def build_html(graded, lookback_days, run_ts, history=None):
     n      = len(graded)
     avg_sc = round(sum(sc for _, _, sc in graded) / n) if n else 0
     agg    = aggregate(graded)
@@ -497,6 +572,7 @@ def build_html(graded, lookback_days, run_ts):
 
     sorted_graded = sorted(graded, key=lambda x: x[2])  # worst first
     cards = "\n".join(_headline_card(r, res, sc) for r, res, sc in sorted_graded)
+    hist_html = _history_strip(history or [])
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -531,6 +607,8 @@ def build_html(graded, lookback_days, run_ts):
     <div class="chip-lbl">Top issue: {worst_name}</div>
   </div>
 </div>
+
+{hist_html}
 
 <h2>Pass Rates by Criterion</h2>
 {_criterion_table(agg)}
@@ -597,19 +675,36 @@ def main():
             time.sleep(0.4)   # respect Groq free-tier rate limit
 
     run_ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    html   = build_html(graded, args.lookback, run_ts)
+    scores  = [sc for _, _, sc in graded]
+    avg_sc  = round(sum(scores) / len(scores)) if scores else 0
+    agg     = aggregate(graded)
+    worst_name, _ = worst_criterion(agg)
+
+    # Build today's history entry
+    today_entry = {
+        "date":      datetime.date.today().isoformat(),
+        "n":         len(graded),
+        "avg":       avg_sc,
+        "top_issue": worst_name,
+    }
+
+    history = load_history()
+    history = update_history(history, today_entry)
+
+    html = build_html(graded, args.lookback, run_ts, history=history)
 
     if args.dry_run:
         print(f"\nDry run — would write {len(html):,} chars to {OUTPUT_PATH}")
-        scores = [sc for _, _, sc in graded]
-        print(f"Scores: min={min(scores)} avg={round(sum(scores)/len(scores))} max={max(scores)}")
+        print(f"Scores: min={min(scores)} avg={avg_sc} max={max(scores)}")
+        print(f"History entry: {today_entry}")
         return
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(html, encoding="utf-8")
-    scores = [sc for _, _, sc in graded]
+    save_history(history)
     print(f"\n✓ Written to {OUTPUT_PATH}")
-    print(f"  Scores: min={min(scores)}  avg={round(sum(scores)/len(scores))}  max={max(scores)}")
+    print(f"  Scores: min={min(scores)}  avg={avg_sc}  max={max(scores)}")
+    print(f"  History: {len(history)} days logged")
 
 
 if __name__ == "__main__":
