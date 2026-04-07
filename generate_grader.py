@@ -181,14 +181,14 @@ Headline: {headline}
 Criteria:
 1. active_voice — Uses active voice; fails on passive constructions like "was announced by" or "is being investigated".
 2. no_lead_burial — Key news fact is in the first half of the headline.
-3. curiosity_gap — Creates a compelling click reason without being misleading.
+3. curiosity — Creates a compelling click reason without being misleading.
 4. accurate — Headline appears factually accurate and not sensationalized.
 5. no_vague_wtk — IF "What to know" appears, the subject before it is a specific named entity or topic. IF "What to know" is NOT in the headline, set pass=true, reason="N/A".
 
 Return ONLY valid JSON, no extra text:
-{{"active_voice":{{"pass":bool,"reason":"str"}},"no_lead_burial":{{"pass":bool,"reason":"str"}},"curiosity_gap":{{"pass":bool,"reason":"str"}},"accurate":{{"pass":bool,"reason":"str"}},"no_vague_wtk":{{"pass":bool,"reason":"str"}}}}"""
+{{"active_voice":{{"pass":bool,"reason":"str"}},"no_lead_burial":{{"pass":bool,"reason":"str"}},"curiosity":{{"pass":bool,"reason":"str"}},"accurate":{{"pass":bool,"reason":"str"}},"no_vague_wtk":{{"pass":bool,"reason":"str"}}}}"""
 
-_LLM_KEYS = ("active_voice", "no_lead_burial", "curiosity_gap", "accurate", "no_vague_wtk")
+_LLM_KEYS = ("active_voice", "no_lead_burial", "curiosity", "accurate", "no_vague_wtk")
 
 
 def eval_llm(headline, client):
