@@ -22,9 +22,10 @@ import unittest
 from pathlib import Path
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-REPO_ROOT = Path(__file__).resolve().parent.parent
-GENERATE_SITE = REPO_ROOT / "generate_site.py"
-INGEST_PY     = REPO_ROOT / "ingest.py"
+REPO_ROOT      = Path(__file__).resolve().parent.parent
+GENERATE_SITE  = REPO_ROOT / "generate_site.py"
+INGEST_PY      = REPO_ROOT / "ingest.py"
+GRADER_PY      = REPO_ROOT / "generate_grader.py"
 
 
 # ── 1. AST-parse smoke tests ──────────────────────────────────────────────────
@@ -50,6 +51,9 @@ class TestAstParse(unittest.TestCase):
 
     def test_ingest_parses(self):
         self._assert_parses(INGEST_PY)
+
+    def test_generate_grader_parses(self):
+        self._assert_parses(GRADER_PY)
 
 
 # ── Helpers extracted for unit-testing without importing the pipeline ──────────

@@ -3514,7 +3514,7 @@ NOTIF_CTR_WEATHER_STR = f"{_ctr_weather:.2%}" if _ctr_weather else "—"
 # MSN video sports completion
 MSN_VID_SPORTS_IDX_STR = (f"{MSN_VID_SPORTS_COMPLETION_IDX:.2f}×"
                            if not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else "—")
-MSN_VID_SPORTS_P_STR   = (_fmt_p(MSN_VID_SPORTS_P) if MSN_VID_SPORTS_P < 0.10 else "—")
+# MSN_VID_SPORTS_P_STR assigned after _fmt_p is defined (see below)
 
 # ── Prose helpers ─────────────────────────────────────────────────────────────
 def _fmt_p(p: "float | None", adj: bool = False) -> str:
@@ -3526,6 +3526,8 @@ def _fmt_p(p: "float | None", adj: bool = False) -> str:
     if p < 0.001: return f"p{label}&lt;0.001{sig}"
     if p < 0.01:  return f"p{label}={p:.3f}{sig}"
     return f"p{label}={p:.2f}{sig}"
+
+MSN_VID_SPORTS_P_STR = (_fmt_p(MSN_VID_SPORTS_P) if MSN_VID_SPORTS_P < 0.10 else "—")
 
 def _fmt_ci(lo: "float | None", hi: "float | None") -> str:
     """Format a confidence interval as a [lo×–hi×] string. Returns '' if either bound is None."""

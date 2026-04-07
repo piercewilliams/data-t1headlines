@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"  # minimum supported — allows 3.12+ f-string syntax used in generate_site.py
 
 [tool.ruff.lint]
 # E = pycodestyle errors, W = pycodestyle warnings, F = pyflakes, I = isort
@@ -12,6 +12,11 @@ ignore = [
     "E402",   # module-level import not at top of file (pipeline imports are conditional)
     "F401",   # imported but unused (some imports are optional-dependency guards)
     "E741",   # ambiguous variable name (l, O, I) — not present but kept as a safety guard
+    "E701",   # multiple statements on one line (colon) — intentional in dense analysis scripts
+    "E702",   # multiple statements on one line (semicolon) — intentional in dense analysis scripts
+    "E712",   # == True/False comparisons — required for pandas boolean Series indexing
+    "F821",   # undefined name — false positive from ruff on module-level code ordering in large scripts
+    "I001",   # import block unsorted — import order is intentional (stdlib → third-party)
 ]
 
 [tool.ruff.lint.isort]

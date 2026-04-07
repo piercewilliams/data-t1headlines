@@ -226,7 +226,7 @@ def _print_governor_briefing() -> None:
                     print(f"  {stripped}")
                     printed += 1
                     if printed >= _GOVERNOR_MAX_FOCUS_LINES:
-                        print(f"  … (see GOVERNOR.md for full focus)")
+                        print("  … (see GOVERNOR.md for full focus)")
                         break
 
         # ── 2. HIGH-priority probing queue ────────────────────────────────────
@@ -257,7 +257,7 @@ def _print_governor_briefing() -> None:
                     high_items.append(parts[_GOVERNOR_QUEUE_QUESTION_COL])
 
         if high_items:
-            print(f"\n  HIGH-PRIORITY PROBING QUEUE (run on this ingest):")
+            print("\n  HIGH-PRIORITY PROBING QUEUE (run on this ingest):")
             for item in high_items:
                 print(f"    → {item}")
 
@@ -286,7 +286,7 @@ def _print_governor_briefing() -> None:
                 f"read GOVERNOR.md § Known Data Quirks before any analysis."
             )
 
-        print(f"\n  After analysis: propose governor updates (queue, signals, quirks, log).")
+        print("\n  After analysis: propose governor updates (queue, signals, quirks, log).")
         print(f"{SEP}\n")
 
     except Exception as exc:  # noqa: BLE001
@@ -405,7 +405,7 @@ def _print_diff(old_profile: "dict | None", old_period: "str | None", new_profil
                 if old_rate > 0.5 and new_rate < 0.1:
                     newly_unlocked.append(f"    {key} · {col}  ({old_rate:.0%} null → {new_rate:.0%} null)")
         if newly_unlocked:
-            print(f"\n  Columns newly populated:")
+            print("\n  Columns newly populated:")
             for line in newly_unlocked:
                 print(line)
 

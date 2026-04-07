@@ -91,7 +91,7 @@ def filter_recent(records, lookback_days):
         if not h or not raw:
             continue
         d = None
-        for fmt in ("%m/%d/%Y", "%m/%d/%y", "%-m/%-d/%Y", "%-m/%-d/%y"):
+        for fmt in ("%m/%d/%Y", "%m/%d/%y"):
             try:
                 d = datetime.datetime.strptime(raw, fmt).date()
                 break
@@ -328,17 +328,13 @@ def _score_color(s):
 
 def _badge(key, val, reason):
     meta   = META[key]
-    w      = meta["weight"]
     method = meta["method"]
     name   = meta["name"]
-    tip    = reason.replace('"', "&quot;")
+    tip    = _esc(reason)
 
     if method == "info":
         cls = "cr-info-on" if val else "cr-info-off"
         return f'<span class="cr-badge {cls}" title="{tip}">{name}</span>'
-    if w == 0:
-        # disabled objective criterion (keyword currently active, but included for future use)
-        pass
     if val is None:
         return f'<span class="cr-badge cr-pending" title="{tip}">? {name}</span>'
     cls = "cr-pass" if val else "cr-fail"
@@ -346,15 +342,20 @@ def _badge(key, val, reason):
     return f'<span class="cr-badge {cls}" title="{tip}">{mark} {name}</span>'
 
 
+def _esc(s):
+    """Minimal HTML-escape for attribute and text contexts."""
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
 def _headline_card(record, res, sc):
     h      = str(record.get("Headline", "")).strip()
-    author = record.get("Author", "")
-    brand  = record.get("Brand Type", "")
-    date   = record.get("Publication Date", "")
+    author = _esc(record.get("Author", ""))
+    brand  = _esc(record.get("Brand Type", ""))
+    date   = _esc(record.get("Publication Date", ""))
     url    = record.get("Published URL/Link", "") or record.get("Draft URL/Link", "")
     color  = _score_color(sc)
 
-    h_esc  = h.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    h_esc  = _esc(h)
     hl_html = (f'<a href="{url}" target="_blank" rel="noopener" class="hl-link">{h_esc}</a>'
                if url else h_esc)
 
@@ -424,8 +425,7 @@ def _history_strip(history):
         except Exception:
             label = date
         color = _score_color(avg)
-        tip = f"{date}: {n} headlines, avg {avg}%, top issue: {issue}"
-        tip = tip.replace('"', "&quot;")
+        tip = _esc(f"{date}: {n} headlines, avg {avg}%, top issue: {issue}")
         days_html += (
             f'<div class="hist-day" title="{tip}">'
             f'<div class="hist-date">{label}</div>'
@@ -450,10 +450,11 @@ def _nav():
         ("Experiments",        "../experiments/"),
         ("Headline Grader",    ""),
     ]
-    links = " <span class='nav-sep'>·</span> ".join(
-        f'<a href="{href}"{"  class=\"active\"" if name=="Headline Grader" else ""}>{name}</a>'
-        for name, href in pages
-    )
+    link_parts = []
+    for name, href in pages:
+        cls = ' class="active"' if name == "Headline Grader" else ""
+        link_parts.append(f'<a href="{href}"{cls}>{name}</a>')
+    links = " <span class='nav-sep'>·</span> ".join(link_parts)
     return f"""<nav class="site-nav">
   <div class="nav-links">{links}</div>
   <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">◐</button>

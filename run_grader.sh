@@ -1,6 +1,7 @@
 #!/bin/bash
 # run_grader.sh — Daily headline grader automation
-# Called by cron at 8am America/New_York. Grades headlines, commits, pushes.
+# Called by cron at 10am America/Chicago (TZ set in crontab). Grades
+# the last 24 hours of headlines, commits, and pushes to GitHub.
 # Logs to /tmp/grader.log (rotated automatically, last 500 lines kept).
 
 set -euo pipefail

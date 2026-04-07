@@ -15,14 +15,15 @@ Monthly analysis of headline and topic performance across Apple News, SmartNews,
 1. [What this site shows](#what-this-site-shows)
 2. [Where we're headed — the variant allocation model](#where-were-headed--the-variant-allocation-model)
 3. [Monthly update — the only command you need](#monthly-update--the-only-command-you-need)
-4. [Version history and rollback](#version-history-and-rollback)
-5. [Site structure](#site-structure)
-6. [The analyses](#the-analyses)
-7. [Statistical standards](#statistical-standards)
-8. [Architecture](#architecture)
-9. [Developer: adding analyses and experiments](#developer-adding-analyses-and-experiments)
-10. [File reference](#file-reference)
-11. [Triage guide](#triage-guide)
+4. [Daily headline grader](#daily-headline-grader)
+5. [Version history and rollback](#version-history-and-rollback)
+6. [Site structure](#site-structure)
+7. [The analyses](#the-analyses)
+8. [Statistical standards](#statistical-standards)
+9. [Architecture](#architecture)
+10. [Developer: adding analyses and experiments](#developer-adding-analyses-and-experiments)
+11. [File reference](#file-reference)
+12. [Triage guide](#triage-guide)
 
 ---
 
@@ -120,6 +121,61 @@ python3 ingest.py --data-2026 "path/to/new/file.xlsx"
 
 For scenario-specific guidance (new sheets, engagement columns, MSN full year, SmartNews category restore, experiments): see [`PLAYBOOK.md`](PLAYBOOK.md).
 
+---
+
+## Daily headline grader
+
+A separate, fully automated pipeline grades the last 24 hours of headlines from Sara Vallone's live Google Tracker sheet every day at **10 AM Chicago time**. Results appear at `docs/grader/index.html` (Headline Grader tab in the site nav).
+
+### What it grades
+
+Each headline is evaluated against 14 criteria in four tiers:
+
+| Tier | Criteria | Method |
+|------|----------|--------|
+| Structure & Length | Character count (80–110), named entity leads, no article lead, active voice, no lead burial | Rule-based + LLM |
+| Formula & Signal | Formula present, no vague "What to know," keyword present | Rule-based + LLM |
+| Quality Flags | No "Did you miss," no all-caps, curiosity gap, factually accurate | Rule-based + LLM |
+| Platform (informational) | Here's/Here are (Apple News signal) | Rule-based |
+
+LLM evaluation uses **Groq** (free tier, `llama-3.3-70b-versatile`). Rule-based criteria use regex. Each headline receives a weighted score (0–100%). The page shows scores worst-first and a 30-day rolling history strip at the top.
+
+### How it runs
+
+The cron entry (in the user's crontab):
+```
+TZ=America/Chicago
+0 10 * * * /bin/bash /path/to/run_grader.sh
+```
+
+`run_grader.sh` sources `~/.grader_env` (never committed; holds `GROQ_API_KEY`, `GITHUB_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_FILE`), runs `generate_grader.py`, then commits and pushes `docs/grader/index.html` and `docs/grader/history.json` if they changed.
+
+### Running manually
+
+```bash
+# Full run (last 24 hours, with LLM):
+source ~/.grader_env && python3 generate_grader.py
+
+# Wider lookback for initial run or catch-up:
+python3 generate_grader.py --lookback 7
+
+# Objective criteria only, no LLM calls:
+python3 generate_grader.py --skip-llm
+
+# Preview without writing files:
+python3 generate_grader.py --dry-run
+```
+
+### Required credentials (one-time setup)
+
+| Credential | Where to store | Purpose |
+|-----------|---------------|---------|
+| `GROQ_API_KEY` | `~/.grader_env` | LLM headline evaluation |
+| `GITHUB_TOKEN` | `~/.grader_env` | Automated push from cron |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | `~/.grader_env` (path to JSON) | Google Sheets read access |
+
+The service account JSON lives at `~/.credentials/pierce-tools.json` (outside the repo — never commit it). The Tracker sheet must be shared with the service account email.
+
 **Key thresholds to watch month-to-month:**
 
 | Finding | Current value | Significance threshold |
@@ -180,6 +236,7 @@ Use this only if the current `docs/index.html` is corrupted, broken, or was inco
 | Editorial Playbooks | `docs/playbook/index.html` | Per-platform headline guidance synthesized from findings; auto-sorted by confidence level |
 | Author Playbooks | `docs/author-playbooks/index.html` | Per-author formula profiles, performance percentiles, structured DO/TRY guidance (requires Tracker data) |
 | Experiments | `docs/experiments/index.html` | Before/after formula test index; individual reports at `docs/experiments/{slug}/index.html` |
+| Headline Grader | `docs/grader/index.html` | Daily auto-graded headlines from Sara Vallone's Tracker; 30-day score history strip |
 | Archive | `docs/archive/YYYY-MM/` | Full monthly snapshot with orange "archived" banner; renders charts online, tables offline |
 
 **Site-wide features:**
@@ -359,6 +416,8 @@ The experiment appears at `docs/experiments/my-slug/index.html` and is added to 
 | `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, regenerates all experiment pages, commits. |
 | `generate_site.py` | Full analysis pipeline + site generator. Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Nav via `_build_nav()`, export JS via `_make_export_js()`, tooltips via `_make_col_tooltip_js()`. |
 | `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files and regenerates the experiment index. Uses the same `_NAV_PAGES` / `_build_nav()` pattern. |
+| `generate_grader.py` | Daily headline grader. Reads Sara Vallone's Google Tracker, grades last 24h of headlines via rule-based and LLM criteria, writes `docs/grader/index.html` and `docs/grader/history.json`. |
+| `run_grader.sh` | Cron wrapper for `generate_grader.py`. Sources `~/.grader_env`, runs the grader, commits and pushes if output changed. Invoked at 10 AM Chicago time daily. |
 | `requirements.txt` | All Python dependencies. `pip3 install -r requirements.txt` to set up a new machine. |
 
 ### Documentation
@@ -379,6 +438,8 @@ The experiment appears at `docs/experiments/my-slug/index.html` and is added to 
 | `docs/author-playbooks/index.html` | Live author playbook page. Regenerated on each run (requires Tracker data). |
 | `docs/experiments/index.html` | Experiment index. Regenerated on every ingest. |
 | `docs/experiments/{slug}/index.html` | Individual experiment report pages. |
+| `docs/grader/index.html` | Daily headline grader page. Regenerated each cron run. |
+| `docs/grader/history.json` | 30-day rolling score log (date, n, avg score, top issue per day). |
 | `docs/archive/YYYY-MM/` | Monthly snapshot: `index.html` (with archived banner), `data_profile.json`, `meta.json`. |
 
 ### Data files (in repo root)
@@ -427,6 +488,35 @@ Expected — hero scoring auto-selects the top 2 findings by `effect × signific
 
 ### Archive went to the wrong month folder
 Pass `--release YYYY-MM` explicitly to `ingest.py`. The default is the current calendar month, which is wrong if processing a prior month's data late.
+
+### Headline Grader shows `? Criterion` (yellow pending badge)
+The LLM call returned no result for that criterion. Usually a transient Groq rate-limit or network issue. Rerun `python3 generate_grader.py --lookback 1` — pending badges typically resolve on retry.
+
+### Headline Grader shows no 30-day history strip
+`docs/grader/history.json` is missing or empty (expected on first run). The strip populates automatically after the first successful daily run commits the file.
+
+### Cron grader not running
+Check `/tmp/grader.log` for errors. Common causes: `~/.grader_env` not found or missing a key; machine asleep at 10 AM; `python3` not on `PATH` in the cron environment (the script uses `command -v python3` to locate it).
+
+---
+
+## Quality suite
+
+Run this before any push:
+```bash
+# Syntax + unit tests (16 tests, no Excel or API keys needed):
+python3 -m pytest tests/ -v
+
+# Lint (no install needed — ruff is in requirements.txt):
+ruff check generate_site.py generate_grader.py ingest.py generate_experiment.py
+
+# Grader smoke check (objective criteria only, no API calls):
+python3 generate_grader.py --skip-llm --dry-run
+```
+
+All three must be clean before committing.
+
+---
 
 ### `ingest.py` committed but the site looks broken
 The old site is preserved at `docs/archive/{slug}/index.html`. Run `generate_site.py` directly to debug, fix the issue, then commit again. The archive is always safe.
