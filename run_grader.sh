@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-REPO="/Users/pierce/Documents/github/data-t1headlines"
+REPO="/Users/pierce/Documents/github/data-headlines"
 LOG="/tmp/grader.log"
 
 echo "=== Grader run: $(date) ===" >> "$LOG"
@@ -30,7 +30,7 @@ if git diff --cached --quiet; then
   echo "Nothing to commit (no change from prior run)" >> "$LOG"
 else
   git commit -m "Auto: Headline Grader $(date '+%Y-%m-%d %H:%M %Z')" >> "$LOG" 2>&1
-  git push "https://${GITHUB_TOKEN}@github.com/piercewilliams/data-t1headlines.git" main >> "$LOG" 2>&1
+  git push "https://${GITHUB_TOKEN}@github.com/piercewilliams/data-headlines.git" main >> "$LOG" 2>&1
   echo "Pushed successfully" >> "$LOG"
 fi
 

@@ -27,7 +27,7 @@ Stable facts for this project. Updated in place when facts change — not a log.
 
 | Resource | Value |
 |----------|-------|
-| GitHub repo | https://github.com/piercewilliams/data-t1headlines |
+| GitHub repo | https://github.com/piercewilliams/data-headlines |
 | CSA dashboard repo | https://github.com/piercewilliams/csa-dashboard |
 | Branch | main |
 | Dashboard register entries | `rq-apple-news-monitoring`, `rq-content-learning-loop`, `rq-headline-tool`, `rq-title-options` |
