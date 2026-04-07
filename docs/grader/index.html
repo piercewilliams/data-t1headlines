@@ -75,18 +75,24 @@
           color:var(--muted);font-size:.75em}
   /* 30-day history strip */
   .hist-section{margin:28px 0 8px}
-  .hist-section h2{margin-bottom:10px}
+  .hist-section h2{margin-bottom:6px}
+  .hist-hint{font-size:.72em;color:var(--muted);margin-bottom:10px}
   .hist-strip{display:flex;gap:6px;flex-wrap:wrap}
   .hist-day{display:flex;flex-direction:column;align-items:center;gap:3px;
             background:var(--surface);border:1px solid var(--border);
-            border-radius:8px;padding:8px 10px;min-width:72px;cursor:default;
-            transition:border-color .15s}
+            border-radius:8px;padding:8px 10px;min-width:72px;cursor:pointer;
+            transition:border-color .15s;user-select:none}
   .hist-day:hover{border-color:var(--accent)}
   .hist-date{font-size:.65em;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
   .hist-avg{font-size:1.05em;font-weight:700}
-  .hist-n{font-size:.65em;color:var(--muted)}
-  .hist-issue{font-size:.62em;color:var(--muted);text-align:center;
-              max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-expand{font-size:.58em;color:var(--muted)}
+  .hist-details{display:none;flex-direction:column;align-items:center;
+                gap:3px;margin-top:4px;padding-top:4px;
+                border-top:1px solid var(--border);width:100%}
+  .hist-day.expanded .hist-details{display:flex}
+  .hist-day.expanded .hist-expand{display:none}
+  .hist-n{font-size:.65em;color:var(--accent);font-weight:600}
+  .hist-issue{font-size:.62em;color:var(--red);text-align:center;word-break:break-word}
   body.light{--bg:#f4f6fb;--surface:#fff;--card:#fff;--border:#dde1f0;
               --text:#1a1d27;--muted:#5a6070;--accent:#3d5af1}
   @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}
@@ -130,7 +136,7 @@ window.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
 
-<div class="hist-section"><h2>30-Day History</h2><div class="hist-strip"><div class="hist-day" title="2026-04-07: 60 headlines, avg 90%, top issue: Character count 80–110"><div class="hist-date">4/7</div><div class="hist-avg" style="color:#4caf50">90%</div><div class="hist-n">60 hdls</div><div class="hist-issue">Character count 80–110</div></div><div class="hist-day" title="2026-04-06: 46 headlines, avg 90%, top issue: Keyword present"><div class="hist-date">4/6</div><div class="hist-avg" style="color:#4caf50">90%</div><div class="hist-n">46 hdls</div><div class="hist-issue">Keyword present</div></div></div></div>
+<div class="hist-section"><h2>30-Day History</h2><p class="hist-hint">Click a tile to expand</p><div class="hist-strip"><div class="hist-day" title="2026-04-07: 60 headlines, avg 90%, top issue: Character count 80–110" onclick="this.classList.toggle('expanded')"><div class="hist-date">4/7</div><div class="hist-avg" style="color:#4caf50">90%</div><div class="hist-expand">▸ details</div><div class="hist-details"><div class="hist-n">60 hdls</div><div class="hist-issue">Character count 80–110</div></div></div><div class="hist-day" title="2026-04-06: 46 headlines, avg 90%, top issue: Keyword present" onclick="this.classList.toggle('expanded')"><div class="hist-date">4/6</div><div class="hist-avg" style="color:#4caf50">90%</div><div class="hist-expand">▸ details</div><div class="hist-details"><div class="hist-n">46 hdls</div><div class="hist-issue">Keyword present</div></div></div></div></div>
 
 <h2>Pass Rates by Criterion</h2>
 <table class="agg-tbl"><thead><tr><th>Criterion</th><th>Pass Rate</th><th></th><th>Counts</th></tr></thead><tbody><tr class="tier-hdr"><td colspan="4">Structure & Length</td></tr><tr>

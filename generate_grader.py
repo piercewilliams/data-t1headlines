@@ -426,17 +426,22 @@ def _history_strip(history):
             label = date
         color = _score_color(avg)
         tip = _esc(f"{date}: {n} headlines, avg {avg}%, top issue: {issue}")
+        issue_esc = _esc(issue)
         days_html += (
-            f'<div class="hist-day" title="{tip}">'
+            f'<div class="hist-day" title="{tip}" onclick="this.classList.toggle(\'expanded\')">'
             f'<div class="hist-date">{label}</div>'
             f'<div class="hist-avg" style="color:{color}">{avg}%</div>'
+            f'<div class="hist-expand">▸ details</div>'
+            f'<div class="hist-details">'
             f'<div class="hist-n">{n} hdls</div>'
-            f'<div class="hist-issue">{issue}</div>'
+            f'<div class="hist-issue">{issue_esc}</div>'
+            f'</div>'
             f'</div>'
         )
     return (
         f'<div class="hist-section">'
         f'<h2>30-Day History</h2>'
+        f'<p class="hist-hint">Click a tile to expand</p>'
         f'<div class="hist-strip">{days_html}</div>'
         f'</div>'
     )
@@ -533,18 +538,24 @@ _CSS = """
           color:var(--muted);font-size:.75em}
   /* 30-day history strip */
   .hist-section{margin:28px 0 8px}
-  .hist-section h2{margin-bottom:10px}
+  .hist-section h2{margin-bottom:6px}
+  .hist-hint{font-size:.72em;color:var(--muted);margin-bottom:10px}
   .hist-strip{display:flex;gap:6px;flex-wrap:wrap}
   .hist-day{display:flex;flex-direction:column;align-items:center;gap:3px;
             background:var(--surface);border:1px solid var(--border);
-            border-radius:8px;padding:8px 10px;min-width:72px;cursor:default;
-            transition:border-color .15s}
+            border-radius:8px;padding:8px 10px;min-width:72px;cursor:pointer;
+            transition:border-color .15s;user-select:none}
   .hist-day:hover{border-color:var(--accent)}
   .hist-date{font-size:.65em;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
   .hist-avg{font-size:1.05em;font-weight:700}
-  .hist-n{font-size:.65em;color:var(--muted)}
-  .hist-issue{font-size:.62em;color:var(--muted);text-align:center;
-              max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-expand{font-size:.58em;color:var(--muted)}
+  .hist-details{display:none;flex-direction:column;align-items:center;
+                gap:3px;margin-top:4px;padding-top:4px;
+                border-top:1px solid var(--border);width:100%}
+  .hist-day.expanded .hist-details{display:flex}
+  .hist-day.expanded .hist-expand{display:none}
+  .hist-n{font-size:.65em;color:var(--accent);font-weight:600}
+  .hist-issue{font-size:.62em;color:var(--red);text-align:center;word-break:break-word}
   body.light{--bg:#f4f6fb;--surface:#fff;--card:#fff;--border:#dde1f0;
               --text:#1a1d27;--muted:#5a6070;--accent:#3d5af1}
   @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}
