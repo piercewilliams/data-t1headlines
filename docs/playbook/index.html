@@ -154,6 +154,7 @@
     <a href="../author-playbooks/">Author Playbooks</a>
     <a href="../experiments/">Experiments</a>
     <a href="../grader/">Headline Grader</a>
+    <a href="../style-guide/">Style Guide</a>
   </div>
   <div class="nav-meta">
     <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
@@ -196,6 +197,14 @@
     <span class="tile-label">Apple News · Local vs. National Content</span>
     <p class="tile-claim">National wire content (“Nation &amp; World”) underperforms local-tagged sections by 26% percentile points (median rank 0.33 vs. 0.59; p=5.3e-19). 35% of Nation &amp; World articles land in the bottom quintile. Top-performing sections are all locally specific: Weather (41% featured, rank 0.89), city-branded local sections, and franchise sports teams with national audiences.</p>
     <p class="tile-action">→ Don’t use Apple News as the primary distribution channel for national wire stories. Apple News users follow local outlets for local content; they get national news from national brands. Route national wire through MSN or SmartNews instead, where platform topology differs.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-dual')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Platform Headline Pairs · Same Story, Different Headline</span>
+    <p class="tile-claim">The same story needs two different headlines. Apple News editors favor structured formulas (“Here’s”, “What to know”, questions) for featuring. SmartNews algorithmically penalizes those same formulas—question format drops to 0.42 pct_rank (p=3.4e–6), “What to know” to 0.37 (p=3.0e–6). “Here’s” is the only formula directionally above baseline on both platforms.</p>
+    <p class="tile-action">→ Write the Apple News headline first, then rewrite for SmartNews. See the topic-by-topic pairing guide below.</p>
     <span class="tile-toggle">Details ↓</span>
   </div>
 
@@ -252,6 +261,83 @@
 </tbody>
   </table>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
+</div>
+
+<div id="pb-dual" class="pb-detail" style="display:none">
+  <h3 class="rh">Topic-by-topic pairing guide</h3>
+  <p class="detail-sub">Write the Apple News headline first, then rewrite for SmartNews. These are two different editorial decisions.</p>
+  <table>
+    <thead><tr><th>Topic / Content type</th><th>Apple News headline</th><th>SmartNews headline</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Crime / Breaking</strong></td>
+        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#94a3b8">16% featuring rate (n=89)</span></td>
+        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#94a3b8">Avoid "Here's"—hurts SN rank when used broadly</span></td>
+        <td>Attribution language ("says", "told") lifts notification CTR 1.18× for crime stories</td>
+      </tr>
+      <tr>
+        <td><strong>Business / Economy</strong></td>
+        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#94a3b8">14% featuring rate (n=72)</span></td>
+        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#94a3b8">Avoid individual-person framing; situation stories feature better</span></td>
+        <td>Business + "Here's" is the strongest editorially writable non-weather formula</td>
+      </tr>
+      <tr>
+        <td><strong>Sports</strong></td>
+        <td>Any formula—0–11.5% featuring regardless<br><span style="font-size:.8em;color:#94a3b8">Topic opts you out of Apple News featuring</span></td>
+        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#94a3b8">Number leads are the only SN formula trending upward</span></td>
+        <td>SmartNews is the better channel for sports. Apple News: feature potential only for national/marquee stories</td>
+      </tr>
+      <tr>
+        <td><strong>Nature / Wildlife / Science</strong></td>
+        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#94a3b8">General/Discovery ceiling: 53K views on snake/new species story</span></td>
+        <td>Same framing works—mystery + scientific validation<br><span style="font-size:.8em;color:#94a3b8">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
+        <td>Highest-ceiling content type for General/Discovery vertical. "Rare", "never seen", "scientists found" are proven hooks</td>
+      </tr>
+      <tr>
+        <td><strong>Entertainment / Celebrity</strong></td>
+        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#94a3b8">Notification: possessive lifts CTR for celebrity content</span></td>
+        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#94a3b8">Questions hurt SN performance (p=3.4e-6)</span></td>
+        <td>Serial/escalating stories with named anchor are highest-CTR notification type</td>
+      </tr>
+      <tr>
+        <td><strong>Wellness / Mind-Body / Everyday Living</strong></td>
+        <td>Number lead or service-journalism question: "How to…"<br><span style="font-size:.8em;color:#94a3b8">Trendhunter median: 159 views (Everyday Living), 174 (Mind-Body)</span></td>
+        <td>Number lead or direct declarative; avoid "What to know"<br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula (0.37 pct_rank, p=3.0e-6)</span></td>
+        <td>0% featuring across this vertical—optimize for organic. Best observed: product/list format (shampoo for thinning hair, home décor)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="caveat">Apple News featuring rates from pooled 2025+ANP 2026 (n&gt;15,000). SmartNews formula ranks from 2025 article-level data (n=38,251). Trendhunter performance from Tracker→ANP join (Jan–Feb 2026). All formula effects are observational—treat as directional guidance for CSA persona configuration.</p>
+</div>
+
+<div class="pb-detail" style="display:block; margin-top:2.5rem; border-top:2px solid var(--accent)">
+  <h3 class="rh" style="margin-top:1rem">CSA Persona Configuration · Ready-to-Use Instructions</h3>
+  <p class="detail-sub">Copy these instructions directly into CSA persona configuration. Each rule is drawn from a confirmed or directional finding. Confidence tier shown in brackets.</p>
+
+  <h3 class="rh" style="margin-top:1.5rem">Apple News Persona</h3>
+  <ul class="rules">
+    <li><strong>[HIGH] Featured targeting formula:</strong> Use "What to know" or "Here's" format when the editorial goal is Featured placement. These are associated with 1.8× and higher featuring rates respectively.</li>
+    <li><strong>[HIGH] Organic reach formula:</strong> Avoid "What to know" for non-Featured articles—organic view performance trends lower. Use possessive named entity or number lead for organic reach.</li>
+    <li><strong>[HIGH] Question format:</strong> Apple editors over-select questions for featuring, but the algorithm penalizes them organically. Use questions only for intentional Featured targeting, not for general organic distribution.</li>
+    <li><strong>[HIGH] Character length:</strong> Target 90–120 characters. Below 70 chars and above 130 chars both underperform the median.</li>
+    <li><strong>[HIGH] Crime/Business formula:</strong> "Here's" format associated with 16% featuring rate for crime (n=89) and 14% for business (n=72). Use it when targeting Featured in these topics.</li>
+    <li><strong>[HIGH] Sports:</strong> Formula choice does not affect featuring odds for sports content (0% across all formulas, n=22–52). Optimize for organic only; do not target Featured for sports.</li>
+    <li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. Untagged articles land in the bottom 20% at 47%—2.4× the baseline rate.</li>
+    <li><strong>[MOD] Number lead trend:</strong> Number leads are the only formula trending upward over time (Q1 2025 → Q1 2026). Lean into them; deprioritize question format which is trending down.</li>
+    <li><strong>[MOD] Trendhunter content:</strong> Mind-Body, Everyday Living, and Experience content currently earns 0% featuring. Focus persona configuration on organic Apple News reach, not featuring optimization.</li>
+  </ul>
+
+  <h3 class="rh" style="margin-top:1.5rem">SmartNews Persona</h3>
+  <ul class="rules">
+    <li><strong>[HIGH] Avoid question format:</strong> Question headlines drop to 0.42 pct_rank—0.08 below baseline (p=3.4e-6, n=918). This is the strongest single avoidance rule in the SmartNews data.</li>
+    <li><strong>[HIGH] Avoid "What to know":</strong> Drops to 0.37 pct_rank—the worst-performing formula (p=3.0e-6, n=213). Never use for SmartNews.</li>
+    <li><strong>[DIR] "Here's" is the safest cross-platform formula:</strong> Directionally above SmartNews baseline (p=0.038, does not survive Bonferroni at k=5). Use when writing one headline for both platforms.</li>
+    <li><strong>[HIGH] Number leads trending upward:</strong> Only formula with positive trajectory across 2025–2026. Prioritize for SmartNews when topic allows.</li>
+    <li><strong>[HIGH] Character length:</strong> Target 70–90 characters for SmartNews. 80–99 char optimal bin confirmed; 100-char ceiling has no statistical basis.</li>
+    <li><strong>[HIGH] Direct declarative baseline:</strong> Unformatted subject-verb-object headlines are the SmartNews default—never penalized. Use as the fallback when no formula signal applies.</li>
+    <li><strong>[MOD] Nature/wildlife/science:</strong> Discovery framing ("Scientists found", "Never-before-seen") drives highest-ceiling performance in General/Discovery content. Do not apply question or WTK format to these stories for SmartNews.</li>
+  </ul>
+  <p class="caveat">HIGH = p&lt;0.05 confirmed finding. MOD = multiple-comparisons corrected or n-limited directional. DIR = directional (p&lt;0.10). All findings are observational—use as configuration starting points; validate against post-publication performance data.</p>
 </div>
 
 
