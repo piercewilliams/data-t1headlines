@@ -572,6 +572,29 @@ _CSS = """
               --text:#1a1d27;--muted:#5a6070;--accent:#3d5af1}
   @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}
     .hist-strip{gap:4px}.hist-day{min-width:60px;padding:6px 7px}}
+  .run-btn{background:none;border:1px solid var(--border);color:var(--muted);
+           cursor:pointer;padding:3px 10px;border-radius:4px;font-size:.8em;
+           margin-left:10px;vertical-align:middle;transition:border-color .15s,color .15s}
+  .run-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .grader-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+                z-index:1000;align-items:center;justify-content:center}
+  .grader-modal.open{display:flex}
+  .grader-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+              padding:28px 32px;min-width:320px;max-width:420px;width:100%}
+  .grader-box h3{font-size:1em;font-weight:700;color:var(--accent);margin-bottom:6px}
+  .grader-box p{font-size:.85em;color:var(--muted);margin-bottom:16px;line-height:1.5}
+  .pat-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .pat-group label{font-size:.8em;color:var(--muted)}
+  .pat-group input{background:var(--card);border:1px solid var(--border);color:var(--text);
+                   border-radius:4px;padding:7px 10px;font-size:.85em;width:100%}
+  .pat-group input:focus{outline:none;border-color:var(--accent)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end}
+  .modal-actions button{padding:7px 18px;border-radius:5px;font-size:.85em;cursor:pointer;border:none}
+  .btn-cancel{background:var(--card);color:var(--muted)}
+  .btn-cancel:hover{color:var(--text)}
+  .btn-run{background:var(--accent);color:#0f1117;font-weight:700}
+  .btn-run:hover{opacity:.85}
+  .run-status{font-size:.82em;margin-top:10px;min-height:18px;color:var(--sig)}
 """
 
 _JS = """
@@ -581,6 +604,57 @@ function toggleTheme(){
 }
 window.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+});
+
+function openRunModal(){
+  const modal = document.getElementById('run-modal');
+  const inp = document.getElementById('run-passcode');
+  inp.value = '';
+  document.getElementById('run-status').textContent = '';
+  modal.classList.add('open');
+  setTimeout(() => inp.focus(), 50);
+}
+function closeRunModal(){
+  document.getElementById('run-modal').classList.remove('open');
+}
+async function submitRun(){
+  const code = document.getElementById('run-passcode').value.trim();
+  const status = document.getElementById('run-status');
+  if (code !== '8812') { status.style.color='var(--red)'; status.textContent='Wrong passcode.'; return; }
+
+  let pat = localStorage.getItem('grader_pat') || '';
+  if (!pat) {
+    pat = prompt('Enter your GitHub PAT (saved locally for future use):');
+    if (!pat) return;
+    localStorage.setItem('grader_pat', pat);
+  }
+
+  status.style.color='var(--muted)'; status.textContent='Triggering…';
+  try {
+    const r = await fetch(
+      'https://api.github.com/repos/piercewilliams/data-headlines/actions/workflows/grader.yml/dispatches',
+      { method:'POST',
+        headers:{'Authorization':'Bearer '+pat,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+        body: JSON.stringify({ref:'main'}) }
+    );
+    if (r.status === 204) {
+      status.style.color='var(--sig)';
+      status.textContent='Triggered! Results will appear in ~2 min after the Action completes.';
+    } else if (r.status === 401) {
+      localStorage.removeItem('grader_pat');
+      status.style.color='var(--red)';
+      status.textContent='PAT rejected (401). Cleared — try again.';
+    } else {
+      status.style.color='var(--red)';
+      status.textContent='Error '+r.status+'. Check PAT permissions (actions: write).';
+    }
+  } catch(e) {
+    status.style.color='var(--red)'; status.textContent='Network error: '+e.message;
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeRunModal();
+  if (e.key === 'Enter' && document.getElementById('run-modal').classList.contains('open')) submitRun();
 });
 """
 
@@ -617,6 +691,7 @@ def build_html(graded, lookback_days, run_ts, history=None):
 <div class="subtitle">
   Sara Vallone's Tracker &nbsp;·&nbsp; {start}–{end} &nbsp;·&nbsp;
   {n} headlines graded &nbsp;·&nbsp; Run {run_ts}
+  <button class="run-btn" onclick="openRunModal()">Run now</button>
 </div>
 
 <div class="chips">
@@ -655,6 +730,23 @@ def build_html(graded, lookback_days, run_ts, history=None):
 </div>
 
 </div>
+
+<div id="run-modal" class="grader-modal" onclick="if(event.target===this)closeRunModal()">
+  <div class="grader-box">
+    <h3>Run Headline Grader</h3>
+    <p>This triggers a fresh grader run via GitHub Actions. Results will appear on this page in about 2 minutes.</p>
+    <div class="pat-group">
+      <label for="run-passcode">Passcode</label>
+      <input id="run-passcode" type="password" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRunModal()">Cancel</button>
+      <button class="btn-run" onclick="submitRun()">Run</button>
+    </div>
+    <div id="run-status" class="run-status"></div>
+  </div>
+</div>
+
 </body>
 </html>"""
 

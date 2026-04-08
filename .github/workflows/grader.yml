@@ -1,0 +1,41 @@
+name: Headline Grader
+
+on:
+  schedule:
+    - cron: '0 15 * * *'   # 10am CDT (UTC-5) / 11am CDT (UTC-6 in winter)
+  workflow_dispatch:        # manual trigger via API or GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install gspread google-auth groq
+
+      - name: Write service account JSON
+        run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
+
+      - name: Run grader
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_FILE: /tmp/sa.json
+        run: python3 generate_grader.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "Headline Grader"
+          git config user.email "actions@github.com"
+          git add docs/grader/index.html docs/grader/history.json
+          git diff --cached --quiet && echo "Nothing to commit" || (
+            git commit -m "Auto: Headline Grader $(date '+%Y-%m-%d %H:%M UTC')"
+            git push
+          )
