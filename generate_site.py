@@ -1075,7 +1075,7 @@ VIEWS_METRIC = "percentile_within_cohort"
 _KNOWN_SHEETS_2025 = {"Apple News", "SmartNews", "Yahoo", "MSN", "Apple News notifications"}
 _KNOWN_SHEETS_2026 = {"Apple News", "Apple News Notifications", "SmartNews", "Yahoo", "MSN",
                       "MSN Video", "MSN video", "Yahoo Video", "Yahoo video",
-                      "MSN (minumum 10k PV)", "Notifications summary"}
+                      "MSN", "Notifications summary"}
 
 def _check_new_sheets(path: str, known_sheets: "set[str]") -> None:
     """Warn if the Excel file contains sheets the pipeline doesn't analyze."""
@@ -1405,7 +1405,7 @@ yahoo26 = pd.read_excel(DATA_2026, sheet_name="Yahoo")
 notif = notif.dropna(subset=["CTR"]).copy()
 
 # MSN: Jan–Mar 2026 from new sheet format in 2026 file (no minimum-PV filter beyond sheet definition)
-msn   = pd.read_excel(DATA_2026, sheet_name="MSN (minumum 10k PV)")
+msn   = pd.read_excel(DATA_2026, sheet_name="MSN")
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
 
 # ── Column validation — friendly errors instead of KeyError crashes ───────────
@@ -1445,9 +1445,10 @@ yahoo["_pub_month"] = pd.to_datetime(yahoo["Publish Date"], errors="coerce").dt.
 
 CATS = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
         "Technology","Science","Politics","Health","Local","Football","LGBTQ"]
-# Categories present in both 2025 and 2026 exports (used for combined Q4 analysis)
+# Categories present in both 2025 and 2026 exports (used for combined Q4 analysis).
+# "Search" added in 2026 export — included here as a non-trivial channel.
 CATS_COMMON = ["Top","Entertainment","Lifestyle","U.S.","Business","World",
-               "Technology","Science","Politics","Health","Local"]
+               "Technology","Science","Politics","Health","Local","Search"]
 for cat in CATS:
     sn[cat] = pd.to_numeric(sn[cat], errors="coerce").fillna(0)
 
@@ -1460,6 +1461,8 @@ for _cat in CATS_COMMON:
         sn26[_cat] = pd.to_numeric(sn26[_cat], errors="coerce").fillna(0)
     else:
         sn26[_cat] = 0.0
+# recommended_view: new in 2026 export — views driven by SmartNews recommendation engine
+sn26["recommended_view"] = pd.to_numeric(sn26.get("recommended_view", pd.Series(0, index=sn26.index)), errors="coerce").fillna(0)
 
 # MSN feature engineering
 msn["formula"]    = msn["Title"].apply(classify_formula)
@@ -2133,6 +2136,60 @@ TOPIC_LABELS = {
     "politics":"Politics","local_civic":"Local/Civic","lifestyle":"Lifestyle",
     "nature_wildlife":"Nature/Wildlife","other":"Other"
 }
+
+# ── SmartNews 2026: channel distribution analysis ────────────────────────────
+# New in 2026 export: per-article channel-level view counts.
+# Shows which SmartNews channels surface T1 content.
+print("Computing SmartNews channel distribution…")
+_SN_CHANNEL_COLS = [c for c in CATS_COMMON if c in sn26.columns and c != "Politics"]
+_SN_EXCL_DOMAINS = {"usmagazine.com", "us-magazine.com"}
+sn26_t1 = sn26[~sn26["domain"].str.lower().isin(_SN_EXCL_DOMAINS)].copy() if "domain" in sn26.columns else sn26.copy()
+
+df_sn_channels = pd.DataFrame()
+SN_CHANNEL_ROWS = 0
+SN_TOP_SHARE = 0.0
+SN_RECOMMENDED_SHARE = 0.0
+
+if len(sn26_t1) >= 5 and _SN_CHANNEL_COLS:
+    SN_CHANNEL_ROWS = len(sn26_t1)
+    _ch_totals = sn26_t1[_SN_CHANNEL_COLS].sum()
+    _total_views = sn26_t1["article_view"].sum()
+    _ch_share = (_ch_totals / _total_views * 100).round(1) if _total_views > 0 else _ch_totals * 0
+
+    df_sn_channels = pd.DataFrame({
+        "channel": _ch_totals.index,
+        "total_views": _ch_totals.values,
+        "share_pct": _ch_share.values,
+    }).sort_values("total_views", ascending=False).reset_index(drop=True)
+
+    SN_TOP_SHARE = float(_ch_share.get("Top", 0))
+
+    # Recommended view share
+    if "recommended_view" in sn26_t1.columns:
+        _rec_total = sn26_t1["recommended_view"].sum()
+        SN_RECOMMENDED_SHARE = float(_rec_total / _total_views * 100) if _total_views > 0 else 0.0
+
+    # Per-topic channel distribution (using our topic classifier on title)
+    sn26_t1["topic"] = sn26_t1["title"].apply(tag_topic) if "title" in sn26_t1.columns else "other"
+    _sn_topic_ch_rows = []
+    for _t in ["nature_wildlife", "lifestyle", "crime", "business", "sports", "local_civic"]:
+        _tsub = sn26_t1[sn26_t1["topic"] == _t]
+        if len(_tsub) < 3:
+            continue
+        _tv = _tsub["article_view"].sum()
+        for _ch in _SN_CHANNEL_COLS[:6]:  # top 6 channels only
+            _cv = _tsub[_ch].sum() if _ch in _tsub.columns else 0
+            _sn_topic_ch_rows.append(dict(
+                topic=TOPIC_LABELS.get(_t, _t),
+                channel=_ch,
+                views=int(_cv),
+                share_pct=round(_cv / _tv * 100, 1) if _tv > 0 else 0.0,
+            ))
+    df_sn_topic_channels = pd.DataFrame(_sn_topic_ch_rows) if _sn_topic_ch_rows else pd.DataFrame()
+    print(f"  SN channel data: {SN_CHANNEL_ROWS} T1 articles, Top={SN_TOP_SHARE:.1f}% share, recommended={SN_RECOMMENDED_SHARE:.1f}%")
+else:
+    df_sn_topic_channels = pd.DataFrame()
+    print("  SN channel data: insufficient data for channel analysis")
 
 # ── Per-publication analysis (Apple News Brand column) ────────────────────────
 # Computes per-Brand formula lift and top topic for the playbook "By Publication" section.
@@ -3432,6 +3489,9 @@ _COL_TOOLTIPS: dict[str, str] = {
     "value":                              "The specific category or group within this dimension being measured.",
     # Head-to-head headline examples
     "tier":                               "Whether this is a top-performing or bottom-performing article within its formula group.",
+    # SmartNews channel distribution table
+    "total views":                        "Sum of article views attributed to this SmartNews channel across all T1 articles in the dataset.",
+    "share %":                            "This channel's share of total article_view for T1 content; shows where SmartNews routes the most T1 traffic.",
 }
 
 
@@ -4050,6 +4110,22 @@ EXCL_LIFT  = f"{_excl_lift_val:.2f}×" if _excl_lift_val else "—"
 EXCL_CI_STR = (f"[{_excl_ci_lo:.1f}×–{_excl_ci_hi:.1f}×]"
                if _excl_ci_lo is not None and _excl_ci_hi is not None else "")
 
+# ── Prose helpers (moved before MSN helpers that depend on _fmt_p) ────────────
+def _fmt_p(p: "float | None", adj: bool = False) -> str:
+    """Format a p-value as HTML with significance stars. Returns '—' for None/NaN."""
+    if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
+    p = float(p)
+    label = "<sub>adj</sub>" if adj else ""
+    sig = " ***" if p < 0.001 else " **" if p < 0.01 else " *" if p < 0.05 else ""
+    if p < 0.001: return f"p{label}&lt;0.001{sig}"
+    if p < 0.01:  return f"p{label}={p:.3f}{sig}"
+    return f"p{label}={p:.2f}{sig}"
+
+def _fmt_ci(lo: "float | None", hi: "float | None") -> str:
+    """Format a confidence interval as a [lo×–hi×] string. Returns '' if either bound is None."""
+    if lo is None or hi is None: return ""
+    return f"[{lo:.2f}×–{hi:.2f}×]"
+
 # ── MSN Formula Divergence scalars (Change 2) ─────────────────────────────────
 # Pull key rows from df_msn_formula for the new finding detail panel
 def _msn_fr(formula_key: str) -> "pd.Series | None":
@@ -4126,25 +4202,7 @@ NOTIF_CTR_WEATHER_STR = f"{_ctr_weather:.2%}" if _ctr_weather else "—"
 # MSN video sports completion
 MSN_VID_SPORTS_IDX_STR = (f"{MSN_VID_SPORTS_COMPLETION_IDX:.2f}×"
                            if not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else "—")
-# MSN_VID_SPORTS_P_STR assigned after _fmt_p is defined (see below)
-
-# ── Prose helpers ─────────────────────────────────────────────────────────────
-def _fmt_p(p: "float | None", adj: bool = False) -> str:
-    """Format a p-value as HTML with significance stars. Returns '—' for None/NaN."""
-    if p is None or (isinstance(p, float) and np.isnan(p)): return "—"
-    p = float(p)
-    label = "<sub>adj</sub>" if adj else ""
-    sig = " ***" if p < 0.001 else " **" if p < 0.01 else " *" if p < 0.05 else ""
-    if p < 0.001: return f"p{label}&lt;0.001{sig}"
-    if p < 0.01:  return f"p{label}={p:.3f}{sig}"
-    return f"p{label}={p:.2f}{sig}"
-
 MSN_VID_SPORTS_P_STR = (_fmt_p(MSN_VID_SPORTS_P) if MSN_VID_SPORTS_P < 0.10 else "—")
-
-def _fmt_ci(lo: "float | None", hi: "float | None") -> str:
-    """Format a confidence interval as a [lo×–hi×] string. Returns '' if either bound is None."""
-    if lo is None or hi is None: return ""
-    return f"[{lo:.2f}×–{hi:.2f}×]"
 
 def _q1r(f: str) -> "pd.Series | None":
     """Return the Q1 row for formula f, or None if not found."""
@@ -5807,6 +5865,35 @@ if not df_headline_examples.empty:
         'strict formula → outcome model.</p>\n'
     )
 
+# ── SmartNews channel HTML (for detail-sn-formula-trap panel) ─────────────────
+_sn_channel_html = ""
+if not df_sn_channels.empty:
+    _ch_rows_html = ""
+    for _, _r in df_sn_channels[df_sn_channels["total_views"] > 0].head(8).iterrows():
+        _ch_rows_html += (
+            f"<tr><td>{html_module.escape(str(_r['channel']))}</td>"
+            f"<td>{int(_r['total_views']):,}</td>"
+            f"<td>{_r['share_pct']:.1f}%</td></tr>\n"
+        )
+    _sn_channel_html = f"""
+<h3>SmartNews channel distribution — T1 content (2026, n={SN_CHANNEL_ROWS} articles)</h3>
+<div class="callout">
+  <strong>Where T1 content lands:</strong> {SN_TOP_SHARE:.0f}% of T1 SmartNews views come from the Top feed.
+  Entertainment is the second-largest channel. Health and Local are non-trivial.
+  {f"SmartNews recommendation engine drives {SN_RECOMMENDED_SHARE:.1f}% of views." if SN_RECOMMENDED_SHARE > 0 else ""}
+  Formula strategy should optimize for the Top feed — that's where the volume is.
+</div>
+<table class="stat-table">
+  <thead><tr>
+    <th title="SmartNews channel/section">Channel</th>
+    <th title="Total views from this channel, T1 outlets Jan–Mar 2026">Total Views</th>
+    <th title="Share of total article_view for T1 content">Share %</th>
+  </tr></thead>
+  <tbody>{_ch_rows_html}</tbody>
+</table>
+<p class="caveat">SmartNews 2026 data, T1 outlets only (excluding Us Weekly). Jan–Mar 2026, n={SN_CHANNEL_ROWS} articles. Channel views may not sum to article_view (some views are unattributed to a channel). New in April 2026 data export.</p>
+"""
+
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -6287,6 +6374,7 @@ html = f"""<!DOCTYPE html>
           <li><strong>Never:</strong> Route an Apple News "What to know" or question headline unchanged to SmartNews. Both formats are statistically penalized on that platform.</li>
         </ul>
         <p class="caveat">SmartNews 2025 (n={FB_SN_N:,} articles; politics excluded). Metric: percentile-within-cohort (same outlet × month). Mann-Whitney U tests, each formula vs. untagged baseline; BH–FDR correction applied. Apple News featuring rates from pooled 2025+2026 dataset. "What to know" Apple News rate is the best-fit from Q2 analysis. Cross-platform comparison is observational — audiences and algorithmic mechanisms differ across platforms.</p>
+        {_sn_channel_html}
       </div><!-- /#detail-sn-formula-trap -->
 
       <!-- DETAIL: MSN FORMULA DIVERGENCE -->

@@ -96,6 +96,7 @@ Priority: HIGH = run next ingest; MED = run when data supports; LOW = backlog.*
 | MED | Is the Apple News featured/organic tension (editors favor questions, algorithm doesn't) stable across 2025 vs. 2026 separately? | If it's shifting, the guide guidance needs to shift too | Yes — can split by year |
 | MED | Do possessive named entity headlines perform differently by topic on Apple News? | Low overall n (117) but if clustered in sports/crime it may be masking a strong within-topic signal | Yes — Apple News 2025+2026, topic-tagged |
 | MED | Does number-lead headline performance on SmartNews vary by number type? (count-list vs. dollar amount vs. percentage) | Number leads are the only SN formula with positive trend — knowing which type helps | Yes — classify_number_lead() already in generate_site.py |
+| MED | Does formula type predict which SmartNews channel an article lands in? (Top vs. Entertainment vs. Local vs. Health) | New in 2026 SN export: per-article channel views available. 217 T1 rows Jan–Mar 2026 — thin but directional. Most views (86%) are Top feed regardless of formula; Entertainment is second at ~10%. Channel signal may be content-type-driven rather than formula-driven. | Yes — 2026 SN with channel columns |
 | LOW | Character count vs. CTR interaction: do longer notifications hurt more than short ones, or does formula account for all of it? | If length effect exists independently of formula, adds a second actionable lever | Yes |
 
 ---
@@ -225,6 +226,8 @@ Every number that appears in prose must trace to one of these fields. If it can'
 | Tracker→ANP join: ~32% match rate | Tracker + ANP | Unmatched rows are from lifeandstylemag.com, modmomsclub.com, staging URLs (modmomsclubstg.wpenginepowered.com), or articles outside Jan–Feb 2026 ANP window | Filter staging URLs before joining; Allison Palmer data underrepresented until March ANP drop arrives |
 | Tracker contains multi-outlet duplicates | Tracker | Same piece logged once per outlet (Charlotte Observer, Miami Herald, KC Star); join produces N rows per piece | Aggregate by piece when measuring total reach; keep separate when comparing outlet-level performance |
 | Question format headlines: `classify_question_word()` requires headline to start with a canonical question word | Apple News | Most question headlines (n≈162 of 178) fall into "other" bucket because phrasing doesn't begin with How/Why/What/Who/etc. Named word-type buckets have n=2–5 — too small for any inference before mid-2026 | Report question-word type as illustrative-only until per-bucket n≥30 |
+| SmartNews 2026 `recommended_view` is 0.5% of `article_view` for T1 content (Jan–Mar 2026) | 2026 SmartNews | Near-zero signal; not analytically useful as a standalone metric until dataset grows past 2026-Q2 | Track but do not surface as a primary metric until share exceeds ~5% |
+| Enabling previously-excluded platforms may surface latent ordering bugs | generate_site.py | When MSN was re-included (2026-04), a `_fmt_p` function ordering bug surfaced that was previously silent. Pattern: helper functions defined after the call sites they serve. | After any platform re-inclusion, run a full build and check for NameError / UnboundLocalError |
 
 ---
 
