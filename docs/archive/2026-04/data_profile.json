@@ -62,31 +62,34 @@
     "null_rates": {}
   },
   "2026/Apple News": {
-    "rows": 1135,
-    "cols": 54,
+    "rows": 1569,
+    "cols": 55,
     "null_rates": {
-      "Author": 0.374,
-      "Article Shares by Messages": 0.743,
-      "Article Shares by Mail": 0.743,
-      "Article Shares by Twitter": 0.743,
-      "Article Shares by Facebook": 0.743,
-      "Featured by Apple": 0.801,
-      "Where Featured by Apple": 0.801,
-      "Avg. Active Time (in seconds), Subscribers, Subscription Content": 0.626,
-      "Avg. Active Time (in seconds), Subscribers, Free Content": 0.137,
-      "Avg. Active Time (in seconds), Non-subscribers, Free Content": 0.137,
-      "Avg. Active Time (in seconds), Non-subscribers, Subscription Content": 0.656,
-      "Unique Viewers from Notifications": 0.068,
-      "Unique Viewers from Notifications, All Users, Free Content": 0.068,
-      "Unique Viewers from Notifications, Subscribers, All Content": 0.068,
-      "Unique Viewers from Notifications, Subscribers, Subscription Content": 0.068,
-      "Unique Viewers from Notifications, Subscribers, Free Content": 0.068,
-      "Unique Viewers from Notifications, Non-subscribers, Free Content": 0.068
+      "Author": 0.49,
+      "Article Shares by Messages": 0.741,
+      "Article Shares by Mail": 0.741,
+      "Article Shares by Twitter": 0.741,
+      "Article Shares by Facebook": 0.741,
+      "Featured by Apple": 0.713,
+      "Where Featured by Apple": 0.713,
+      "Unique Viewers, All Users, Subscription Content": 0.064,
+      "Avg. Active Time (in seconds), Subscribers, Subscription Content": 0.449,
+      "Avg. Active Time (in seconds), Subscribers, Free Content": 0.238,
+      "Avg. Active Time (in seconds), Non-subscribers, Free Content": 0.175,
+      "Avg. Active Time (in seconds), Non-subscribers, Subscription Content": 0.475,
+      "Article Shares, Subscribers, Subscription Content": 0.07,
+      "Unique Viewers from Notifications, All Users, Free Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, All Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, Subscription Content": 0.094,
+      "Unique Viewers from Notifications, Subscribers, Free Content": 0.094,
+      "Unique Viewers from Notifications, Non-subscribers, Free Content": 0.094,
+      "Unnamed: 53": 0.757,
+      "Unnamed: 54": 0.936
     }
   },
   "2026/Apple News Notifications": {
-    "rows": 359,
-    "cols": 13,
+    "rows": 503,
+    "cols": 12,
     "null_rates": {}
   },
   "2026/Notifications summary": {
@@ -94,36 +97,41 @@
     "cols": 0,
     "null_rates": {}
   },
-  "2026/MSN (minumum 10k PV)": {
-    "rows": 354,
-    "cols": 9,
-    "null_rates": {}
+  "2026/MSN": {
+    "rows": 845,
+    "cols": 10,
+    "null_rates": {
+      "Unnamed: 9": 0.419
+    }
   },
   "2026/MSN video": {
-    "rows": 403,
+    "rows": 1023,
     "cols": 16,
     "null_rates": {}
   },
   "2026/Yahoo": {
-    "rows": 2115,
+    "rows": 1043,
     "cols": 7,
     "null_rates": {
-      "Content Viewers": 0.823
+      "Content Viewers": 0.662
     }
   },
   "2026/Yahoo video": {
-    "rows": 128,
+    "rows": 163,
     "cols": 9,
     "null_rates": {
-      "Content Provider GUID": 0.266
+      "Content Provider GUID": 0.423
     }
   },
   "2026/SmartNews": {
-    "rows": 3632,
-    "cols": 7,
+    "rows": 514,
+    "cols": 31,
     "null_rates": {
-      "period": 0.946,
-      "domain": 0.054
+      "Us Weekly": 0.119,
+      "Search": 0.467,
+      "Unnamed: 28": 0.737,
+      "Unnamed: 29": 0.737,
+      "Unnamed: 30": 0.737
     }
   }
 }
