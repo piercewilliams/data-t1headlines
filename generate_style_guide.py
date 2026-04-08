@@ -137,7 +137,9 @@ APPLE_NEWS_RULES = [
         "Apple editors over-select question-format headlines for featuring. But "
         "question-format articles that are not featured perform below median in "
         "organic views. The format optimizes for editorial curation, not algorithmic "
-        "distribution.",
+        "distribution. Within question format: \u201cHow\u201d and \u201cWhy\u201d questions "
+        "have the highest featuring rates. Speculative (Will/Can) and identification "
+        "(Who) questions underperform even within questions.",
         "The question format creates a tension: Apple\u2019s human editors appear to like "
         "questions as featured stories (perhaps because a clear question implies a "
         "satisfying answer). But the Apple News algorithm does not reward question "
@@ -145,7 +147,11 @@ APPLE_NEWS_RULES = [
         "headlines underperforms the baseline. This is one of the clearest "
         "Featured vs. organic divergences in the dataset. If the goal is organic "
         "views, avoid questions. If the goal is specifically to pursue a Featured "
-        "slot, questions are a viable targeting tool.",
+        "slot, questions are a viable targeting tool. When using question format, "
+        "prefer \u201cHow\u201d and \u201cWhy\u201d over \u201cWill/Can\u201d (speculative) "
+        "and \u201cWho\u201d (identification) \u2014 explanatory question framing signals "
+        "comprehensive coverage and is favored by Apple editors over speculative or "
+        "identification framings.",
     ),
     (
         "Directional",
@@ -381,6 +387,24 @@ NOTIFICATION_RULES = [
         "(\u201cGuthrie family attorney speaks out,\u201d \u201cSecond suspect named\u201d) rather than "
         "re-summarizing. This structure rewards loyal notification subscribers while "
         "maintaining enough context to be comprehensible to first-time engagers.",
+    ),
+    (
+        "Directional",
+        "Target 70\u201389 characters for news brand notification text.",
+        "The 70\u201389 char bin shows the highest median CTR among news brand notifications "
+        "(directional \u2014 some bins have n\u2009<\u200930 and tests are uncorrected). "
+        "Notifications under 70 chars likely lack sufficient context; notifications over "
+        "110 chars risk lock-screen truncation. Write a complete subject-verb-object "
+        "notification and trim only if naturally over 110 chars.",
+        "Push notifications compete for attention on a locked screen where the full text "
+        "may or may not be visible. Too-short notifications (\u226470 chars) tend to omit "
+        "the concrete payoff that earns a tap \u2014 they signal that something happened "
+        "without explaining why it matters. Too-long notifications (\u2265110 chars) risk "
+        "being cut off mid-sentence on most lock screens, which is worse than being short. "
+        "The 70\u201389 char range threads this needle: long enough to include a subject, "
+        "verb, object, and a single context cue (source or outcome), short enough to "
+        "display fully. This is a directional finding \u2014 treat as a starting target, "
+        "not a hard rule, and track CTR by length bucket in the ongoing notifications log.",
     ),
 ]
 

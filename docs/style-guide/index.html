@@ -185,10 +185,10 @@
     <span class="conf-badge" style="background:#16a34a">✓ Confirmed</span>
     <strong class="rule-text">Use question format only when intentionally targeting Featured placement — never for organic reach.</strong>
   </div>
-  <p class="rule-note">Apple editors over-select question-format headlines for featuring. But question-format articles that are not featured perform below median in organic views. The format optimizes for editorial curation, not algorithmic distribution.</p>
+  <p class="rule-note">Apple editors over-select question-format headlines for featuring. But question-format articles that are not featured perform below median in organic views. The format optimizes for editorial curation, not algorithmic distribution. Within question format: “How” and “Why” questions have the highest featuring rates. Speculative (Will/Can) and identification (Who) questions underperform even within questions.</p>
   <details class="rule-context">
     <summary>Why this rule exists</summary>
-    <p class="rule-context-body">The question format creates a tension: Apple’s human editors appear to like questions as featured stories (perhaps because a clear question implies a satisfying answer). But the Apple News algorithm does not reward question format for non-featured articles — organic distribution of question headlines underperforms the baseline. This is one of the clearest Featured vs. organic divergences in the dataset. If the goal is organic views, avoid questions. If the goal is specifically to pursue a Featured slot, questions are a viable targeting tool.</p>
+    <p class="rule-context-body">The question format creates a tension: Apple’s human editors appear to like questions as featured stories (perhaps because a clear question implies a satisfying answer). But the Apple News algorithm does not reward question format for non-featured articles — organic distribution of question headlines underperforms the baseline. This is one of the clearest Featured vs. organic divergences in the dataset. If the goal is organic views, avoid questions. If the goal is specifically to pursue a Featured slot, questions are a viable targeting tool. When using question format, prefer “How” and “Why” over “Will/Can” (speculative) and “Who” (identification) — explanatory question framing signals comprehensive coverage and is favored by Apple editors over speculative or identification framings.</p>
   </details>
 </div>
 <div class="rule">
@@ -374,6 +374,17 @@
   <details class="rule-context">
     <summary>Why this rule exists</summary>
     <p class="rule-context-body">The top-performing news brand notification series in the dataset followed a single developing story — a disappearance with a celebrity connection — across multiple updates. Each notification built on the last rather than re-establishing the full context. Readers who engaged with earlier installments already have the context; the notification should deliver the new development (“Guthrie family attorney speaks out,” “Second suspect named”) rather than re-summarizing. This structure rewards loyal notification subscribers while maintaining enough context to be comprehensible to first-time engagers.</p>
+  </details>
+</div>
+<div class="rule">
+  <div class="rule-top">
+    <span class="conf-badge" style="background:#f59e0b">→ Directional</span>
+    <strong class="rule-text">Target 70–89 characters for news brand notification text.</strong>
+  </div>
+  <p class="rule-note">The 70–89 char bin shows the highest median CTR among news brand notifications (directional — some bins have n &lt; 30 and tests are uncorrected). Notifications under 70 chars likely lack sufficient context; notifications over 110 chars risk lock-screen truncation. Write a complete subject-verb-object notification and trim only if naturally over 110 chars.</p>
+  <details class="rule-context">
+    <summary>Why this rule exists</summary>
+    <p class="rule-context-body">Push notifications compete for attention on a locked screen where the full text may or may not be visible. Too-short notifications (≤70 chars) tend to omit the concrete payoff that earns a tap — they signal that something happened without explaining why it matters. Too-long notifications (≥110 chars) risk being cut off mid-sentence on most lock screens, which is worse than being short. The 70–89 char range threads this needle: long enough to include a subject, verb, object, and a single context cue (source or outcome), short enough to display fully. This is a directional finding — treat as a starting target, not a hard rule, and track CTR by length bucket in the ongoing notifications log.</p>
   </details>
 </div>
   </div>

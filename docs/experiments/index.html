@@ -204,21 +204,21 @@
     </div>
   </div>
 
-  <div class="exp-card tier-untested" id="exp-char-length-x-formula-an">
+  <div class="exp-card tier-directional" id="exp-char-length-x-formula-an">
     <div class="exp-meta">
       <span class="exp-platform">Apple News</span>
-      <span class="tier-badge tier-badge-untested">Untested</span>
+      <span class="tier-badge tier-badge-directional">Directional</span>
       <span class="exp-priority">↑ High</span>
     </div>
     <h3 class="exp-title">Character Length × Formula Type Interaction</h3>
     <div class="exp-fields">
       <div class="exp-field">
         <span class="field-label">Current signal</span>
-        <p>Character length (90–120 chars) and formula type independently predict Apple News views. Whether these signals interact — e.g., whether possessive named entity needs to be longer to achieve its lift, or whether “Here’s” works at any length — has not been tested.</p>
+        <p>Character length (90–120 chars) and formula type independently predict Apple News views. Analysis run: for each formula type with ≥30 organic articles, the character-length bin (fixed-width: &lt;70, 70–89, 90–109, 110–129, 130+) with the highest median percentile rank was identified. Analysis now run: 4 formula types qualified (n ≥30 organic articles). Best-performing formula×length combination: Possessive named entity at 90–109 chars (median 68% percentile, n=15 in bin). Most formulas peak in the 90–109 char range. Results are directional (uncorrected for multiple comparisons across formula types).</p>
       </div>
       <div class="exp-field">
         <span class="field-label">What’s missing</span>
-        <p>Cross-tabulating formula buckets with length quartiles fragments an already-segmented dataset. Most formula × length cells will have n &lt; 30, requiring aggregation trade-offs that risk obscuring the interaction signal. Analysis not yet run.</p>
+        <p>Each formula×length bin is underpowered individually (n per bin is often 10–25). Mann-Whitney one-tailed tests are uncorrected across formula types. The ‘best bin’ may reflect noise rather than a stable interaction. Confirming requires a prospective A/B test or a larger dataset per formula.</p>
       </div>
       <div class="exp-field">
         <span class="field-label">Test question</span>
@@ -226,30 +226,30 @@
       </div>
       <div class="exp-field">
         <span class="field-label">How to run it</span>
-        <p>Run on existing Apple News 2025+2026 data — no new collection needed. Cross-tabulate by formula type × length quartile. For each formula with n ≥30 total, split into Q1 (shortest) and Q4 (longest) length buckets and run Mann-Whitney U within each formula group vs. the untagged baseline at the same length. Compare the lift magnitude across length buckets. If any formula×length cell has n &lt; 15, aggregate: fold Q1+Q2 into ‘short’ and Q3+Q4 into ‘long.’ Report as an interaction: does the formula’s lift increase, decrease, or stay flat as length increases? Plot as a 2×2 heatmap (formula × length bucket, colored by median rank). Apply BH-FDR correction across all formula×length cells tested. Bonferroni fallback: if more than 10 cells are tested, apply Bonferroni at k=10 as a secondary check.</p>
+        <p>The observational analysis is now live in the main site (Finding 5 · Trends Over Time detail panel). To confirm: for each formula type, write 20+ headlines in the identified best-bin range and 20+ in an adjacent bin. Track Apple News organic percentile rank at 7 days. Mann-Whitney U within each formula type, BH-FDR corrected across formula types. Minimum n = 30 per bin per formula for reliable inference. Formula types to prioritize: those where best bin deviates from the platform-wide 90–109 guideline — these represent the highest-value formula-specific exceptions.</p>
       </div>
       <div class="exp-field">
         <span class="field-label">What the result unlocks</span>
-        <p>Confirmed interaction: compound guidance (formula + length range) replaces two independent rules. Editors get: “Use Here’s at 90–110 chars; use possessive at 70–90 chars.” More actionable than current guidance.  No interaction: the two independent rules are stable and can be applied separately without worrying about their interaction.</p>
+        <p>Confirmed interaction: compound guidance (formula + length range) replaces two independent rules. Editors get per-formula character-count targets more precise than the platform-wide 90–120 guideline. More actionable than current guidance.  No interaction: the two independent rules are stable and can be applied separately without worrying about their interaction.</p>
       </div>
     </div>
   </div>
 
-  <div class="exp-card tier-untested" id="exp-notif-ctr-char-length">
+  <div class="exp-card tier-directional" id="exp-notif-ctr-char-length">
     <div class="exp-meta">
       <span class="exp-platform">Notifications</span>
-      <span class="tier-badge tier-badge-untested">Untested</span>
+      <span class="tier-badge tier-badge-directional">Directional</span>
       <span class="exp-priority">↑ High</span>
     </div>
     <h3 class="exp-title">Notification CTR × Character Length</h3>
     <div class="exp-fields">
       <div class="exp-field">
         <span class="field-label">Current signal</span>
-        <p>Formula choice has a 2–5× effect on notification CTR (confirmed). Character length has been tested for Apple News views but not for notification CTR. Notifications truncate at ~80 chars on most devices, making length more likely to matter here than in feed headlines.</p>
+        <p>Formula choice has a 2–5× effect on notification CTR (confirmed). Character length has now been tested for notification CTR. Notifications truncate at ~80 chars on most devices, making length likely to matter more here than in feed headlines. Analysis now run on 1783 notifications (1036 news brand). Best-performing length bin for news brands: 70–89 chars (median CTR 1.45%). Results are directional — Mann-Whitney comparisons are uncorrected and some bins have n &lt; 30.</p>
       </div>
       <div class="exp-field">
         <span class="field-label">What’s missing</span>
-        <p>Character length vs. notification CTR has not been run. The notifications dataset covers 2025–2026 (1,050+ news brand pushes with CTR data) — sufficient for a Mann-Whitney test across length quartiles.</p>
+        <p>Some length bins have n &lt; 30 news brand notifications, so the Mann-Whitney comparisons are underpowered. The analysis does not control for formula type within each bin — length and formula are correlated (longer notifications may use more formula structure), so the length signal may partly proxy formula type. A prospective controlled test is needed to isolate length as an independent variable.</p>
       </div>
       <div class="exp-field">
         <span class="field-label">Test question</span>
@@ -257,7 +257,7 @@
       </div>
       <div class="exp-field">
         <span class="field-label">How to run it</span>
-        <p>Run on the existing notifications dataset (1,050+ news brand pushes with CTR). No new data collection needed. Bin notification headlines into four length quartiles. Run Kruskal-Wallis across quartiles first to check for any length–CTR association. If significant (p &lt; 0.05), follow with Mann-Whitney U pairwise comparisons (Q1 vs. Q4 as primary), BH-FDR corrected. Control for formula type via stratification: run the length–CTR analysis separately within each formula group that has n ≥30 (attribution language, question, direct declarative). If length effect disappears within formula groups, length is a formula proxy, not an independent signal. Secondary analysis: Spearman correlation between character count and CTR (raw correlation, no quartiling). This gives a monotonicity check without binning artifacts. Implement in generate_site.py as an extension of the existing Q5 notification analysis block.</p>
+        <p>The observational analysis is now live in the main site (Finding 2 · Push Notifications detail panel). To confirm: deliberately write notification pairs for the same story — one in the best-performing length bin and one in an adjacent bin — alternating by publication day or outlet. Track CTR at 24 hours. Minimum n = 30 pairs per bin comparison for reliable inference. Hold formula type constant within pairs (both attribution language, or both declarative) so length is the only varying factor. If CMS supports A/B notification testing, use it directly.</p>
       </div>
       <div class="exp-field">
         <span class="field-label">What the result unlocks</span>

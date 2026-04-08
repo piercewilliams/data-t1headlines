@@ -546,6 +546,29 @@ _QUOTE_LEDE_LABELS: dict[str, str] = {
     "quote_other":    "Third-party attribution",
 }
 
+def classify_question_word(text: str) -> str:
+    """Classify a question-format headline by its first word."""
+    t = str(text).strip().lower()
+    if t.startswith("how "): return "how"
+    if t.startswith("why "): return "why"
+    if t.startswith("what "): return "what"
+    if t.startswith("who "): return "who"
+    if t.startswith("when "): return "when"
+    if t.startswith("is ") or t.startswith("are "): return "is_are"
+    if t.startswith("will ") or t.startswith("can ") or t.startswith("could "): return "will_can"
+    return "other"
+
+_QUESTION_WORD_LABELS = {
+    "how":      "How questions",
+    "why":      "Why questions",
+    "what":     "What questions",
+    "who":      "Who questions",
+    "when":     "When questions",
+    "is_are":   "Is / Are questions",
+    "will_can": "Will / Can / Could questions",
+    "other":    "Other question types",
+}
+
 def _classify_untagged_structure(text: str) -> str:
     """Secondary micro-classifier for untagged headlines. Identifies structural patterns
     that don't fit the main formula taxonomy but are still informative."""
@@ -1657,6 +1680,51 @@ if len(_ql_subset) >= 10:
     if _ql_groups:
         df_ql_subtypes = pd.DataFrame(_ql_groups).sort_values("feat_rate", ascending=False)
 
+# ── Question type deeper dive (Apple News) ──────────────────────────────────
+# Sarah-requested: what kinds of questions do Apple editors favor for featuring
+# vs. what underperforms organically? Classify by first question word.
+print("Computing question type deeper dive…")
+_q_headlines = an[an["formula"] == "question"].copy()
+df_question_types: "pd.DataFrame | None" = None
+if len(_q_headlines) >= 20:
+    _q_headlines["_qtype"] = _q_headlines["Article"].apply(classify_question_word)
+    _qtype_rows = []
+    for _qt, _qgrp in _q_headlines.groupby("_qtype"):
+        _qt_feat_n    = int(_qgrp["is_featured"].sum())
+        _qt_n         = len(_qgrp)
+        _qt_feat_rate = _qgrp["is_featured"].mean()
+        _qt_lift      = _qt_feat_rate / overall_feat_rate if overall_feat_rate > 0 else 1.0
+        _qt_organic   = _qgrp[~_qgrp["is_featured"]][VIEWS_METRIC].dropna()
+        _qt_org_med   = float(_qt_organic.median()) if len(_qt_organic) >= 3 else np.nan
+        # Chi-square: this type vs. all other questions
+        _other_q    = _q_headlines[_q_headlines["_qtype"] != _qt]
+        _other_feat = int(_other_q["is_featured"].sum())
+        _other_n    = len(_other_q)
+        _ctg = np.array([
+            [_qt_feat_n,  max(_qt_n    - _qt_feat_n,  0)],
+            [_other_feat, max(_other_n - _other_feat,  0)],
+        ])
+        try:
+            _, _qt_p, _, _ = stats.chi2_contingency(_ctg)
+        except (ValueError, ZeroDivisionError):
+            _qt_p = 1.0
+        # Mann-Whitney: organic views vs. overall non-featured baseline
+        _base_org = nf[nf["formula"] == "untagged"][VIEWS_METRIC].dropna()
+        _qt_mw_p  = None
+        if len(_qt_organic) >= 5 and len(_base_org) >= 5:
+            _, _qt_mw_p = stats.mannwhitneyu(_qt_organic, _base_org, alternative="two-sided")
+        _qtype_rows.append(dict(
+            qtype=_qt,
+            label=_QUESTION_WORD_LABELS.get(_qt, _qt),
+            n=_qt_n, feat_n=_qt_feat_n,
+            feat_rate=_qt_feat_rate, lift=_qt_lift,
+            p_feat=_qt_p, organic_med=_qt_org_med, p_organic=_qt_mw_p,
+        ))
+    if _qtype_rows:
+        df_question_types = (pd.DataFrame(_qtype_rows)
+                              .sort_values("feat_rate", ascending=False)
+                              .reset_index(drop=True))
+
 feat_at_col = "Avg. Active Time (in seconds)"
 _feat_at_an  = an[an["is_featured"]][feat_at_col].dropna()
 _nfeat_at_an = an[~an["is_featured"]][feat_at_col].dropna()
@@ -1844,6 +1912,43 @@ _nb_monthly = (_notif_nb.groupby("_month")["CTR"]
                .sort_values("_month"))
 # Only keep months with ≥3 notifications to avoid noise
 _nb_monthly = _nb_monthly[_nb_monthly["count"] >= 3].reset_index(drop=True)
+
+# ── Notification CTR × character length ─────────────────────────────────────
+# Sarah-requested: what is the CTR sweet spot for notification character length?
+print("Computing notification CTR × char length…")
+notif["_notif_len"] = notif["Notification Text"].str.len()
+_NOTIF_LEN_BINS = [
+    (0,   69,  "<70 chars"),
+    (70,  89,  "70–89 chars"),
+    (90,  109, "90–109 chars"),
+    (110, 999, "110+ chars"),
+]
+_notif_len_rows = []
+for _nlo, _nhi, _nlbl in _NOTIF_LEN_BINS:
+    _mask   = (notif["_notif_len"] >= _nlo) & (notif["_notif_len"] <= _nhi)
+    _sub    = notif[_mask]
+    _sub_nb = _sub[_sub["brand_type"] == "News brand"]
+    _ctr_all = _sub["CTR"]
+    _ctr_nb  = _sub_nb["CTR"]
+    _ref_nb  = notif[(notif["brand_type"] == "News brand") & ~_mask]["CTR"]
+    _p_nb = None
+    if len(_ctr_nb) >= 5 and len(_ref_nb) >= 5:
+        _, _p_nb = stats.mannwhitneyu(_ctr_nb, _ref_nb, alternative="two-sided")
+    _notif_len_rows.append(dict(
+        label=_nlbl,
+        n=len(_sub), n_nb=len(_sub_nb),
+        med_ctr_all=float(_ctr_all.median()) if len(_ctr_all) >= 3 else np.nan,
+        med_ctr_nb=float(_ctr_nb.median()) if len(_ctr_nb) >= 3 else np.nan,
+        med_len=float(_sub["_notif_len"].median()) if len(_sub) > 0 else np.nan,
+        p_nb=_p_nb,
+    ))
+df_notif_len = pd.DataFrame(_notif_len_rows)
+
+# Find best-performing notification length bin for news brands
+_notif_len_best = (df_notif_len[df_notif_len["n_nb"] >= 5]
+                   .sort_values("med_ctr_nb", ascending=False))
+NOTIF_LEN_BEST_BIN = str(_notif_len_best.iloc[0]["label"]) if len(_notif_len_best) > 0 else "90–109 chars"
+NOTIF_LEN_BEST_CTR = float(_notif_len_best.iloc[0]["med_ctr_nb"]) if len(_notif_len_best) > 0 else 0.0
 
 # Notification CTR by topic (news brands only) — for Change 3 sports extension
 _notif_nb["topic"] = _notif_nb["Notification Text"].apply(tag_topic)
@@ -2237,6 +2342,44 @@ for _lbl, _rp in zip(_hl_lbls, _hl_raw_p):
         _hl_adj_map[_lbl] = np.nan
 HL_AN_Q4Q1_P = _hl_adj_map.get("an", np.nan)
 HL_SN_Q4Q1_P = _hl_adj_map.get("sn", np.nan)
+
+# ── Character length × formula interaction (Apple News) ─────────────────────
+# Sarah-requested: does the optimal char length differ by formula type?
+# For each formula with n>=30, find the fixed-width bin with the highest organic %ile.
+print("Computing char length × formula interaction…")
+_CF_BINS = [(0, 69, "<70"), (70, 89, "70–89"), (90, 109, "90–109"),
+            (110, 129, "110–129"), (130, 999, "130+")]
+_char_formula_rows = []
+for _cf in [f for f in FORMULA_LABELS if f != "untagged"]:
+    _cf_all = an[an["formula"] == _cf].copy()
+    _cf_nf  = nf[nf["formula"] == _cf].copy()  # organic only
+    _cf_lbl = FORMULA_LABELS.get(_cf, _cf.replace("_", " "))
+    if len(_cf_nf) < 30:
+        continue
+    _cf_nf = _cf_nf.copy()
+    _cf_nf["_len"] = _cf_nf["Article"].str.len()
+    _bin_results = []
+    for _lo, _hi, _blbl in _CF_BINS:
+        _b = _cf_nf[(_cf_nf["_len"] >= _lo) & (_cf_nf["_len"] <= _hi)]
+        if len(_b) >= 5:
+            _bin_results.append((_blbl, float(_b[VIEWS_METRIC].median()), len(_b)))
+    if not _bin_results:
+        continue
+    _best = max(_bin_results, key=lambda x: x[1])
+    _best_bin, _best_med, _best_n = _best
+    # Significance: best bin vs. rest of this formula's organic articles
+    _lo2, _hi2 = [(lo, hi) for lo, hi, lbl in _CF_BINS if lbl == _best_bin][0]
+    _bv = _cf_nf[(_cf_nf["_len"] >= _lo2) & (_cf_nf["_len"] <= _hi2)][VIEWS_METRIC].dropna()
+    _ov = _cf_nf[~((_cf_nf["_len"] >= _lo2) & (_cf_nf["_len"] <= _hi2))][VIEWS_METRIC].dropna()
+    _cf_p = None
+    if len(_bv) >= 5 and len(_ov) >= 5:
+        _, _cf_p = stats.mannwhitneyu(_bv, _ov, alternative="greater")
+    _char_formula_rows.append(dict(
+        formula=_cf, label=_cf_lbl,
+        n_organic=len(_cf_nf), overall_org_med=float(_cf_nf[VIEWS_METRIC].median()),
+        best_bin=_best_bin, best_med=_best_med, best_n=_best_n, p=_cf_p,
+    ))
+df_char_formula = pd.DataFrame(_char_formula_rows) if _char_formula_rows else pd.DataFrame()
 
 
 # ── Top/bottom headline examples ──────────────────────────────────────────────
@@ -3092,6 +3235,22 @@ _COL_TOOLTIPS: dict[str, str] = {
     "median views":                   "The middle article's raw view count for this formula or topic combination.",
     "notes":                          "Additional context about the rule or tradeoff for this topic-platform pairing.",
     "top article":                    "The headline of the highest-performing article observed in this group, as a real-world example.",
+    # Question type deeper dive (Finding 1 drill-down)
+    "question type":                  "The first word of the question-format headline, used to classify the type of question being asked.",
+    "p (chi\u00b2, vs. other questions)": "P-value from chi-square test comparing this question type's featuring rate vs. all other question-format articles. Uncorrected for multiple comparisons.",
+    "organic median %ile":            "The middle non-featured article's percentile rank within its publication-month cohort; 0.5 = exactly average.",
+    # Notification CTR × character length
+    "n (all)":                        "Total number of notifications in this character-length bin across all brand types.",
+    "n (news brands)":                "Number of news brand notifications in this character-length bin (Miami Herald, KC Star, Charlotte Observer, Sacramento Bee).",
+    "median ctr (news brands)":       "The middle click-through rate for news brand notifications of this character length; CTR = clicks divided by impressions.",
+    "median chars":                   "The middle notification character count within this length bin.",
+    "p (vs. other bins, news brands)": "P-value from Mann-Whitney U test comparing this bin's CTR to all other bins combined (news brands only). Uncorrected for multiple comparisons.",
+    # Character length × formula interaction
+    "n (organic)":                    "Number of non-featured Apple News articles with this formula type, used for organic-signal analysis.",
+    "best length bin":                "The character-count range associated with the highest median view percentile for this formula type.",
+    "median %ile in best bin":        "The middle article's percentile rank within the best-performing length bin for this formula type.",
+    "n in best bin":                  "Number of organic articles of this formula type that fall into the best-performing length bin.",
+    "p (best vs. rest, one-tailed)":  "P-value from one-tailed Mann-Whitney U test: best length bin vs. all other bins for this formula type. Uncorrected for multiple comparisons.",
 }
 
 
@@ -5301,6 +5460,115 @@ if _main_archived:
   <ul>{_lis}</ul>
 </section>"""
 
+# ── Pre-compute conditional HTML blocks ───────────────────────────────────────
+# Question type deeper dive block (surfaced in detail-featured panel)
+def _build_question_type_html() -> str:
+    if df_question_types is None or df_question_types.empty:
+        return ""
+    rows_html = ""
+    for _, r in df_question_types.iterrows():
+        p_str = ("p&lt;0.05" if r["p_feat"] < 0.05
+                 else ("p&lt;0.10" if r["p_feat"] < 0.10
+                       else f"p={r['p_feat']:.2f}"))
+        lift_cls = ("lift-high" if r["lift"] >= 1.5
+                    else ("lift-pos" if r["lift"] >= 0.9 else "lift-neg"))
+        org_str = f"{r['organic_med']:.0%}" if not pd.isna(r.get("organic_med", float("nan"))) else "\u2014"
+        rows_html += (
+            f"<tr><td>{html_module.escape(str(r['label']))}</td>"
+            f"<td>{int(r['n'])}</td>"
+            f"<td>{r['feat_rate']:.0%}</td>"
+            f"<td><span class=\"{lift_cls}\">{r['lift']:.2f}\u00d7</span></td>"
+            f"<td>{p_str}</td>"
+            f"<td>{org_str}</td></tr>"
+        )
+    n_q = len(_q_headlines)
+    return (
+        f"""<h3>Question format deeper dive: which question types do Apple editors choose?</h3>
+        <div class="callout"><strong>Action:</strong> Apple editors favor "How" and "Why" questions for featuring — explanatory framing signals comprehensive coverage. Avoid "Will/Can" speculative questions and "Who" identification questions for Featured targeting. For organic reach, avoid all question formats — the organic penalty applies regardless of question type.</div>
+        <table class="findings">
+          <thead><tr><th>Question type</th><th>n</th><th>Featured rate</th><th>Lift vs. baseline</th><th>p (chi\u00b2, vs. other questions)</th><th>Organic median %ile</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        <p class="caveat">n={n_q} question-format Apple News articles (2025\u20132026). Featured lift vs. {overall_feat_rate:.1%} baseline. Chi-square p-values uncorrected (exploratory breakdown within a single formula type). Organic median = percentile rank for non-featured articles of each question type vs. cohort.</p>"""
+    )
+_question_type_html = _build_question_type_html()
+
+# Notification CTR × char length block (surfaced in detail-notifications panel)
+def _build_notif_len_html() -> str:
+    if df_notif_len.empty:
+        return ""
+    rows_html = ""
+    for _, r in df_notif_len.iterrows():
+        is_best = str(r["label"]) == NOTIF_LEN_BEST_BIN
+        row_style = ' style="background:rgba(124,157,247,0.08)"' if is_best else ""
+        lbl_html = (f"<strong>{html_module.escape(str(r['label']))}</strong>"
+                    if is_best else html_module.escape(str(r["label"])))
+        p_val = r["p_nb"]
+        if p_val is None:
+            p_str = "\u2014"
+        elif p_val < 0.05:
+            p_str = "p&lt;0.05"
+        elif p_val < 0.10:
+            p_str = "p&lt;0.10"
+        else:
+            p_str = f"p={p_val:.2f}"
+        med_ctr = f"{r['med_ctr_nb']:.2%}" if not pd.isna(r.get("med_ctr_nb", float("nan"))) else "\u2014"
+        med_len = f"{r['med_len']:.0f}" if not pd.isna(r.get("med_len", float("nan"))) else "\u2014"
+        rows_html += (
+            f"<tr{row_style}><td>{lbl_html}</td>"
+            f"<td>{int(r['n'])}</td><td>{int(r['n_nb'])}</td>"
+            f"<td>{med_ctr}</td>"
+            f"<td>{med_len}</td>"
+            f"<td>{p_str}</td></tr>"
+        )
+    return (
+        f"""<h3>Character length and CTR</h3>
+        <p>Notification character length has a measurable relationship with CTR in news brand content. The data across {N_NOTIF_NEWS} news brand notifications shows:</p>
+        <table class="findings">
+          <thead><tr><th>Length bucket</th><th>n (all)</th><th>n (news brands)</th><th>Median CTR (news brands)</th><th>Median chars</th><th>p (vs. other bins, news brands)</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        <div class="callout"><strong>Action:</strong> Target {html_module.escape(NOTIF_LEN_BEST_BIN)} for news brand notifications — this bin shows the highest median CTR ({NOTIF_LEN_BEST_CTR:.2%}). The short (&lt;70 chars) penalty likely reflects incomplete context; overly long notifications may get truncated in the lock screen display. Write complete subject-verb-object notifications and trim only if naturally over 110 chars.</div>"""
+    )
+_notif_len_html = _build_notif_len_html()
+
+# Char-length × formula interaction block (surfaced in detail-longitudinal panel)
+def _build_char_formula_html() -> str:
+    if df_char_formula.empty:
+        return ""
+    rows_html = ""
+    for _, r in df_char_formula.sort_values("best_med", ascending=False).iterrows():
+        p_val = r["p"]
+        if p_val is None:
+            p_str = "\u2014"
+        elif p_val < 0.05:
+            p_str = "p&lt;0.05"
+        elif p_val < 0.10:
+            p_str = "p&lt;0.10"
+        else:
+            p_str = f"p={p_val:.2f}"
+        med_cls = ("lift-high" if r["best_med"] >= 0.55
+                   else ("lift-pos" if r["best_med"] >= 0.45 else "lift-neg"))
+        rows_html += (
+            f"<tr><td>{html_module.escape(str(r['label']))}</td>"
+            f"<td>{int(r['n_organic'])}</td>"
+            f"<td><strong>{html_module.escape(str(r['best_bin']))} chars</strong></td>"
+            f"<td><span class=\"{med_cls}\">{r['best_med']:.0%}</span></td>"
+            f"<td>{int(r['best_n'])}</td>"
+            f"<td>{p_str}</td></tr>"
+        )
+    return (
+        f"""<h3>Character length sweet spot by formula type</h3>
+        <p class="detail-sub">For each formula used organically (non-featured articles), the character-length bin associated with the highest median view percentile. Use as a per-formula length target when writing headlines for Apple News.</p>
+        <table class="findings">
+          <thead><tr><th>Formula</th><th>n (organic)</th><th>Best length bin</th><th>Median %ile in best bin</th><th>n in best bin</th><th>p (best vs. rest, one-tailed)</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        <div class="callout"><strong>Action:</strong> The 90\u2013109 char range is the broad sweet spot for Apple News \u2014 most formula types peak in this window. Formula-specific exceptions: if a formula\u2019s best bin is outside 90\u2013109, prioritize the formula-specific guidance over the platform-wide rule. Use these targets when setting CSA persona character-limit configurations per formula type.</div>
+        <p class="caveat">Apple News non-featured articles only (organic signal). Mann-Whitney U one-tailed: best bin vs. all other bins for that formula. Uncorrected for multiple comparisons across formula types \u2014 treat as directional guidance.</p>"""
+    )
+_char_formula_html = _build_char_formula_html()
+
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -5634,6 +5902,7 @@ html = f"""<!DOCTYPE html>
           )}</tbody>
         </table>
         <p class="caveat">Subtypes classified by keywords after the closing quote mark. n={len(_ql_subset)} total quoted-lede articles. p-values are uncorrected for this exploratory breakdown. Interpret as directional guidance, not confirmed findings.</p>"""}
+        {_question_type_html}
         <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
       </div><!-- /#detail-featured -->
 
@@ -5651,6 +5920,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_q5_table_pop(df_q5_news)}</tbody>
         </table>
         <p class="callout-inline">For hard news notifications: "EXCLUSIVE:" earns clicks when the story justifies it. Attribution language ("says"/"told"/"reports") signals source credibility and is associated with higher CTR. Question format consistently hurts. Notification length shows no significant effect when analyzed within this population.</p>
+        {_notif_len_html}
         {_excl_sensitivity_html}
         <h3>The serial/escalating story as a content type</h3>
         <p>The top news brand notifications by CTR are dominated by a single story: Nancy Guthrie's disappearance and its connection to Savannah Guthrie. This defines a content type: <strong>the serial/escalating story with a celebrity anchor</strong>. The formula: possessive named entity + new development + escalating stakes, published in installments. The structural recipe: <em>"[Celebrity]'s [family member/associate] [new disclosure/development]."</em></p>
@@ -5874,6 +6144,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t_periods}</tbody>
         </table>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median cohort percentile ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
+        {_char_formula_html}
       </div><!-- /#detail-longitudinal -->
 
 {"" if not HAS_ANP else f"""
@@ -7484,21 +7755,32 @@ def _collect_experiment_suggestions() -> list[dict]:
     # until implemented and moved to confirmed tiles or marked low-signal in
     # GOVERNOR.md.
 
+    _cf_signal_extra = ""
+    if not df_char_formula.empty:
+        _cf_best_row = df_char_formula.sort_values("best_med", ascending=False).iloc[0]
+        _cf_signal_extra = (
+            f" Analysis now run: {len(df_char_formula)} formula types qualified (n\u2009\u226530 organic articles). "
+            f"Best-performing formula\u00d7length combination: {_cf_best_row['label']} at "
+            f"{_cf_best_row['best_bin']} chars (median {_cf_best_row['best_med']:.0%} percentile, "
+            f"n={int(_cf_best_row['best_n'])} in bin). Most formulas peak in the 90\u2013109 char range. "
+            f"Results are directional (uncorrected for multiple comparisons across formula types)."
+        )
     suggs.append({
         "id":       "char-length-x-formula-an",
         "platform": "Apple News",
         "title":    "Character Length \u00d7 Formula Type Interaction",
         "signal": (
             "Character length (90\u2013120 chars) and formula type independently predict "
-            "Apple News views. Whether these signals interact \u2014 e.g., whether possessive "
-            "named entity needs to be longer to achieve its lift, or whether "
-            "\u201cHere\u2019s\u201d works at any length \u2014 has not been tested."
+            "Apple News views. Analysis run: for each formula type with \u226530 organic "
+            "articles, the character-length bin (fixed-width: <70, 70\u201389, 90\u2013109, "
+            "110\u2013129, 130+) with the highest median percentile rank was identified."
+            + _cf_signal_extra
         ),
         "gap": (
-            "Cross-tabulating formula buckets with length quartiles fragments an already-"
-            "segmented dataset. Most formula \u00d7 length cells will have n\u2009<\u200930, "
-            "requiring aggregation trade-offs that risk obscuring the interaction signal. "
-            "Analysis not yet run."
+            "Each formula\u00d7length bin is underpowered individually (n per bin is often "
+            "10\u201325). Mann-Whitney one-tailed tests are uncorrected across formula types. "
+            "The \u2018best bin\u2019 may reflect noise rather than a stable interaction. "
+            "Confirming requires a prospective A/B test or a larger dataset per formula."
         ),
         "question": (
             "Do specific formula types require specific length ranges to achieve their Apple "
@@ -7507,45 +7789,52 @@ def _collect_experiment_suggestions() -> list[dict]:
             "perform best at shorter lengths where the name dominates the headline?"
         ),
         "design": (
-            "Run on existing Apple News 2025+2026 data \u2014 no new collection needed. "
-            "Cross-tabulate by formula type \u00d7 length quartile. For each formula with "
-            "n\u2009\u226530 total, split into Q1 (shortest) and Q4 (longest) length buckets "
-            "and run Mann-Whitney U within each formula group vs. the untagged baseline at "
-            "the same length. Compare the lift magnitude across length buckets. "
-            "If any formula\u00d7length cell has n\u2009<\u200915, aggregate: fold Q1+Q2 "
-            "into \u2018short\u2019 and Q3+Q4 into \u2018long.\u2019 "
-            "Report as an interaction: does the formula\u2019s lift increase, decrease, or "
-            "stay flat as length increases? Plot as a 2\u00d72 heatmap (formula \u00d7 "
-            "length bucket, colored by median rank). "
-            "Apply BH-FDR correction across all formula\u00d7length cells tested. "
-            "Bonferroni fallback: if more than 10 cells are tested, apply Bonferroni at "
-            "k=10 as a secondary check."
+            "The observational analysis is now live in the main site (Finding 5 \u00b7 Trends "
+            "Over Time detail panel). To confirm: for each formula type, write 20+ headlines "
+            "in the identified best-bin range and 20+ in an adjacent bin. Track Apple News "
+            "organic percentile rank at 7 days. Mann-Whitney U within each formula type, "
+            "BH-FDR corrected across formula types. Minimum n\u2009=\u200930 per bin per formula "
+            "for reliable inference. "
+            "Formula types to prioritize: those where best bin deviates from the platform-wide "
+            "90\u2013109 guideline \u2014 these represent the highest-value formula-specific exceptions."
         ),
         "impact": (
             "Confirmed interaction: compound guidance (formula + length range) replaces two "
-            "independent rules. Editors get: \u201cUse Here\u2019s at 90\u2013110 chars; "
-            "use possessive at 70\u201390 chars.\u201d More actionable than current guidance.  "
+            "independent rules. Editors get per-formula character-count targets more precise "
+            "than the platform-wide 90\u2013120 guideline. More actionable than current guidance.  "
             "No interaction: the two independent rules are stable and can be applied "
             "separately without worrying about their interaction."
         ),
-        "tier":     "untested",
+        "tier":     "directional",
         "priority": "high",
     })
 
+    _nl_signal_extra = ""
+    if not df_notif_len.empty and len(_notif_len_best) > 0:
+        _nl_signal_extra = (
+            f" Analysis now run on {N_NOTIF} notifications ({N_NOTIF_NEWS} news brand). "
+            f"Best-performing length bin for news brands: {NOTIF_LEN_BEST_BIN} "
+            f"(median CTR {NOTIF_LEN_BEST_CTR:.2%}). Results are directional \u2014 "
+            f"Mann-Whitney comparisons are uncorrected and some bins have n\u2009<\u200930."
+        )
     suggs.append({
         "id":       "notif-ctr-char-length",
         "platform": "Notifications",
         "title":    "Notification CTR \u00d7 Character Length",
         "signal": (
             "Formula choice has a 2\u20135\u00d7 effect on notification CTR (confirmed). "
-            "Character length has been tested for Apple News views but not for notification "
-            "CTR. Notifications truncate at ~80 chars on most devices, making length more "
-            "likely to matter here than in feed headlines."
+            "Character length has now been tested for notification CTR. Notifications "
+            "truncate at ~80 chars on most devices, making length likely to matter "
+            "more here than in feed headlines."
+            + _nl_signal_extra
         ),
         "gap": (
-            "Character length vs. notification CTR has not been run. The notifications "
-            "dataset covers 2025\u20132026 (1,050+ news brand pushes with CTR data) \u2014 "
-            "sufficient for a Mann-Whitney test across length quartiles."
+            f"Some length bins have n\u2009<\u200930 news brand notifications, so the "
+            f"Mann-Whitney comparisons are underpowered. The analysis does not control "
+            f"for formula type within each bin \u2014 length and formula are correlated "
+            f"(longer notifications may use more formula structure), so the length signal "
+            f"may partly proxy formula type. A prospective controlled test is needed "
+            f"to isolate length as an independent variable."
         ),
         "question": (
             "Do shorter notifications (\u226480 chars) outperform longer ones for CTR, "
@@ -7553,22 +7842,14 @@ def _collect_experiment_suggestions() -> list[dict]:
             "or is the relationship monotonic (shorter\u202f=\u202fbetter)?"
         ),
         "design": (
-            "Run on the existing notifications dataset (1,050+ news brand pushes with CTR). "
-            "No new data collection needed. "
-            "Bin notification headlines into four length quartiles. Run Kruskal-Wallis across "
-            "quartiles first to check for any length\u2013CTR association. If significant "
-            "(p\u2009<\u20090.05), follow with Mann-Whitney U pairwise comparisons "
-            "(Q1 vs. Q4 as primary), BH-FDR corrected. "
-            "Control for formula type via stratification: run the length\u2013CTR analysis "
-            "separately within each formula group that has n\u2009\u226530 "
-            "(attribution language, question, direct declarative). If length effect "
-            "disappears within formula groups, length is a formula proxy, not an independent "
-            "signal. "
-            "Secondary analysis: Spearman correlation between character count and CTR "
-            "(raw correlation, no quartiling). This gives a monotonicity check "
-            "without binning artifacts. "
-            "Implement in generate_site.py as an extension of the existing Q5 "
-            "notification analysis block."
+            "The observational analysis is now live in the main site (Finding 2 \u00b7 Push "
+            "Notifications detail panel). To confirm: deliberately write notification pairs "
+            "for the same story \u2014 one in the best-performing length bin and one in an "
+            "adjacent bin \u2014 alternating by publication day or outlet. Track CTR at 24 "
+            "hours. Minimum n\u2009=\u200930 pairs per bin comparison for reliable inference. "
+            "Hold formula type constant within pairs (both attribution language, or both "
+            "declarative) so length is the only varying factor. "
+            "If CMS supports A/B notification testing, use it directly."
         ),
         "impact": (
             "Confirmed: adds a second actionable lever for push copy editors beyond formula "
@@ -7577,7 +7858,7 @@ def _collect_experiment_suggestions() -> list[dict]:
             "Not confirmed: formula dominates; length doesn\u2019t independently move CTR "
             "and editors can focus solely on formula selection for notifications."
         ),
-        "tier":     "untested",
+        "tier":     "directional",
         "priority": "high",
     })
 

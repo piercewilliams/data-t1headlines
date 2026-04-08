@@ -1,5 +1,5 @@
 # Analysis Governor
-*Last updated: 2026-04-03 — Read at every analysis session and every ingest event.
+*Last updated: 2026-04-08 — Read at every analysis session and every ingest event.
 Apply both parts without exception. Propose updates at the end of every session.*
 
 ---
@@ -85,11 +85,11 @@ Priority: HIGH = run next ingest; MED = run when data supports; LOW = backlog.*
 
 | Priority | Question | Rationale | Data available? |
 |----------|----------|-----------|-----------------|
-| HIGH | What type of quote lede gets featured on Apple News? (crime quote, expert quote, subject's own words?) | Sarah directly requested this — quote lede overperforms when featured but we don't know which kind | Yes — Apple News 2025+2026, headline text |
-| HIGH | Question format deeper dive — what kinds of questions do Apple editors favor for featuring vs. what underperforms organically? | Sarah flagged the "editors favor questions" finding and wants formatting specifics | Yes — Apple News 2025+2026, classified by featured status |
+| HIGH | What type of quote lede gets featured on Apple News? (crime quote, expert quote, subject's own words?) | Sarah directly requested this — quote lede overperforms when featured but we don't know which kind. Directional finding added to style guide; official/authority quotes (police, govt) feature at highest rate — but n per sub-type is small. Needs more data before full inference. | Yes — Apple News 2025+2026, headline text |
 | HIGH | Nature/Wildlife Apple News vs. SmartNews dual-headline guidance — for the same story, how should the headline differ by platform? | Sarah requested this to replace political content in Platform Topic Inversion; General/Discovery ceiling is driven by nature/wildlife | Yes — Apple News + SmartNews 2025 |
-| HIGH | Does character length interact with formula type on Apple News? (e.g., does possessive named entity need to be longer to work?) | If yes, gives editors compound guidance: formula + length together | Yes — Apple News 2025+2026, formula classified, char count computable |
-| HIGH | What is the notification CTR sweet spot for character length? | We tested formula vs CTR but not length vs CTR for notifications | Yes — Notifications 2025+2026 with CTR |
+| MED | Question format deeper dive — which question-word types (How/Why/What/Who) are favored for featuring vs. what underperforms organically? | classify_question_word() added (2026-04-08) but named word-type buckets have n=2–5; underpowered for inference. Needs 6–12 more months of data. | Yes — but insufficient n until mid-to-late 2026 |
+| MED | Does character length interact with formula type on Apple News? (e.g., does possessive named entity need to be longer to work?) | Run (2026-04-08). Directional: 90–109 chars is best bin for possessive (68th %ile), quoted lede (55th), number lead (55th). Question format peaks at 70–89 (30th %ile). Promoted to tier-directional on experiments page. | Complete — revisit with more 2026 data |
+| MED | What is the notification CTR sweet spot for character length? | Run (2026-04-08). Clean finding: 70–89 chars = 1.45% median CTR for news brands (n=874), p<0.05 vs. other bins. Added to style guide and notifications tile. Promoted to tier-directional on experiments page. | Complete — revisit with more 2026 data |
 | MED | Why is featuring rate 0% for Sara's team's content? Section tagging, content type, or formula? | Most actionable follow-up from the Tracker→ANP join; if it's section tagging it's a fast fix | Yes — ANP data with section tags, Tracker author filter |
 | MED | Entertainment/trendhunter category breakdown in Notifications — mind-body, everyday living, experiences signal | Sarah requested this; even small signal is worth establishing a baseline | Yes — Notifications 2025+2026, Tracker author→vertical join |
 | MED | Trends Over Time top/bottom headline comparison by formula category | Sarah requested specific head-to-head examples, not just trend lines | Yes — Apple News 2025+2026 longitudinal |
@@ -224,6 +224,7 @@ Every number that appears in prose must trace to one of these fields. If it can'
 | Weather content = United Robots (not editorial-written) | Apple News, ANP | Formula findings for weather do not apply to editorial guidance; skews formula × topic results | Exclude weather from any formula-for-editors recommendation; note as "automated content" when reporting |
 | Tracker→ANP join: ~32% match rate | Tracker + ANP | Unmatched rows are from lifeandstylemag.com, modmomsclub.com, staging URLs (modmomsclubstg.wpenginepowered.com), or articles outside Jan–Feb 2026 ANP window | Filter staging URLs before joining; Allison Palmer data underrepresented until March ANP drop arrives |
 | Tracker contains multi-outlet duplicates | Tracker | Same piece logged once per outlet (Charlotte Observer, Miami Herald, KC Star); join produces N rows per piece | Aggregate by piece when measuring total reach; keep separate when comparing outlet-level performance |
+| Question format headlines: `classify_question_word()` requires headline to start with a canonical question word | Apple News | Most question headlines (n≈162 of 178) fall into "other" bucket because phrasing doesn't begin with How/Why/What/Who/etc. Named word-type buckets have n=2–5 — too small for any inference before mid-2026 | Report question-word type as illustrative-only until per-bucket n≥30 |
 
 ---
 
