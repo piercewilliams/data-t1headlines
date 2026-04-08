@@ -26,9 +26,6 @@ jobs:
           SA_JSON_B64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: echo "$SA_JSON_B64" | base64 -d > /tmp/sa.json
 
-      - name: Verify SA JSON
-        run: python3 -c "import json; d=json.load(open('/tmp/sa.json')); print('email:', d.get('client_email')); print('key_newlines:', d.get('private_key','').count('\n')); print('type:', d.get('type'))"
-
       - name: Run grader
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
