@@ -423,46 +423,38 @@ def generate() -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>McClatchy Headline Style Guide</title>
 <style>
-  :root {{
-    --bg: #ffffff; --text: #0f172a; --text-muted: #64748b;
-    --border: #e2e8f0; --surface: #f8fafc; --accent: #2563eb;
-    --nav-bg: #0f172a; --nav-text: #e2e8f0; --nav-active: #60a5fa;
-  }}
-  @media (prefers-color-scheme: dark) {{
-    :root {{ --bg: #0f172a; --text: #e2e8f0; --text-muted: #94a3b8;
-             --border: #1e293b; --surface: #1e293b; }}
+  body.theme-light {{
+    --bg: #ffffff; --bg-muted: #f5f5f7; --text: #1d1d1f; --text-muted: #6e6e73;
+    --border: #d2d2d7; --surface: #f8fafc; --accent: #0071e3;
+    --nav-bg: rgba(255,255,255,0.88);
   }}
   body.theme-dark {{
-    --bg: #0f172a; --text: #e2e8f0; --text-muted: #94a3b8;
-    --border: #1e293b; --surface: #1e293b;
+    --bg: #0f172a; --bg-muted: #1e293b; --text: #f1f5f9; --text-muted: #b0bec5;
+    --border: #334155; --surface: #1e293b; --accent: #3b82f6;
+    --nav-bg: rgba(15,23,42,0.88);
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           background: var(--bg); color: var(--text); line-height: 1.5; }}
 
-  /* ── Nav (matches main site) ─────────────────────────────────── */
-  nav {{
-    position: sticky; top: 0; z-index: 100;
-    display: flex; align-items: center; gap: 1rem;
-    background: var(--nav-bg); padding: .65rem 1.5rem;
-    border-bottom: 1px solid #1e293b;
-  }}
-  .brand {{ font-size: .8rem; font-weight: 700; color: #60a5fa;
-            letter-spacing: .04em; white-space: nowrap; flex-shrink: 0; }}
-  .nav-links {{ display: flex; flex-wrap: wrap; gap: .2rem .1rem; flex: 1; }}
-  .nav-links a {{
-    font-size: .75rem; color: #94a3b8; text-decoration: none;
-    padding: .3rem .55rem; border-radius: 4px; white-space: nowrap;
-  }}
-  .nav-links a:hover {{ background: #1e293b; color: #e2e8f0; }}
-  .nav-links a.nav-active {{ color: var(--nav-active); font-weight: 600; }}
-  .nav-meta {{ margin-left: auto; flex-shrink: 0; }}
-  .theme-btn {{
-    background: none; border: none; cursor: pointer;
-    font-size: 1.1rem; padding: .2rem .4rem; border-radius: 4px;
-    color: #94a3b8; line-height: 1;
-  }}
-  .theme-btn:hover {{ background: #1e293b; }}
+  /* ── Canonical nav (identical to all other site pages) ── */
+  nav {{ position:sticky; top:0; z-index:100; background:var(--nav-bg);
+         backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+         border-bottom:1px solid var(--border); height:44px;
+         display:flex; align-items:center; gap:0; padding:0 28px; }}
+  .brand {{ font-size:11px; font-weight:600; letter-spacing:0.07em;
+            text-transform:uppercase; color:var(--text); flex-shrink:0; }}
+  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
+  .nav-links a {{ font-size:12px; color:var(--text-muted); text-decoration:none;
+                  transition:color 0.15s; }}
+  .nav-links a:hover {{ color:var(--text); }}
+  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
+  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto;
+               padding-left:20px; border-left:1px solid var(--border); }}
+  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted);
+                font-size:13px; line-height:1; cursor:pointer; border-radius:6px;
+                padding:3px 9px; transition:background 0.15s,color 0.15s,border-color 0.15s; }}
+  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); border-color:var(--text-muted); }}
 
   /* ── Page layout ─────────────────────────────────────────────── */
   .page {{ max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }}
@@ -516,7 +508,7 @@ def generate() -> str:
   }}
 </style>
 </head>
-<body>
+<body class="theme-dark">
 {nav_html}
 <div class="page">
   <div class="header">
@@ -580,20 +572,19 @@ def generate() -> str:
 </div>
 
 <script>
-function toggleTheme() {{
-  document.body.classList.toggle('theme-dark');
-  var isDark = document.body.classList.contains('theme-dark');
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  document.getElementById('theme-toggle').textContent = isDark ? '\u2600\ufe0f' : '\U0001f319';
+function applyTheme(t) {{
+  document.body.className = 'theme-' + t;
+  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0f' : '\U0001f319';
 }}
-(function() {{
-  if (localStorage.getItem('theme') === 'dark' ||
-      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {{
-    document.body.classList.add('theme-dark');
-    var btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = '\u2600\ufe0f';
-  }}
-}})();
+function toggleTheme() {{
+  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}}
+window.addEventListener('DOMContentLoaded', function() {{
+  var stored = localStorage.getItem('theme') || 'dark';
+  applyTheme(stored);
+}});
 </script>
 </body>
 </html>"""

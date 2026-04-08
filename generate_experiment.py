@@ -468,13 +468,13 @@ def render_report(
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
          -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:0; height:46px;
+         display:flex; align-items:center; gap:0; height:44px;
          border-bottom:1px solid var(--border); }}
   .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
             letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
   .nav-links a {{ color:var(--text-muted); text-decoration:none;
-                  font-size:0.73rem; transition:color 0.15s; }}
+                  font-size:12px; transition:color 0.15s; }}
   .nav-links a:hover {{ color:var(--text); }}
   .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
   .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
@@ -618,13 +618,13 @@ def update_experiment_index(specs):
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
          -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:0; height:46px;
+         display:flex; align-items:center; gap:0; height:44px;
          border-bottom:1px solid var(--border); }}
   .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
             letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
   .nav-links a {{ color:var(--text-muted); text-decoration:none;
-                  font-size:0.73rem; transition:color 0.15s; }}
+                  font-size:12px; transition:color 0.15s; }}
   .nav-links a:hover {{ color:var(--text); }}
   .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
   .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
@@ -758,8 +758,9 @@ def main() -> None:
         if spec:
             all_specs.append(spec)
 
-    if all_specs:
-        update_experiment_index(all_specs)
+    # Note: experiments/index.html is owned by generate_site.py (the 8-card
+    # suggestion grid). Individual report pages are written by run_experiment()
+    # above. Do not overwrite the index here.
 
 
 if __name__ == "__main__":

@@ -6322,11 +6322,11 @@ playbook_html = f"""<!DOCTYPE html>
           background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   nav {{ background:var(--nav-bg); backdrop-filter:blur(20px);
-         -webkit-backdrop-filter:blur(20px); padding:0 2rem;
+         -webkit-backdrop-filter:blur(20px); padding:0 28px;
          display:flex; align-items:center; gap:0; height:44px;
          border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }}
-  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
-            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .brand {{ color:var(--text); font-weight:600; font-size:11px;
+            letter-spacing:0.07em; text-transform:uppercase; flex-shrink:0; }}
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
   .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:12px; transition:color 0.15s; }}
   .nav-links a:hover {{ color:var(--text); }}
@@ -7813,6 +7813,50 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
             "</div>"
         )
 
+    # ── Completed A/B reports section ──────────────────────────────────────────
+    # Glob existing report subdirectories written by generate_experiment.py.
+    # Listed below the suggestion cards so they're accessible from the same page.
+    import glob as _exp_glob
+    _report_dirs = sorted(_exp_glob.glob("docs/experiments/*/index.html"))
+    _report_rows = ""
+    for _rp in _report_dirs:
+        _slug = Path(_rp).parent.name
+        # Try to read the <title> from the report for a better label
+        try:
+            _rtitle = re.search(r"<title>(.*?)</title>", open(_rp).read())
+            _rlabel = _rtitle.group(1) if _rtitle else _slug
+            # Strip common site prefix
+            _rlabel = re.sub(r"^T1 Headline Analysis\s*[·\u00b7]\s*", "", _rlabel).strip()
+        except OSError:
+            _rlabel = _slug
+        # Try to read the result verdict line
+        try:
+            _rbody = open(_rp).read()
+            _rverdict = re.search(r'class="result-verdict[^"]*"[^>]*>(.*?)</\w+>', _rbody, re.S)
+            _rvtxt = re.sub(r"<[^>]+>", "", _rverdict.group(1)).strip() if _rverdict else ""
+        except OSError:
+            _rvtxt = ""
+        _verdict_html = (f'<span class="exp-report-verdict">{html_module.escape(_rvtxt)}</span>'
+                         if _rvtxt else "")
+        _report_rows += (
+            f'  <li><a href="{html_module.escape(_slug)}/index.html">'
+            f'{html_module.escape(_rlabel)}</a>{verdict_html if False else _verdict_html}</li>\n'
+        )
+
+    _completed_section = ""
+    if _report_rows:
+        _completed_section = f"""
+<section class="priority-section" style="margin-top:3rem">
+  <h2 class="priority-heading">Completed A/B Reports</h2>
+  <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">
+    Before/after comparisons and formula tests run against the dataset.
+    Add a spec to <code>experiments/</code> and run
+    <code>python3 generate_experiment.py experiments/SLUG.md</code>.
+  </p>
+  <ul class="exp-report-list">
+{_report_rows}  </ul>
+</section>"""
+
     nav     = _build_nav("Experiments", 1)
     n_cards = len(suggs)
     s_sfx   = "s" if n_cards != 1 else ""
@@ -7849,19 +7893,18 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
           background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   nav {{ background:var(--nav-bg); backdrop-filter:blur(20px);
-         -webkit-backdrop-filter:blur(20px); padding:0 2rem;
+         -webkit-backdrop-filter:blur(20px); padding:0 28px;
          display:flex; align-items:center; gap:0; height:44px;
          border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }}
-  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
-            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
+  .brand {{ color:var(--text); font-weight:600; font-size:11px;
+            letter-spacing:0.07em; text-transform:uppercase; flex-shrink:0; }}
   .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
   .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:12px;
                   transition:color 0.15s; }}
   .nav-links a:hover {{ color:var(--text); }}
   .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
-  .nav-meta {{ display:flex; align-items:center; gap:12px; }}
-  .theme-btn {{ background:none; border:none; cursor:pointer; font-size:14px;
-                padding:4px; color:var(--text-muted); }}
+  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
+  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s,border-color 0.15s; }}
   /* Layout */
   .container {{ max-width:900px; margin:0 auto; padding:3rem 2rem 5rem; }}
   .eyebrow {{ font-size:11px; font-weight:700; letter-spacing:0.12em;
@@ -7917,6 +7960,14 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
   .exp-field p {{ font-size:0.875rem; color:var(--text-secondary); line-height:1.65;
                   margin:0; }}
   .exp-empty {{ color:var(--text-muted); font-style:italic; padding:2rem 0; }}
+  /* Completed A/B reports list */
+  .exp-report-list {{ list-style:none; padding:0; border-top:1px solid var(--border); }}
+  .exp-report-list li {{ padding:0.75rem 0; border-bottom:1px solid var(--border-subtle); }}
+  .exp-report-list a {{ font-size:0.9rem; font-weight:500; color:var(--text);
+                        text-decoration:none; }}
+  .exp-report-list a:hover {{ color:var(--accent); }}
+  .exp-report-verdict {{ display:block; font-size:0.75rem; color:var(--text-muted);
+                         margin-top:0.15rem; }}
 </style>
 </head>
 <body class="theme-dark">
@@ -7959,6 +8010,7 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
   </div>
 
 {sections_html}
+{_completed_section}
 </div>
 
 <script>
