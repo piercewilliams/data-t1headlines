@@ -424,7 +424,7 @@ def generate() -> str:
   body.light {{
     --bg: #f4f6fb; --bg-muted: #ffffff; --text: #1a1d27; --text-muted: #5a6070;
     --border: #dde1f0; --surface: #f8fafc; --accent: #3d5af1;
-    --nav-bg: rgba(255,255,255,0.88);
+    --nav-bg: #ffffff;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -440,10 +440,9 @@ def generate() -> str:
   .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
 
   /* ── Page layout ─────────────────────────────────────────────── */
-  .page {{ max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }}
-  .header {{ border-bottom: 2px solid var(--accent); padding-bottom: 1rem; margin-bottom: 2rem; }}
-  .header h1 {{ font-size: 1.6rem; font-weight: 800; }}
-  .header .meta {{ font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }}
+  .container {{ max-width: 1100px; margin: 0 auto; padding: 32px 24px 4rem; }}
+  h1 {{ font-size: 1.7em; font-weight: 700; color: var(--accent); margin-bottom: 4px; }}
+  .subtitle {{ font-size: .9rem; color: var(--text-muted); margin-bottom: 28px; }}
   .intro {{ background: var(--surface); border-left: 3px solid var(--accent);
             padding: .9rem 1rem; margin-bottom: 2rem; font-size: .88rem;
             line-height: 1.55; border-radius: 0 4px 4px 0; }}
@@ -484,7 +483,7 @@ def generate() -> str:
              padding-top: 1rem; margin-top: 2rem; }}
   @media print {{
     nav {{ display: none; }}
-    .page {{ max-width: 100%; padding: 1rem; }}
+    .container {{ max-width: 100%; padding: 1rem; }}
     .rule {{ break-inside: avoid; }}
     .rule-context summary {{ display: none; }}
     .rule-context-body {{ display: block !important; border: none; padding: .3rem 0; }}
@@ -493,11 +492,9 @@ def generate() -> str:
 </head>
 <body>
 {nav_html}
-<div class="page">
-  <div class="header">
-    <h1>McClatchy Headline Style Guide</h1>
-    <div class="meta">Generated {today} &middot; McClatchy CSA &middot; Based on T1 headline performance data 2025&ndash;2026</div>
-  </div>
+<div class="container">
+  <h1>McClatchy Headline Style Guide</h1>
+  <p class="subtitle">Generated {today} &middot; McClatchy CSA &middot; Based on T1 headline performance data 2025&ndash;2026</p>
 
   <div class="intro">
     <p>These rules are drawn directly from statistical analysis of McClatchy T1 headline performance

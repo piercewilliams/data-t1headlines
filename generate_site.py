@@ -5293,12 +5293,11 @@ html = f"""<!DOCTYPE html>
   .theme-toggle {{ background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: .8em; }}
 
   /* ── Hero ── */
-  .hero {{ padding: 32px 28px 28px; text-align: center; border-bottom: 1px solid var(--border-subtle); }}
-  .eyebrow {{ font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }}
-  .hero h1 {{ font-size: 26px; font-weight: 600; line-height: 1.35; color: var(--text); max-width: 840px; margin: 0 auto 30px; letter-spacing: -0.01em; }}
-  .hero-stats {{ display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 18px; }}
-  .stat-num {{ font-size: 18px; font-weight: 600; color: var(--text); margin-right: 4px; }}
-  .stat-label {{ font-size: 11px; color: var(--text-muted); }}
+  .hero {{ max-width: 1100px; margin: 0 auto; padding: 32px 24px 20px; }}
+  .hero h1 {{ font-size: 1.7em; font-weight: 700; color: var(--accent); margin-bottom: 4px; }}
+  .hero-stats {{ display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font-size: 0.9em; color: var(--text-muted); margin-bottom: 28px; }}
+  .stat-num {{ font-weight: 600; color: var(--text); margin-right: 3px; }}
+  .stat-label {{ color: var(--text-muted); }}
   .stat-sep {{ color: var(--border); margin: 0 2px; }}
 
   /* ── Tile grid ── */
@@ -5455,7 +5454,7 @@ html = f"""<!DOCTYPE html>
 {_build_nav("Current Analysis", 0, theme_toggle=True)}
 
 <div class="hero">
-  <p class="eyebrow">T1 Headline Performance Analysis · McClatchy CSA</p>
+  <h1>T1 Headline Analysis</h1>
   <div class="hero-stats">
     <span><span class="stat-num">{N_AN:,}</span><span class="stat-label">Apple News articles</span></span>
     <span class="stat-sep">·</span>
@@ -6309,11 +6308,8 @@ playbook_html = f"""<!DOCTYPE html>
   .nav-sep {{ color:var(--border); font-size:.8em; }}
   .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
   .container {{ max-width:920px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
-  .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
-              color:var(--accent); font-weight:700; margin-bottom:0.5rem; display:block; }}
-  h1 {{ font-size:1.55rem; font-weight:700; line-height:1.3;
-        letter-spacing:-0.02em; margin-bottom:0.4rem; color:var(--text); }}
-  .sub {{ color:var(--text-muted); font-size:0.875rem; margin-bottom:1.5rem; }}
+  h1 {{ font-size:1.7em; font-weight:700; color:var(--accent); margin-bottom:4px; }}
+  .sub {{ color:var(--text-muted); font-size:0.9em; margin-bottom:28px; }}
   .run-header {{ display:flex; align-items:baseline; gap:12px; margin:2rem 0 1.25rem;
                  padding-bottom:0.75rem; border-bottom:1px solid var(--border-subtle); }}
   .run-label {{ font-size:1.05rem; font-weight:700; color:var(--text); letter-spacing:-0.01em; }}
@@ -6416,7 +6412,6 @@ playbook_html = f"""<!DOCTYPE html>
 {_build_nav("Editorial Playbooks", 1)}
 <div class="container">
 
-<span class="eyebrow">McClatchy CSA</span>
 <h1>Editorial Playbooks</h1>
 <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
@@ -6761,7 +6756,6 @@ def _vertical_perf_section() -> str:
 if _ap_n_authors == 0:
     _ap_body = """
 <div class="container">
-  <span class="eyebrow">McClatchy CSA</span>
   <h1>Author Playbooks</h1>
   <p class="sub">No tracker data loaded this run. Place <code>Tracker Template.xlsx</code>
   in the repo root and re-run <code>ingest.py</code> to generate per-author guidance.</p>
@@ -6769,7 +6763,6 @@ if _ap_n_authors == 0:
 else:
     _ap_body = f"""
 <div class="container">
-  <span class="eyebrow">McClatchy CSA</span>
   <h1>Author Playbooks</h1>
   <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
 
@@ -6829,12 +6822,8 @@ author_pb_html = f"""<!DOCTYPE html>
 
   /* ── Layout ── */
   .container {{ max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }}
-  .eyebrow {{ display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
-              text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }}
-  h1 {{ font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em;
-        margin-bottom: 0.6rem; }}
-  .sub {{ font-size: 0.85rem; color: var(--text-muted); max-width: 800px; margin-bottom: 1.5rem;
-          line-height: 1.6; }}
+  h1 {{ font-size: 1.7em; font-weight: 700; color: var(--accent); margin-bottom: 4px; }}
+  .sub {{ font-size: 0.9em; color: var(--text-muted); margin-bottom: 28px; }}
   .run-header {{ display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem;
                  padding: 0.6rem 1rem; background: var(--bg-muted);
                  border: 1px solid var(--border); border-radius: 8px; }}
@@ -7857,11 +7846,8 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
   .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
   /* Layout */
   .container {{ max-width:900px; margin:0 auto; padding:3rem 2rem 5rem; }}
-  .eyebrow {{ font-size:11px; font-weight:700; letter-spacing:0.12em;
-              text-transform:uppercase; color:var(--text-muted); }}
-  h1 {{ font-size:2rem; font-weight:700; margin:0.4rem 0 0.75rem;
-        letter-spacing:-0.02em; }}
-  .sub {{ color:var(--text-secondary); max-width:700px; margin-bottom:0.4rem; }}
+  h1 {{ font-size:1.7em; font-weight:700; color:var(--accent); margin-bottom:4px; }}
+  .sub {{ color:var(--text-muted); font-size:0.9em; margin-bottom:28px; }}
   .run-meta {{ font-size:12px; color:var(--text-muted); margin-bottom:1.75rem; }}
   /* Legend */
   .legend {{ display:flex; gap:1.25rem; flex-wrap:wrap; margin-bottom:2.5rem;
@@ -7924,7 +7910,6 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
 {nav}
 
 <div class="container">
-  <span class="eyebrow">McClatchy CSA</span>
   <h1>Suggested Experiments</h1>
   <p class="sub">
     Directional findings from the current analysis run that show a potential signal
