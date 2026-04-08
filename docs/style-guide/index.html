@@ -116,17 +116,6 @@
     
 <div class="rule">
   <div class="rule-top">
-    <span class="conf-badge" style="background:#7c9df7">⚑ Setup</span>
-    <strong class="rule-text">Tag every article with a non-Main section before publishing.</strong>
-  </div>
-  <p class="rule-note">Untagged articles land in the bottom 20% of Apple News views at 2.4× the baseline rate and are almost never featured. Section tags are how Apple News routes articles to relevant feeds — without one, the article is essentially invisible to the algorithm.</p>
-  <details class="rule-context">
-    <summary>Why this rule exists</summary>
-    <p class="rule-context-body">Apple News uses section metadata to route articles to topic-specific feeds. “Main” is not a real section — it’s the default fallback when no section is assigned. Articles with only a Main tag are treated as unclassified and deprioritized. This is a one-time configuration fix per article, not a headline decision — but it has a larger impact on distribution than any headline formula.</p>
-  </details>
-</div>
-<div class="rule">
-  <div class="rule-top">
     <span class="conf-badge" style="background:#16a34a">✓ Confirmed</span>
     <strong class="rule-text">Use “What to know” only when intentionally targeting Featured placement.</strong>
   </div>
@@ -171,17 +160,6 @@
 </div>
 <div class="rule">
   <div class="rule-top">
-    <span class="conf-badge" style="background:#f59e0b">→ Directional</span>
-    <strong class="rule-text">When using a quote lede, lead with official/authority quotes for highest Apple News featuring odds.</strong>
-  </div>
-  <p class="rule-note">Official/authority quote ledes (police, prosecutors, government officials) feature at the highest rate among quote-lede subtypes on Apple News. Expert quotes (scientists, researchers) also index above baseline. First-person subject quotes perform below the quote-lede average for featuring.</p>
-  <details class="rule-context">
-    <summary>Why this rule exists</summary>
-    <p class="rule-context-body">Quote ledes overall outperform the baseline for Apple News featuring. But within that group, who is being quoted matters. Institutional/authority voices (law enforcement, officials, elected leaders) signal breaking news and civic importance — two things Apple’s editors consistently reward with Featured placement. Expert/scientific quotes signal novelty and credibility. First-person subject quotes (“I was terrified”) read as feature writing, which Apple editors select less often for the Featured slot. This is a directional finding — subtypes have small n and p-values are uncorrected for multiple comparisons. Treat as strong guidance, not a confirmed rule.</p>
-  </details>
-</div>
-<div class="rule">
-  <div class="rule-top">
     <span class="conf-badge" style="background:#16a34a">✓ Confirmed</span>
     <strong class="rule-text">Use question format only when intentionally targeting Featured placement — never for organic reach.</strong>
   </div>
@@ -189,6 +167,17 @@
   <details class="rule-context">
     <summary>Why this rule exists</summary>
     <p class="rule-context-body">The question format creates a tension: Apple’s human editors appear to like questions as featured stories (perhaps because a clear question implies a satisfying answer). But the Apple News algorithm does not reward question format for non-featured articles — organic distribution of question headlines underperforms the baseline. This is one of the clearest Featured vs. organic divergences in the dataset. If the goal is organic views, avoid questions. If the goal is specifically to pursue a Featured slot, questions are a viable targeting tool. When using question format, prefer “How” and “Why” over “Will/Can” (speculative) and “Who” (identification) — explanatory question framing signals comprehensive coverage and is favored by Apple editors over speculative or identification framings.</p>
+  </details>
+</div>
+<div class="rule">
+  <div class="rule-top">
+    <span class="conf-badge" style="background:#f59e0b">→ Directional</span>
+    <strong class="rule-text">When using a quote lede, lead with official/authority quotes for highest Apple News featuring odds.</strong>
+  </div>
+  <p class="rule-note">Official/authority quote ledes (police, prosecutors, government officials) feature at the highest rate among quote-lede subtypes on Apple News. Expert quotes (scientists, researchers) also index above baseline. First-person subject quotes perform below the quote-lede average for featuring.</p>
+  <details class="rule-context">
+    <summary>Why this rule exists</summary>
+    <p class="rule-context-body">Quote ledes overall outperform the baseline for Apple News featuring. But within that group, who is being quoted matters. Institutional/authority voices (law enforcement, officials, elected leaders) signal breaking news and civic importance — two things Apple’s editors consistently reward with Featured placement. Expert/scientific quotes signal novelty and credibility. First-person subject quotes (“I was terrified”) read as feature writing, which Apple editors select less often for the Featured slot. This is a directional finding — subtypes have small n and p-values are uncorrected for multiple comparisons. Treat as strong guidance, not a confirmed rule.</p>
   </details>
 </div>
 <div class="rule">
@@ -211,6 +200,17 @@
   <details class="rule-context">
     <summary>Why this rule exists</summary>
     <p class="rule-context-body">General/Discovery content (nature, wildlife, science) has the highest individual-article ceiling of any content type in the McClatchy T1 dataset — a single snake species article reached 53K views. The common thread across top performers in this vertical is a discovery frame: something new was found, something rare was seen, something never documented before was observed. The headline should foreground the novelty (“Never-before-seen”, “Rare footage”, “Scientists discover”) rather than burying it in the middle of the headline. This framing also works for SmartNews — apply it consistently across both platforms for this content type.</p>
+  </details>
+</div>
+<div class="rule">
+  <div class="rule-top">
+    <span class="conf-badge" style="background:#7c9df7">⚑ Setup</span>
+    <strong class="rule-text">Tag every article with a non-Main section before publishing.</strong>
+  </div>
+  <p class="rule-note">Untagged articles land in the bottom 20% of Apple News views at 2.4× the baseline rate and are almost never featured. Section tags are how Apple News routes articles to relevant feeds — without one, the article is essentially invisible to the algorithm.</p>
+  <details class="rule-context">
+    <summary>Why this rule exists</summary>
+    <p class="rule-context-body">Apple News uses section metadata to route articles to topic-specific feeds. “Main” is not a real section — it’s the default fallback when no section is assigned. Articles with only a Main tag are treated as unclassified and deprioritized. This is a one-time configuration fix per article, not a headline decision — but it has a larger impact on distribution than any headline formula.</p>
   </details>
 </div>
 <div class="rule">

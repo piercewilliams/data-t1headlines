@@ -411,6 +411,9 @@ NOTIFICATION_RULES = [
 
 # ── HTML generation ────────────────────────────────────────────────────────────
 
+_TIER_ORDER = {"Confirmed": 0, "Directional": 1, "Setup": 2}
+
+
 def _rules_html(rules: list) -> str:
     conf_colors = {
         "Confirmed":   "#16a34a",
@@ -422,6 +425,7 @@ def _rules_html(rules: list) -> str:
         "Directional": "\u2192 Directional",
         "Setup":       "\u2691 Setup",
     }
+    rules = sorted(rules, key=lambda r: _TIER_ORDER.get(r[0], 99))
     rows = ""
     for conf, rule, note, context in rules:
         color   = conf_colors.get(conf, "#64748b")
