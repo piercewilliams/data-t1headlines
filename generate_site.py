@@ -6027,6 +6027,7 @@ html = f"""<!DOCTYPE html>
 
 <div class="hero">
   <h1>T1 Headline Analysis</h1>
+  <p class="sub">Headlines · Notifications · Platform Strategy</p>
   <div class="hero-stats">
     <span><span class="stat-num">{N_AN:,}</span><span class="stat-label">Apple News articles</span></span>
     <span class="stat-sep">·</span>
