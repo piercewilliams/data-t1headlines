@@ -95,6 +95,9 @@ EXCLUDE_POLITICS = True
 # MSN re-enabled 2026-04-02: clean Jan–Mar 2026 dataset (845 rows, new sheet format).
 # Old reason for exclusion (data quality on old sheet) no longer applies — that sheet is gone.
 EXCLUDE_MSN = False
+# MSN tile suppressed per Sarah Price feedback (2026-04-08): MSN is not a current priority.
+# Data is still loaded and computed (for platform topic inversion etc.) but the tile is hidden.
+SHOW_MSN_TILE = False
 
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
@@ -5290,13 +5293,6 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
-    <div class="tile" onclick="showDetail('engagement', this)">
-      <span class="tile-num">4 · Views vs. Reading Depth</span>
-      <p class="tile-claim">On Apple News, high-view and high-engagement articles are largely separate populations (r={r_views_at:.3f}) — a headline optimized for reach won't advance depth, and vice versa. These are two distinct editorial strategies, not one.</p>
-      <p class="tile-action">→ Define success separately for reach campaigns vs. depth campaigns. Don't optimize headline variants for views and expect active time to follow.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
     <div class="tile" onclick="showDetail('longitudinal', this)">
       <span class="tile-num">5 · Trends Over Time</span>
       <p class="tile-claim">Number leads climbed from {NL_LIFT_EARLY:.2f}× (Q1 2025) to {NL_LIFT_LATE:.2f}× (Q1 2026) — the only formula to cross into above-baseline territory. Question format dropped from {Q_LIFT_EARLY:.2f}× to {Q_LIFT_LATE:.2f}×.</p>
@@ -5306,19 +5302,19 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('formula-topic', this)">
       <span class="tile-num">A · Formula × Topic Interaction (Apple News)</span>
-      <p class="tile-claim">"Here's" × Weather = {FA_HERES_WEATHER_PCT:.0%} featuring rate (n={FA_HERES_WEATHER_N}) — the single best combination in the dataset. For non-weather topics, "Here's" formula lands at {FA_HERES_NONWEATHER_RANGE} featuring — near the {FA_BASELINE_PCT:.0%} baseline. Apple News editors use structured formulas to surface weather content, not as a general headline preference.</p>
-      <p class="tile-action">→ Use "Here's" or question format for weather and emergency coverage. For all other topics, content type is the driver — formula barely matters.</p>
+      <p class="tile-claim">Formula choice matters — but only within the right topic. Crime + "Here's" = 16% featuring (n=89); Business + "Here's" = 14% (n=72). Sports = 0% featuring regardless of formula — topic opts you out entirely. Weather is a special case driven by automated United Robots content, not editorial headlines.</p>
+      <p class="tile-action">→ For Crime and Business: use "Here's" format to maximize featuring odds. For Sports: formula doesn't matter — the topic itself limits distribution. Don't spend headline effort chasing featuring on Sports content.</p>
       <span class="tile-more">Details ↓</span>
     </div>
 
     <div class="tile" onclick="showDetail('sn-formula-trap', this)">
       <span class="tile-num">B · SmartNews Cross-Platform Formula Trap</span>
       <p class="tile-claim">Formulas promoted for Apple News specifically hurt SmartNews. Question format: −0.08 rank below baseline (p=3.4e-6, n=918). "What to know": −0.13 below baseline (p=3.0e-6, n=213). "Here's" is the only formula directionally above baseline on BOTH platforms ({FB_HERES_SN_RANK:.3f} SN rank, {FB_HERES_SN_P_STR}, does not survive Bonferroni correction).</p>
-      <p class="tile-action">→ Use "Here's" format when syndicating to both platforms simultaneously. Use questions for Apple News only. Never write one Apple News optimized headline and route it unchanged to SmartNews.</p>
+      <p class="tile-action">→ Use "Here's" format when syndicating to both platforms simultaneously. Use questions for Apple News only. Never write one Apple News optimized headline and route it unchanged to SmartNews. <em>One-time setup: wire into CSA Apple News and SmartNews persona configurations.</em></p>
       <span class="tile-more">Details ↓</span>
     </div>
 
-{"" if msn.empty else f"""
+{"" if (msn.empty or not SHOW_MSN_TILE) else f"""
     <div class="tile" onclick="showDetail('msn-formula', this)">
       <span class="tile-num">MSN · Formula Divergence</span>
       <p class="tile-claim">On MSN, direct declarative headlines outperform {_msn_worst_formula_label.lower()} format by {MSN_DIVERGE_LIFT_STR} (n={MSN_N_TOTAL} T1 news brand articles, Jan–Mar 2026). Structured formulas consistently underperform the plain declarative baseline.</p>
@@ -5328,20 +5324,6 @@ html = f"""<!DOCTYPE html>
 """}
 
 {"" if not HAS_ANP else f"""
-    <div class="tile" onclick="showDetail('anp-audience', this)">
-      <span class="tile-num">6 · Featuring Reaches Non-Subscribers</span>
-      <p class="tile-claim">Featured articles reach {_anp['ANP_FEAT_NONSUB_PCT']:.0%} non-subscriber audiences. Non-featured articles reach only {_anp['ANP_NONFEAT_NONSUB_PCT']:.0%} non-subscribers — even among the top-quartile most-viewed non-featured stories ({_anp['ANP_TOPQ_NONSUB_PCT']:.0%}).</p>
-      <p class="tile-action">→ Treat featuring as audience acquisition, not just a traffic bump. Without it, Apple News delivers your content almost exclusively to existing subscribers.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
-    <div class="tile" onclick="showDetail('anp-topics', this)">
-      <span class="tile-num">7 · Topic Predicts Featuring — Formula Doesn't</span>
-      <p class="tile-claim">Weather articles get featured at {_anp['ANP_WEATHER_FEAT']:.0%} — {_anp['ANP_WEATHER_SPORTS_RATIO']:.0f}× the Sports rate ({_anp['ANP_SPORTS_FEAT']:.1%}). Shopping and Opinion are never featured. Within Business, situation/event stories are featured {_anp['ANP_BIZ_NAMED_LIFT']:.1f}× more than individual-person stories. Question format lifts featuring probability {_anp['ANP_Q_FEAT_LIFT']:.1f}× across all sections.</p>
-      <p class="tile-action">→ Choose topic before formula when targeting Local News featuring. Weather and Business are the highest-leverage sections; Sports and Shopping essentially opt you out.</p>
-      <span class="tile-more">Details ↓</span>
-    </div>
-
     <div class="tile" onclick="showDetail('anp-failures', this)">
       <span class="tile-num">8 · Apple News Bottom Performers Follow Three Patterns</span>
       <p class="tile-claim">Three content types account for the majority of underperformance: (1) articles with no section tag land in the bottom 20% nearly half the time ({_anp_fail['ANP_FAIL_MAIN_BOT_PCT']:.0%}, median rank {_anp_fail['ANP_FAIL_MAIN_RANK']:.2f}, p={_anp_fail['ANP_FAIL_MAIN_P']:.1e}); (2) local Sports content ranks at the {_anp_fail['ANP_FAIL_SPORTS_RANK']:.0%} percentile without featuring — but the {_anp_fail['ANP_FAIL_SP_FEAT_N']} featured Sports articles reach rank {_anp_fail['ANP_FAIL_SP_FEAT_RANK']:.2f}; (3) national wire (Nation &amp; World) underperforms local sections by {_anp_fail['ANP_FAIL_LOCAL_RANK'] - _anp_fail['ANP_FAIL_NW_RANK']:.0%} percentile points.</p>
@@ -5430,20 +5412,16 @@ html = f"""<!DOCTYPE html>
             </tr>
           </tbody>
         </table>
-        <h3>Send-time signal (Kruskal-Wallis H={NOTIF_TIME_KW_H:.2f}, p={NOTIF_TIME_KW_P:.1e})</h3>
-        <p>Morning (9–11am) — the conventional wisdom for notification send time — is the <strong>worst-performing window</strong> in this dataset. Evening sends (6–8pm) outperform morning sends by 1.82× raw CTR. This is directional (non-morning bins are smaller), but the overall time-of-day effect is statistically significant.</p>
-        <div class="chart-wrap">{c_notif_time}</div>
-        <p class="callout-inline"><strong>Practical implication:</strong> Consider shifting at least some news brand sends to the 6–8pm window. Morning sends may face heavier competition from aggregated inbox noise; evening sends may reach readers in lower-distraction contexts.</p>
-        <p class="caveat">Apple News push notifications Jan 2025–Mar 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Monthly CTR = median within each calendar month for news brand notifications only. Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated. Send-time analysis: Kruskal-Wallis across 5 time bins (n={NOTIF_TIME_N} pooled news brand notifications); bin sample sizes vary — non-morning bins are smaller.</p>
+        <p class="caveat">Apple News push notifications Jan 2025–Mar 2026 (n={N_NOTIF} with valid CTR; 2025 includes Us Weekly all year, news brands from June 2025 only). Monthly CTR = median within each calendar month for news brand notifications only. Analyses run separately within each brand-type population; BH–FDR correction applied within each set of tests. Mann-Whitney U; effect size = rank-biserial r; 95% CIs via 1,000-iteration bootstrap. Feature classifier unvalidated.</p>
       </div><!-- /#detail-notifications -->
 
       <!-- DETAIL: FORMULA × TOPIC (Finding A) -->
       <div class="detail-panel" id="detail-formula-topic">
         <h2>Finding A · Formula × Topic Interaction (Apple News Featuring)</h2>
         <div class="callout">
-          <strong>Key finding:</strong> The "Here's" and question formula lift on Apple News is <em>entirely mediated by weather content</em>. "Here's" × Weather = {FA_HERES_WEATHER_PCT:.0%} featuring rate — the single best combination in the dataset (n={FA_HERES_WEATHER_N}). For all non-weather topics, "Here's" and question formats land at {FA_HERES_NONWEATHER_RANGE} featuring — near the {FA_BASELINE_PCT:.0%} baseline. Apple News editors use structured formulas to surface timely, locally-relevant weather and emergency content, not as a general headline preference.
+          <strong>Key finding:</strong> Formula choice affects featuring odds — but only within topics where featuring is possible. <strong>Crime + "Here's" = 16% featuring (n=89); Business + "Here's" = 14% (n=72).</strong> Sports locks at 0% regardless of formula — the topic itself opts you out. Weather is a special case: 70%+ featuring rates reflect United Robots automated content, not editorial headline choices, and should not be used as a benchmark for editorial guidance.
         </div>
-        <p>Pooled Apple News 2025 + ANP 2026 (n&gt;15,000 articles). Kruskal-Wallis across all formula × topic combinations is significant. The interaction is not additive: weather with any formula reaches {FA_HERES_WEATHER_PCT:.0%}–{FA_Q_WEATHER_PCT:.0%} featuring; "Here's" without weather reaches {FA_HERES_NONWEATHER_RANGE} featuring. The formula advantage is conditional on topic — not a universal signal.</p>
+        <p>Pooled Apple News 2025 + ANP 2026 (n&gt;15,000 articles). For editorial content (non-weather), formula choice has a real but moderate effect on featuring odds — the interaction is topic-conditional, not a universal signal. The overall featuring lift attributed to "Here's" in other analyses is substantially inflated by weather content pulling the average upward.</p>
         <div class="chart-wrap">{c_fa}</div>
         <table class="findings">
           <thead><tr><th>Formula</th><th>Topic</th><th>n</th><th>Featuring rate</th></tr></thead>
@@ -5451,9 +5429,12 @@ html = f"""<!DOCTYPE html>
             {"".join(f'<tr><td>{html_module.escape(str(r["formula"]))}</td><td>{html_module.escape(str(r["topic"]))}</td><td>{int(r["n"])}</td><td><span class="{"lift-high" if r["feat_pct"] >= 0.5 else ("lift-pos" if r["feat_pct"] >= 0.15 else "lift-neg")}">{r["feat_pct"]:.0%}</span></td></tr>' for _, r in df_fa.sort_values("feat_pct", ascending=False).iterrows())}
           </tbody>
         </table>
-        <h3>Editorial implication</h3>
-        <p>The table above shows the full range. The headline takeaway: for weather and emergency coverage, specifically use "Here's" or question format — you are writing for Apple's editorial decision-makers, who use these cues to surface time-sensitive local content. For crime, business, sports, lifestyle: the topic does the work. Spending effort on headline formula for non-weather content is largely wasted on Apple News featuring odds.</p>
-        <p class="caveat">Pooled Apple News 2025 full year + ANP 2026 YTD article-level data (n&gt;15,000). Formula classifier unvalidated; topic classifier unvalidated. Featuring rate = share of articles in each formula × topic cell selected for Apple News Local News Featured slot. Cells with n&lt;15 excluded. Kruskal-Wallis across all combinations significant (p&lt;0.05). Interaction interpretation: observational — causal direction unconfirmed.</p>
+        <h3>Editorial guidance by topic</h3>
+        <p><strong>Crime:</strong> "Here's" (16%, n=89) outperforms Question (13%, n=94). Both are viable; "Here's" has a modest edge.<br>
+        <strong>Business:</strong> "Here's" (14%, n=72) is the strongest formula with adequate sample size.<br>
+        <strong>Sports:</strong> No formula works — Number lead (0%, n=31), What to Know (0%, n=22), Here's (11.5%, n=52). Topic opts you out of featuring; optimize for organic SmartNews distribution instead (see Finding 3).<br>
+        <strong>Weather:</strong> High featuring rates (53–71%) reflect United Robots automated content. Not applicable to editorial headline decisions.</p>
+        <p class="caveat">Pooled Apple News 2025 full year + ANP 2026 YTD article-level data (n&gt;15,000). Formula classifier unvalidated; topic classifier unvalidated. Featuring rate = share of articles in each formula × topic cell selected for Apple News Local News Featured slot. Cells with n&lt;15 excluded. Kruskal-Wallis across all combinations significant (p&lt;0.05). Interaction interpretation: observational — causal direction unconfirmed. Weather rows included for completeness; exclude from editorial formula guidance.</p>
       </div><!-- /#detail-formula-topic -->
 
       <!-- DETAIL: SMARTNEWS FORMULA TRAP (Finding B) -->
@@ -5593,27 +5574,6 @@ html = f"""<!DOCTYPE html>
         <p class="caveat">Topic tagged via unvalidated regex classifier applied to headline text. <strong>Coverage: {TOPIC_COVERAGE_PCT:.0%} of Apple News articles match a named topic; {TOPIC_OTHER_PCT:.0%} fall into "other/unclassified" and are excluded from this analysis.</strong> Results describe the classified minority — generalizing to all content requires caution. Percentile index = median percentile_within_cohort / platform overall median percentile. Apple News 2025–2026 (n={N_AN:,}); SmartNews 2025 (n={N_SN:,}); MSN 2025 (n={N_MSN:,}). Subtopic classifier unvalidated. No significance testing — treat as descriptive. Subtopics with n&lt;3 show "—".</p>
       </div><!-- /#detail-topics -->
 
-      <!-- DETAIL: ENGAGEMENT -->
-      <div class="detail-panel" id="detail-engagement">
-        <h2>Finding 4 · Views vs. Reading Depth</h2>
-        <div class="callout">
-          <strong>Action:</strong> Don't use view count as the sole ROI signal for variant allocation. A variant driving 5,000 views at 75s average active time may deliver more subscriber retention value than one driving 20,000 views at 45s. The model should incorporate views (reach), saves (return intent), and active time (read depth) — all three are available in this dataset.
-        </div>
-        <p>The Apple News dataset includes both Total Views and average active time per article. Pearson r = {r_views_at:.3f} (p = {p_views_at:.2f}), Spearman ρ = {r_views_at_sp:.3f} (p = {p_views_at_sp:.2f}). Both agree: views and reading time show near-zero correlation across {len(an_eng):,} articles — high-reach and deep-read articles are largely distinct populations. The view count spans a {views_range_x:,}× range across deciles; active time moves only {at_range_s:.0f} seconds.</p>
-        <div class="chart-wrap">{c7}</div>
-        <table class="findings">
-          <thead><tr><th>Metric</th><th>Correlation with Total Views</th><th>What it measures</th></tr></thead>
-          <tbody>
-            <tr><td>Avg. active time</td><td>r = {r_views_at:.3f}, ρ = {r_views_at_sp:.3f} (not significant)</td><td>Depth of the current read</td></tr>
-            <tr><td>Saves</td><td>r = {r_saves:.2f} (strong)</td><td>Intent to return / bookmark behavior</td></tr>
-            <tr><td>Likes</td><td>r = {r_likes:.2f} (strong)</td><td>Affirmation / social signal</td></tr>
-            <tr><td>Article shares</td><td>r = {r_shares:.2f} (strong)</td><td>Distribution / word of mouth</td></tr>
-          </tbody>
-        </table>
-        <p>Featured articles illustrate this split directly: {FEAT_VIEW_LIFT_STR} median view lift, but only {feat_at.median():.0f}s active time vs. {nfeat_at.median():.0f}s for non-Featured (p&lt;0.0001). Apple's editorial promotion drives discovery; readers who arrive via Featured spend slightly less time than readers who actively sought the article. Separately, subscribers average {sub_at_med:.0f}s active time vs. {nsub_at_med:.0f}s for non-subscribers — likely a usage behavior difference (subscribers browse more, read less per article) rather than a content quality gap.</p>
-        <p class="caveat">Apple News 2025–2026 (n={len(an_eng):,} articles with valid active time). {at_low_n} articles have active time &lt;10s; {at_high_n} have &gt;300s — not filtered, ~{(at_low_n+at_high_n)/len(an_eng):.0%} of records. Spearman ρ is the preferred test for independence given skewed views distribution.</p>
-      </div><!-- /#detail-engagement -->
-
       <!-- DETAIL: LONGITUDINAL -->
       <div class="detail-panel" id="detail-longitudinal">
         <h2>Finding 5 · Trends Over Time</h2>
@@ -5639,27 +5599,6 @@ html = f"""<!DOCTYPE html>
       </div><!-- /#detail-longitudinal -->
 
 {"" if not HAS_ANP else f"""
-      <!-- DETAIL: ANP AUDIENCE SPLIT -->
-      <div class="detail-panel" id="detail-anp-audience">
-        <h2>Finding 6 · Featuring Reaches Non-Subscribers</h2>
-        <div class="callout">
-          <strong>Key finding:</strong> On Apple News, featuring isn't just a traffic multiplier — it's the primary mechanism for reaching non-subscribers. Non-featured articles, regardless of how well they perform organically, land almost exclusively in front of existing subscribers. The gap is extreme and highly significant (Mann-Whitney p&lt;0.0001).
-        </div>
-        <p>Among {_anp['ANP_N_NEWS']:,} news articles published in 2026 across {_anp['ANP_N_PUBS']} publications (Charlotte, KC, Miami, Raleigh, Sacramento), the subscriber composition of article audiences splits sharply by featuring status:</p>
-        <table class="findings">
-          <thead><tr><th>Article type</th><th>Median subscriber share</th><th>Non-subscriber reach</th></tr></thead>
-          <tbody>
-            <tr><td>Featured in Local News ({_anp['ANP_N_FEATURED']:,} articles)</td><td>{1 - _anp['ANP_FEAT_NONSUB_PCT']:.0%}</td><td><strong>{_anp['ANP_FEAT_NONSUB_PCT']:.0%}</strong></td></tr>
-            <tr><td>Non-featured (all)</td><td>{1 - _anp['ANP_NONFEAT_NONSUB_PCT']:.0%}</td><td>{_anp['ANP_NONFEAT_NONSUB_PCT']:.0%}</td></tr>
-            <tr><td>Non-featured (top-quartile views only)</td><td>{1 - _anp['ANP_TOPQ_NONSUB_PCT']:.0%}</td><td>{_anp['ANP_TOPQ_NONSUB_PCT']:.0%}</td></tr>
-          </tbody>
-        </table>
-        <p>The top-quartile comparison is the most important row: even non-featured articles that are performing exceptionally well still reach only {_anp['ANP_TOPQ_NONSUB_PCT']:.0%} non-subscribers. High organic traffic does not substitute for featuring when it comes to audience composition. The only path to non-subscriber audiences at scale is a Featured placement.</p>
-        <p><em>Mechanism note:</em> This is a behavioral effect, not a structural one. Non-subscribers are not technically blocked from non-featured articles — 67% of non-featured articles do receive some non-subscriber views. But without a featured placement to surface the content, non-subscribers almost never encounter it in practice. Apple News+ subscribers tend to actively follow specific publishers and channels; non-subscribers mostly encounter content through curated editorial placements. The practical result is the same: if you're not featured, your audience is effectively subscriber-only.</p>
-        <p><em>What this means operationally:</em> Subscriber-audience articles still have value — subscribers are your core, highest-intent readers. But if the goal is discovery, growth, or reaching readers who haven't yet subscribed, featured placement is the lever. The editorial strategies that earn featuring (see Finding 7) are therefore also the strategies that expand your audience beyond the existing subscriber base.</p>
-        <p class="caveat">Apple News Publisher data, Jan–Feb 2026. News publications only (Charlotte Observer, KC Star, Miami Herald, News &amp; Observer, Sacramento Bee). Politics excluded per team policy. Minimum 10 views per article. Subscriber/non-subscriber split from Apple News Publisher "Unique Viewers, Subscribers" and "Unique Viewers, Non-subscribers" columns.</p>
-      </div><!-- /#detail-anp-audience -->
-
       <!-- DETAIL: ANP BOTTOM PERFORMERS -->
       <div class="detail-panel" id="detail-anp-failures">
         <h2>Finding 8 · Apple News Bottom Performers Follow Three Patterns</h2>
@@ -5691,25 +5630,6 @@ html = f"""<!DOCTYPE html>
         </table>
         <p class="caveat">Apple News Publisher data, Jan–Feb 2026. {_anp_fail['ANP_FAIL_N_TOTAL']:,} news articles across 5 publications (Charlotte Observer, KC Star, Miami Herald, News &amp; Observer, Sacramento Bee). Politics excluded. Minimum 10 views per article. Sections with fewer than 20 articles excluded from table. Bottom/top 20% thresholds are within-publication percentiles — a "bottom 20%" article is bottom quintile within its own outlet's distribution. Mann-Whitney U tests; p-values not BH-FDR corrected across sections (each is a pre-specified test). Green shading = median rank ≥ 0.75; red shading = median rank ≤ 0.30.</p>
       </div><!-- /#detail-anp-failures -->
-
-      <!-- DETAIL: ANP TOPICS × FEATURING -->
-      <div class="detail-panel" id="detail-anp-topics">
-        <h2>Finding 7 · Topic Predicts Featuring — Formula Doesn't</h2>
-        <div class="callout">
-          <strong>Key finding:</strong> The section you're writing in determines whether featuring is realistically achievable. Weather articles are featured at {_anp['ANP_WEATHER_FEAT']:.0%} — {_anp['ANP_WEATHER_SPORTS_RATIO']:.0f}× the rate of Sports articles ({_anp['ANP_SPORTS_FEAT']:.1%}). Shopping and Opinion are never featured. Within sections where featuring is possible, situation/event-framed stories and question-format headlines have a measurable edge over individual-person stories.
-        </div>
-        <h3>Featuring rate by section (2026 articles, news publications)</h3>
-        <table class="findings">
-          <thead><tr><th>Section</th><th>Articles</th><th>Featured rate</th><th>Median view percentile</th></tr></thead>
-          <tbody>{_anp['ANP_SEC_ROWS']}</tbody>
-        </table>
-        <h3>Within-section signals</h3>
-        <p><strong>Business section — individual-person stories penalized (directional):</strong> Business articles that do <em>not</em> mention a named person are featured at {_anp['ANP_BIZ_UNNAMED_FEAT']:.0%} vs. {_anp['ANP_BIZ_NAMED_FEAT']:.0%} for articles that do — a {_anp['ANP_BIZ_NAMED_LIFT']:.1f}× difference (χ²=5.47, p=0.019, n=196). This comparison was not submitted to BH-FDR correction — treat as directional rather than confirmed. The pattern also appears in local city sections (Charlotte, KC Metro, Sacramento, Miami) at 1.4–1.8× magnitude, consistent but similarly uncorrected. The likely mechanism: Business stories about market conditions, economic trends, or institutional changes are about situations the whole community faces; editor curation rewards that framing over profiles of specific individuals.</p>
-        <p><strong>Question format lifts featuring {_anp['ANP_Q_FEAT_LIFT']:.1f}× across all sections:</strong> {_anp['ANP_Q_FEAT_RATE']:.1%} of featured articles use a question-format headline vs. {_anp['ANP_Q_FEAT_RATE'] / _anp['ANP_Q_FEAT_LIFT']:.1%} of non-featured. The pattern in featured question headlines is consistent: a hook statement paired with a community-concern follow-up ("How cold will it get?", "What's next?", "Will they fix it?"). These are service-journalism signals, not clickbait — Apple's editors appear to favor questions that answer a community need.</p>
-        <p><strong>Weather is the highest-leverage section by a large margin.</strong> Nearly every major weather event that receives traffic also receives a Featured placement. This is partly because weather is inherently local, timely, and directly useful to readers — all qualities Apple's Local News curation rewards. The implication is that weather coverage quality has outsized editorial ROI relative to its production cost.</p>
-        <p><em>What headline formula can and can't do:</em> After controlling for section, headline formula effects on featuring are small relative to topic choice. You cannot formula-optimize your way into a Featured placement from the Sports or Shopping sections. Choose the topic first, then optimize the headline within that topic.</p>
-        <p class="caveat">Apple News Publisher data, Jan–Feb 2026. {_anp['ANP_N_NEWS']:,} articles across {_anp['ANP_N_PUBS']} news publications. Politics excluded. Featuring = "Featured in Local News" placements (Apple News Publisher). Named-person detection via regex (two consecutive capitalized words). Business section n={_anp['ANP_BIZ_N']:,} articles.</p>
-      </div><!-- /#detail-anp-topics -->
 """}
 
     </div><!-- /.detail-wrap -->

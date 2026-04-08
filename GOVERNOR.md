@@ -9,15 +9,25 @@ Apply both parts without exception. Propose updates at the end of every session.
 ### Stakeholder Focus
 *Replace this section after each meaningful stakeholder interaction.*
 
-**Period:** 2026-04 (updated 2026-04-03)
+**Period:** 2026-04 (updated 2026-04-08)
 
 **Primary — Sarah Price (content strategist, co-analyst)**
-- Actionable headline formulas for Apple News and SmartNews editorial teams
-- Character length specifics with data backing (precise numbers, not ranges)
-- Formula avoidance rules (what NOT to do, stated directly)
+- Actionable headline formulas for Apple News and SmartNews editorial teams — directly writable into a style guide
+- Formula avoidance rules (what NOT to do, stated directly) — as valuable as lift findings
 - Cross-platform divergences (what works one place, hurts another)
+- Per-vertical guidance tied to the team's actual content mix (see below)
+- Character length specifics with data backing (precise numbers, not ranges)
 - The team has paused syndication format variation — headline-only findings only
 - Sarah reviews the site tiles and gives feedback on usefulness; her feedback is the primary calibration signal
+
+**Content vertical mapping (confirmed by Sarah Price 2026-04-08):**
+Verticals are identified by author, not a Tracker column:
+- Mind-Body → Allison Palmer
+- Everyday Living → Lauren Jarvis-Gibson
+- Experience → Lauren Schuster
+- General/Discovery → Ryan Brennan, Hanna Wickes, Samantha Agate (search/discover intent; distinct from trendhunter)
+
+**Featuring is not currently a lever for Sara's team's content.** 0% featuring rate across 355 matched ANP articles (Jan–Feb 2026). Guidance for this content should focus on organic Apple News performance, not featuring optimization.
 
 **Secondary — Chris Palo / Chris Tarrow**
 - High-level narrative: what are we learning, what should we test
@@ -27,6 +37,8 @@ Apply both parts without exception. Propose updates at the end of every session.
 **Out of scope (do not analyze without explicit ask):**
 - Thumbnail, image, video content (no data in pipeline)
 - Platform structural/technical features (feed format, ad units, paywall) — not editorial's call
+- Push notification send timing — not in editorial's control (Melissa Angle's team); Sarah confirmed cut
+- MSN formula analysis — MSN paused per Sarah; re-enable when MSN is a priority again
 - Non-T1 outlet content
 - SEO / Google Discover signals (separate workstream)
 
@@ -41,6 +53,9 @@ Updated as Sarah gives tile feedback. Format: [date] | [type] | [why it landed] 
 - 2026-04-03 | **Precise character count sweet spot** | "70–90 chars on SmartNews, 90–120 on Apple News" with actual top-performer medians. More specific than Apple's own published guidance. | Sarah confirmed character count is an editorial priority
 - 2026-04-03 | **Notifications as the highest-signal channel** | Formula choice has 2–5× larger effect on notification CTR than on views. Direct editorial lever. | Inferred from Sarah's interest in push notifications guidance
 - 2026-04-03 | **Editorial curation vs. organic algorithm divergence** | Apple editors over-index questions for featured; algorithm penalizes them. Nuanced and non-obvious. | Novel finding from format guide analysis
+- 2026-04-08 | **0% featuring for Sara's team's content** | Sara Vallone's team (all verticals) has 0% featuring rate across 355 matched ANP articles (Jan–Feb 2026). Overall ANP baseline = 1.2%. Featuring is not the channel for this content type. Guidance should optimize for organic Apple News reach, not featuring. | Tracker→ANP join
+- 2026-04-08 | **Formula × Topic non-weather signal** | Crime + "Here's" = 16% featuring (n=89); Business + "Here's" = 14% (n=72); Sports = 0% regardless of formula. Actionable within-topic guidance — was buried by weather-dominant framing. Weather is United Robots, not editorial. | Formula × Topic restructuring analysis
+- 2026-04-08 | **Nature/wildlife drives General/Discovery ceiling** | Top article 53K views (new snake species). Nature/wildlife/breaking science is the high-ceiling content type for the General/Discovery group. Trendhunter tops out at ~3,500 views per article but has higher median consistency. | Tracker→ANP join
 
 ---
 
@@ -51,12 +66,16 @@ Updated as Sarah gives tile feedback. Format: [date] | [type] | [why it landed] 
 |------|---------------|-------------------|
 | SmartNews 2026 formula analysis | Domain-aggregated only, not article-level — formula/length tests invalid | Tarrow provides article-level 2026 SN export |
 | Yahoo formula/topic analysis | AOL split created data discontinuity; low n | Clean full-year Yahoo dataset |
-| MSN formula analysis by type | n<30 per formula group after T1 filter (113 rows total) | MSN dataset grows to 500+ rows |
+| MSN formula analysis by type | MSN paused per Sarah Price (image issues, not a current priority) | Sarah confirms MSN is back in scope |
 | Politics-specific findings | EXCLUDE_POLITICS=True; T1 team doesn't write politics | Team asks explicitly |
 | Year-over-year trend analysis | Time series too gappy (Jan–Feb 2026 incomplete) until Q4 2026 | 9+ months of solid monthly data |
 | Subtopic tables (sports/biz/pol) | Standing rigor warning — Mann-Whitney not yet implemented | MW tests added to generate_site.py |
 | Tracker-only author analysis | Tracker data not always current; findings scope narrow | Tracker explicitly provided + confirmed current |
 | Topic performance rankings without actionable hook | Sarah said topic rankings alone aren't useful without editorial action attached | Ranking clearly tied to a decision (e.g., "deprioritize this vertical for Apple News") |
+| Views vs. Reading Depth | No editorial action available; Sarah confirmed cut | Sarah asks for engagement-time guidance specifically |
+| Featuring Reaches Non-Subscribers | Descriptive only — no editorial direction; Sarah confirmed cut | Sarah asks specifically |
+| Push notification send timing | Not in editorial's control (Melissa Angle's team); Sarah confirmed cut | Editorial team gains control of send timing |
+| Topic Predicts Featuring—Formula Doesn't | Covered by Featured tile and Formula × Topic tile; Sarah confirmed cut | — |
 
 ---
 
@@ -66,12 +85,17 @@ Priority: HIGH = run next ingest; MED = run when data supports; LOW = backlog.*
 
 | Priority | Question | Rationale | Data available? |
 |----------|----------|-----------|-----------------|
+| HIGH | What type of quote lede gets featured on Apple News? (crime quote, expert quote, subject's own words?) | Sarah directly requested this — quote lede overperforms when featured but we don't know which kind | Yes — Apple News 2025+2026, headline text |
+| HIGH | Question format deeper dive — what kinds of questions do Apple editors favor for featuring vs. what underperforms organically? | Sarah flagged the "editors favor questions" finding and wants formatting specifics | Yes — Apple News 2025+2026, classified by featured status |
+| HIGH | Nature/Wildlife Apple News vs. SmartNews dual-headline guidance — for the same story, how should the headline differ by platform? | Sarah requested this to replace political content in Platform Topic Inversion; General/Discovery ceiling is driven by nature/wildlife | Yes — Apple News + SmartNews 2025 |
 | HIGH | Does character length interact with formula type on Apple News? (e.g., does possessive named entity need to be longer to work?) | If yes, gives editors compound guidance: formula + length together | Yes — Apple News 2025+2026, formula classified, char count computable |
 | HIGH | What is the notification CTR sweet spot for character length? | We tested formula vs CTR but not length vs CTR for notifications | Yes — Notifications 2025+2026 with CTR |
+| MED | Why is featuring rate 0% for Sara's team's content? Section tagging, content type, or formula? | Most actionable follow-up from the Tracker→ANP join; if it's section tagging it's a fast fix | Yes — ANP data with section tags, Tracker author filter |
+| MED | Entertainment/trendhunter category breakdown in Notifications — mind-body, everyday living, experiences signal | Sarah requested this; even small signal is worth establishing a baseline | Yes — Notifications 2025+2026, Tracker author→vertical join |
+| MED | Trends Over Time top/bottom headline comparison by formula category | Sarah requested specific head-to-head examples, not just trend lines | Yes — Apple News 2025+2026 longitudinal |
 | MED | Is the Apple News featured/organic tension (editors favor questions, algorithm doesn't) stable across 2025 vs. 2026 separately? | If it's shifting, the guide guidance needs to shift too | Yes — can split by year |
 | MED | Do possessive named entity headlines perform differently by topic on Apple News? | Low overall n (117) but if clustered in sports/crime it may be masking a strong within-topic signal | Yes — Apple News 2025+2026, topic-tagged |
 | MED | Does number-lead headline performance on SmartNews vary by number type? (count-list vs. dollar amount vs. percentage) | Number leads are the only SN formula with positive trend — knowing which type helps | Yes — classify_number_lead() already in generate_site.py |
-| LOW | Notification CTR by send hour — is there a time-of-day pattern beyond the existing Finding 12? | Sarah's team controls send timing; actionable if effect is large | Yes — Notifications 2025+2026 have send time |
 | LOW | Character count vs. CTR interaction: do longer notifications hurt more than short ones, or does formula account for all of it? | If length effect exists independently of formula, adds a second actionable lever | Yes |
 
 ---
@@ -85,12 +109,17 @@ Priority: HIGH = run next ingest; MED = run when data supports; LOW = backlog.*
 3. Numbers precise enough to put in a document (not "longer is better" — "90–120 chars")
 4. Cross-platform divergences where the same action has opposite effects
 5. Findings about what to *avoid* — more immediately actionable than lift findings
+6. Per-vertical guidance tied to the trendhunter content mix (Mind-Body, Everyday Living, Experience) — each vertical has a named stakeholder
+7. Absence findings when baseline is nonzero and n is sufficient (e.g., 0% featuring rate is actionable when the baseline is 1.2%)
+8. Dual-headline framing: for the same story, how does the Apple News version differ from the SmartNews version — this directly serves the persona/CSA workflow
 
 **Sarah does not respond to:**
 1. Topic performance rankings without a directly attached editorial action
 2. Findings that require data we don't have yet (variant tracking, Amplitude PV data)
 3. Trend analysis when the time series is too short to be reliable
 4. Findings scoped to platforms/verticals her team doesn't control or write for
+5. Platform operational metrics (send timing, featuring reach mechanics) — not editorial's call
+6. Weather content formula findings — weather is United Robots content, not editorial-written
 
 **Chris responds well to:**
 1. Narrative framing: what story does the data tell about what we should be doing differently
@@ -192,6 +221,9 @@ Every number that appears in prose must trace to one of these fields. If it can'
 | Apple News views column name has changed historically | Apple News | Column not found; analysis silently fails | Always print column names first; confirm views column before analysis |
 | SmartNews 2025 has a small number of extreme-view outliers (politics) | 2025 SmartNews | Mean views misleadingly high; skews formula lift if not excluded | Use median; confirm `EXCLUDE_POLITICS=True` is applied |
 | Yahoo 2026: 82% null on Content Viewers column | 2026 Yahoo | Unique reach metric unusable | Skip Content Viewers analysis for 2026 Yahoo |
+| Weather content = United Robots (not editorial-written) | Apple News, ANP | Formula findings for weather do not apply to editorial guidance; skews formula × topic results | Exclude weather from any formula-for-editors recommendation; note as "automated content" when reporting |
+| Tracker→ANP join: ~32% match rate | Tracker + ANP | Unmatched rows are from lifeandstylemag.com, modmomsclub.com, staging URLs (modmomsclubstg.wpenginepowered.com), or articles outside Jan–Feb 2026 ANP window | Filter staging URLs before joining; Allison Palmer data underrepresented until March ANP drop arrives |
+| Tracker contains multi-outlet duplicates | Tracker | Same piece logged once per outlet (Charlotte Observer, Miami Herald, KC Star); join produces N rows per piece | Aggregate by piece when measuring total reach; keep separate when comparing outlet-level performance |
 
 ---
 

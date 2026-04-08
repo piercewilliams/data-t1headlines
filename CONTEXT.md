@@ -1,8 +1,9 @@
 # T1 Headline Analysis — Working Context
 
-**Phase:** Phase 2 active — 13 findings live, playbook (5 tiles), author-playbooks, experiments page (auto-generated), full ingest pipeline + daily Headline Grader
+**Phase:** Phase 2 active — findings live, playbook (5 tiles), author-playbooks, experiments page (auto-generated), full ingest pipeline + daily Headline Grader
 **Status:** Active — monthly Tarrow cadence + weekly ANP drops + daily grader via GitHub Actions
-**Last session:** 2026-04-08 (GitHub Actions daily grader + Run Now button; local crontab retired)
+**Last session:** 2026-04-08b (Sarah Price tile feedback applied; governance + pipeline aligned to her priorities)
+**Session 2026-04-08a:** GitHub Actions daily grader + Run Now button; local crontab retired
 **Session 2026-04-03d:** Pipeline run; experiments page live; build report fully clean; "Here's" downgraded to directional
 **Session 2026-04-03c:** Build hardening: Bonferroni check, smoke tests, pyproject.toml, SyntaxWarning fix; manager briefing doc written
 **Session 2026-04-03a:** Pierce/Sarah alignment call; SEMrush access confirmed; formatting guide incoming; tile feedback requested. **Key alignment: Sarah's focus = headlines only (syndication format variation paused). Governor should weight headline formula findings highest.**
@@ -53,13 +54,17 @@ For session history: see [sessions/](sessions/)
 - [ ] Tarot data holes — Sarah Price offered to co-approach Chris Tarot with Pierce; March is first solid data set; Jan/Feb had incomplete polls
 
 **Analysis:**
-- [x] ~~Add Mann-Whitney significance tests to sports/biz/pol subtopic tables~~ — done 2026-04-03d; sports/biz now compute MW vs. rest-of-Apple-News; pol suppressed when n=0 (politics excluded)
+- [x] ~~Add Mann-Whitney significance tests to sports/biz/pol subtopic tables~~ — done 2026-04-03d
+- [x] ~~Sarah Price tile feedback applied~~ — done 2026-04-08b; tiles 4/6/7/MSN cut; Formula × Topic restructured; governance updated
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 - [ ] Automate Sarah Price's Amplitude → Tracker join — she manually exports + joins monthly; ideal end state is PVs auto-populated into Vallone's live tracker; matching on title/URL/author; Pierce likely has Amplitude API access; engagement metrics also wanted eventually
-- [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03; .docx report on Desktop
-- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071); finding is real and directionally robust but overstated in current prose. Experiments page already reflects this correctly (listed as Bonferroni-fail). NOTE: _SN_FORMULA_DATA has WTK at p=3.0e-6 (different run) — needs human resolution before touching site prose.
-- [x] ~~"Here's" SmartNews prose~~ — downgraded to "directionally above baseline" in tile, detail callout, table, and practical guidance; `_SN_FORMULA_DATA` direction changed to `above_dir`; `_check_sn_bonferroni()` updated to skip already-directional rows
-- [ ] Active time outliers in source Excel (3 rows with values up to 23,496s — likely milliseconds stored as seconds); pipeline caps at 600s but Tarrow should be notified to fix source data
+- [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03
+- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071). NOTE: _SN_FORMULA_DATA has WTK at p=3.0e-6 (different run) — needs human resolution before touching site prose.
+- [ ] Active time outliers in source Excel (3 rows up to 23,496s); pipeline caps at 600s but Tarrow should be notified
+- [ ] Tracker→ANP vertical analysis: 0% featuring for Sara's team — follow up: is it section tagging, content type, or formula? (HIGH probing queue item)
+- [ ] Wire Tracker→ANP join into pipeline (both aggregate and per-outlet views); blocked on March ANP drop for Allison Palmer data
+- [ ] Quote lede type breakdown + question format deeper dive for Featured tile (HIGH probing queue)
+- [ ] Nature/Wildlife Apple News vs SmartNews dual-headline guidance — replace political breakdown in Platform Topic Inversion (HIGH probing queue)
 
 **Stakeholder shares:**
 - [x] ~~Share site with Sarah Price~~ — done. Sarah confirmed she has the link and is reviewing (Slack 2026-04-01 11:59 AM).
@@ -91,7 +96,11 @@ For session history: see [sessions/](sessions/)
 
 ## Session Log
 
-**2026-04-08: GitHub Actions daily grader + Run Now button**
+**2026-04-08b: Sarah Price tile feedback — governance + pipeline aligned**
+
+Full tile-by-tile review of Sarah's written feedback. Cuts: tiles 4 (Views/Reading Depth), 6 (Featuring Reaches Non-Subscribers), 7 (Topic Predicts Featuring—Formula Doesn't), MSN Formula Divergence (SHOW_MSN_TILE = False), Push send-time section. Restructured: Formula × Topic tile now leads with non-weather signal (Crime + "Here's" 16% n=89, Business + "Here's" 14% n=72, Sports 0% regardless); weather = United Robots footnote. SmartNews trap labeled "one-time setup." Exploratory Tracker→ANP join: 32% match rate, 355 articles, 0% featuring rate across all verticals vs 1.2% ANP baseline — featuring is not a lever for this content type. Trendhunter vertical mapping confirmed by Sarah: author = proxy for vertical (Allison Palmer=Mind-Body, Lauren Jarvis-Gibson=Everyday Living, Lauren Schuster=Experience; Ryan Brennan/Hanna Wickes/Samantha Agate=General/Discovery). URL join confirmed clean via Melissa Angle (Publisher Article ID = canonical McClatchy URLs). All governance (GOVERNOR.md, governor_log) and pipeline (generate_site.py) updated. 16/16 smoke tests pass.
+
+**2026-04-08a: GitHub Actions daily grader + Run Now button**
 
 Retired unreliable local crontab. Built `.github/workflows/grader.yml`: runs `generate_grader.py` daily at 10am CDT via `schedule` cron + `workflow_dispatch` for manual triggers; commits updated `docs/grader/index.html` + `docs/grader/history.json` via built-in `GITHUB_TOKEN`. Secrets needed: `GROQ_API_KEY` and `GOOGLE_SERVICE_ACCOUNT_JSON` (base64-encoded JSON — use `~/.credentials/pierce-tools.json`; the repo's `service_account.json` has a different revoked key). Added Run Now button to grader UI: button in subtitle line opens modal; passcode 8812 gates access; fine-grained GitHub PAT (actions:write) stored in localStorage after first entry; calls GitHub Actions dispatch API; clears bad PAT on 401. Button CSS/JS/HTML all live in `generate_grader.py` (regenerated on each run, not static HTML). Key lesson: macOS `base64` requires `-i` flag; use `base64 -i file | pbcopy` to encode secrets.
 
