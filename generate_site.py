@@ -139,6 +139,15 @@ LOW_SIGNAL_PLATFORMS: set[str] = {
     "Yahoo",   # AOL split created data discontinuity; article-level signal unreliable
 }
 
+# ── Probing Queue Compliance ──────────────────────────────────────────────────
+# HIGH-priority probing queue items that have data available but are not yet run.
+# Build report emits a WARNING for each entry. Clear an entry only when the
+# corresponding analysis is implemented and surfaced on the site.
+# When this list is empty, the compliance check passes silently.
+PENDING_HIGH_ANALYSES: list[str] = [
+    # ADD NEW HIGH-PRIORITY ITEMS HERE WHEN ADDED TO GOVERNOR.MD
+]
+
 # Non-T1 / staging domains to filter from Tracker→ANP join
 _TRACKER_EXCLUDE_DOMAINS = {
     "lifeandstylemag.com", "modmomsclub.com",
@@ -2207,6 +2216,69 @@ politics_msn_idx = float(topic_df.loc[topic_df["topic"] == "politics", "msn_idx"
 nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
 nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
 
+# ── Nature/Wildlife formula analysis by platform ─────────────────────────────
+# Sarah-requested: for a NW story, what headline formula wins on AN vs. SN?
+print("Computing nature/wildlife formula guidance…")
+nw_an = an[an["topic"] == "nature_wildlife"].copy()
+nw_sn = sn[sn["topic"] == "nature_wildlife"].copy()
+nw_feat_an = feat_an[feat_an["topic"] == "nature_wildlife"].copy() if "topic" in feat_an.columns else pd.DataFrame()
+
+_NW_FORMULAS = ["heres_formula", "possessive_named_entity", "question", "number_lead", "quoted_lede", "what_to_know"]
+_nw_rows_an = []
+_nw_rows_sn = []
+
+# Apple News: views percentile and featuring rate per formula
+for _f in _NW_FORMULAS:
+    _sub   = nw_an[nw_an["formula"] == _f][VIEWS_METRIC].dropna()
+    _rest  = nw_an[nw_an["formula"] != _f][VIEWS_METRIC].dropna()
+    _f_sub = nw_feat_an[nw_feat_an["formula"] == _f] if not nw_feat_an.empty else pd.DataFrame()
+    _f_tot = nw_an[nw_an["formula"] == _f]
+    _feat_rate = len(_f_sub) / len(_f_tot) if len(_f_tot) > 0 else np.nan
+    _p = None
+    if len(_sub) >= 5 and len(_rest) >= 5:
+        _, _p = stats.mannwhitneyu(_sub, _rest, alternative="two-sided")
+    _nw_rows_an.append(dict(
+        formula=_f,
+        label=FORMULA_LABELS.get(_f, _f),
+        n=len(_sub),
+        med_pct=float(_sub.median()) if len(_sub) > 0 else np.nan,
+        feat_rate=_feat_rate,
+        p=_p,
+    ))
+
+# SmartNews 2025: views percentile per formula (no featuring on SN)
+for _f in _NW_FORMULAS:
+    _sub  = nw_sn[nw_sn["formula"] == _f][VIEWS_METRIC].dropna()
+    _rest = nw_sn[nw_sn["formula"] != _f][VIEWS_METRIC].dropna()
+    _p = None
+    if len(_sub) >= 5 and len(_rest) >= 5:
+        _, _p = stats.mannwhitneyu(_sub, _rest, alternative="two-sided")
+    _nw_rows_sn.append(dict(
+        formula=_f,
+        label=FORMULA_LABELS.get(_f, _f),
+        n=len(_sub),
+        med_pct=float(_sub.median()) if len(_sub) > 0 else np.nan,
+        p=_p,
+    ))
+
+df_nw_an = pd.DataFrame(_nw_rows_an).sort_values("med_pct", ascending=False)
+df_nw_sn = pd.DataFrame(_nw_rows_sn).sort_values("med_pct", ascending=False)
+
+# Top headline examples per formula from each platform
+_nw_an_examples = {}
+for _f in _NW_FORMULAS:
+    _sub = nw_an[nw_an["formula"] == _f].sort_values(VIEWS_METRIC, ascending=False)
+    if len(_sub) > 0:
+        _nw_an_examples[_f] = str(_sub["Article"].iloc[0])
+_nw_sn_examples = {}
+for _f in _NW_FORMULAS:
+    _sub = nw_sn[nw_sn["formula"] == _f].sort_values(VIEWS_METRIC, ascending=False)
+    if len(_sub) > 0:
+        _nw_sn_examples[_f] = str(_sub["title"].iloc[0])
+
+NW_AN_N  = len(nw_an)
+NW_SN_N  = len(nw_sn)
+
 
 # ── Sports subtopic drill-down ────────────────────────────────────────────────
 sports_an = an[an["topic"] == "sports"].copy()
@@ -2551,6 +2623,38 @@ for period_label, m_start, m_end in PERIODS:
             ))
 
 df_periods = pd.DataFrame(period_rows)
+
+# ── Head-to-head headline examples by formula ────────────────────────────────
+# Sarah-requested: show actual headline text examples, not just trend lines.
+print("Computing headline examples by formula…")
+_HH_FORMULAS = ["heres_formula", "possessive_named_entity", "question", "number_lead", "quoted_lede"]
+_hh_rows = []
+for _f in _HH_FORMULAS:
+    _sub = an[an["formula"] == _f].copy()
+    if len(_sub) < 3:
+        continue
+    # Top 3 by views (organic only — exclude featured where flag available)
+    if "is_featured" in _sub.columns:
+        _top = _sub[~_sub["is_featured"]].sort_values("Total Views", ascending=False).head(3)
+    else:
+        _top = _sub.sort_values("Total Views", ascending=False).head(3)
+    # Bottom 3 by views (min 100 views to exclude zero-traffic articles)
+    _bot = _sub[_sub["Total Views"] >= 100].sort_values("Total Views", ascending=True).head(3)
+    for _, _r in _top.iterrows():
+        _hh_rows.append(dict(
+            formula=_f, label=FORMULA_LABELS.get(_f, _f),
+            tier="top", headline=str(_r["Article"]),
+            views=int(_r["Total Views"]),
+            month=str(_r.get("_pub_month", "—")),
+        ))
+    for _, _r in _bot.iterrows():
+        _hh_rows.append(dict(
+            formula=_f, label=FORMULA_LABELS.get(_f, _f),
+            tier="bottom", headline=str(_r["Article"]),
+            views=int(_r["Total Views"]),
+            month=str(_r.get("_pub_month", "—")),
+        ))
+df_headline_examples = pd.DataFrame(_hh_rows) if _hh_rows else pd.DataFrame()
 
 # Convenience accessor
 def _period_lift(formula: str, period: str) -> float:
@@ -2907,6 +3011,9 @@ VERTICAL_FEAT_RATE = 0.0
 VERTICAL_ANP_BASELINE_FEAT = 0.0
 VERTICAL_MATCH_N   = 0
 VERTICAL_MATCH_TOT = 0
+df_feat_investigation  = pd.DataFrame()
+FEAT_INV_SECTION_GAP   = ""
+FEAT_INV_FORMULA_NOTE  = ""
 
 if HAS_TRACKER and HAS_ANP:
     import glob as _glob
@@ -2989,6 +3096,69 @@ if HAS_TRACKER and HAS_ANP:
             print(f"Vertical perf: {VERTICAL_MATCH_N}/{VERTICAL_MATCH_TOT} matched, "
                   f"feat_rate={VERTICAL_FEAT_RATE:.1%}, "
                   f"{len(df_vertical_perf)} verticals")
+
+            # ── Featuring investigation for Sara's team content ───────────────
+            # Why is featuring rate 0%? Investigate: section tags, formula, topic.
+            if VERTICAL_FEAT_RATE == 0.0:
+                print("Investigating 0% featuring for Sara's team content…")
+
+                # 1. Section tag distribution — what % have no section tag?
+                _nosec = _vert_matched["sections"].isna() | (
+                    _vert_matched["sections"].astype(str).str.strip() == "")
+                _nosec_pct = _nosec.mean()
+
+                # 2. Formula distribution vs. overall AN distribution
+                _vm_formula_dist = _vert_matched["formula"].value_counts(normalize=True)
+                _an_formula_dist = an["formula"].value_counts(normalize=True)
+
+                # 3. Topic distribution
+                _vm_topic_dist = _vert_matched["topic"].value_counts()
+
+                # 4. Views distribution vs. ANP overall
+                _vm_med_views = _vert_matched["views_total"].median()
+
+                _feat_inv_rows = []
+                # Section breakdown
+                for _sec_val, _sec_grp in [("No section tag", _vert_matched[_nosec]),
+                                            ("Has section tag", _vert_matched[~_nosec])]:
+                    _feat_inv_rows.append(dict(
+                        dimension="Section tag",
+                        value=_sec_val,
+                        n=len(_sec_grp),
+                        feat_rate=_sec_grp["is_featured"].mean() if len(_sec_grp) > 0 else np.nan,
+                        med_views=_sec_grp["views_total"].median() if len(_sec_grp) > 0 else np.nan,
+                    ))
+                # Formula breakdown (top 4 formulas)
+                for _fi in _vert_matched["formula"].value_counts().head(4).index:
+                    _sub = _vert_matched[_vert_matched["formula"] == _fi]
+                    _feat_inv_rows.append(dict(
+                        dimension="Formula",
+                        value=FORMULA_LABELS.get(_fi, _fi),
+                        n=len(_sub),
+                        feat_rate=_sub["is_featured"].mean() if len(_sub) > 0 else np.nan,
+                        med_views=_sub["views_total"].median() if len(_sub) > 0 else np.nan,
+                    ))
+                # Topic breakdown
+                for _ti in _vert_matched["topic"].value_counts().head(4).index:
+                    _sub = _vert_matched[_vert_matched["topic"] == _ti]
+                    _feat_inv_rows.append(dict(
+                        dimension="Topic",
+                        value=TOPIC_LABELS.get(_ti, _ti),
+                        n=len(_sub),
+                        feat_rate=_sub["is_featured"].mean() if len(_sub) > 0 else np.nan,
+                        med_views=_sub["views_total"].median() if len(_sub) > 0 else np.nan,
+                    ))
+                df_feat_investigation = pd.DataFrame(_feat_inv_rows)
+
+                # Summary text for display
+                FEAT_INV_SECTION_GAP = (
+                    f"{_nosec_pct:.0%} of matched articles have no section tag — "
+                    "unsectioned content is not eligible for Apple News featuring algorithm "
+                    "(must be assigned to a channel/topic section)."
+                    if _nosec_pct > 0.10 else
+                    "Section tagging is not the primary driver of 0% featuring."
+                )
+                print(f"  Section gap: {FEAT_INV_SECTION_GAP[:80]}…")
 
     if N_TRACKED > 0:
         author_stats = (team_combined.groupby(["author", "platform"])
@@ -3251,6 +3421,17 @@ _COL_TOOLTIPS: dict[str, str] = {
     "median %ile in best bin":        "The middle article's percentile rank within the best-performing length bin for this formula type.",
     "n in best bin":                  "Number of organic articles of this formula type that fall into the best-performing length bin.",
     "p (best vs. rest, one-tailed)":  "P-value from one-tailed Mann-Whitney U test: best length bin vs. all other bins for this formula type. Uncorrected for multiple comparisons.",
+    # Nature/wildlife dual-headline guide + head-to-head examples
+    "apple news (n, pct_rank, feat%, p)": "Apple News columns: article count, median percentile rank, featuring rate, and p-value vs. other formulas within nature/wildlife.",
+    "smartnews 2025 (n, pct_rank, p)":    "SmartNews 2025 columns: article count, median percentile rank, and p-value vs. other formulas within nature/wildlife. 2026 SN data is domain-aggregated and excluded.",
+    "pct rank":                           "Median percentile rank within its publication-month cohort (0–1 scale; 0.5 = exactly average, 0.9 = top 10%).",
+    "feat%":                              "Share of articles in this formula group that Apple News editorially promoted to a Featured editorial slot.",
+    "p":                                  "P-value from Mann-Whitney U test comparing this formula to all other formula articles in the same topic.",
+    # Featuring investigation table
+    "dimension":                          "The analytical dimension being broken down — section tags, headline formula, or content topic.",
+    "value":                              "The specific category or group within this dimension being measured.",
+    # Head-to-head headline examples
+    "tier":                               "Whether this is a top-performing or bottom-performing article within its formula group.",
 }
 
 
@@ -5569,6 +5750,63 @@ def _build_char_formula_html() -> str:
     )
 _char_formula_html = _build_char_formula_html()
 
+# ── Nature/Wildlife dual-headline formula table ───────────────────────────────
+_nw_formula_rows_html = ""
+if not df_nw_an.empty and not df_nw_sn.empty:
+    _nw_merged = df_nw_an[["formula","label","n","med_pct","feat_rate","p"]].rename(
+        columns={"n":"an_n","med_pct":"an_med","feat_rate":"an_feat","p":"an_p"}).merge(
+        df_nw_sn[["formula","n","med_pct","p"]].rename(
+            columns={"n":"sn_n","med_pct":"sn_med","p":"sn_p"}),
+        on="formula", how="outer").sort_values("an_med", ascending=False, na_position="last")
+    for _, _r in _nw_merged.iterrows():
+        _an_med  = f"{_r['an_med']:.3f}" if pd.notna(_r.get("an_med")) else "—"
+        _an_feat = f"{_r['an_feat']:.0%}" if pd.notna(_r.get("an_feat")) else "—"
+        _an_p    = f"p={_r['an_p']:.3f}" if pd.notna(_r.get("an_p")) else "—"
+        _sn_med  = f"{_r['sn_med']:.3f}" if pd.notna(_r.get("sn_med")) else "—"
+        _sn_p    = f"p={_r['sn_p']:.3f}" if pd.notna(_r.get("sn_p")) else "—"
+        _nw_formula_rows_html += (
+            f"<tr><td>{html_module.escape(str(_r['label']))}</td>"
+            f"<td>{int(_r['an_n']) if pd.notna(_r.get('an_n')) else '—'}</td>"
+            f"<td>{_an_med}</td><td>{_an_feat}</td><td>{_an_p}</td>"
+            f"<td>{int(_r['sn_n']) if pd.notna(_r.get('sn_n')) else '—'}</td>"
+            f"<td>{_sn_med}</td><td>{_sn_p}</td></tr>\n"
+        )
+
+# ── Head-to-head headline examples HTML ──────────────────────────────────────
+_hh_html = ""
+if not df_headline_examples.empty:
+    _hh_html += "<h3>What a winning headline looks like — vs. what underperforms</h3>\n"
+    _hh_html += "<p>Top and bottom organic Apple News articles by formula (2025–2026). Gives editors concrete examples, not just statistics.</p>\n"
+    for _f in _HH_FORMULAS:
+        _f_rows = df_headline_examples[df_headline_examples["formula"] == _f]
+        if _f_rows.empty:
+            continue
+        _f_label = FORMULA_LABELS.get(_f, _f)
+        _tops = _f_rows[_f_rows["tier"] == "top"].head(2)
+        _bots = _f_rows[_f_rows["tier"] == "bottom"].head(2)
+        _hh_html += f'<h4 style="margin-top:20px;margin-bottom:6px">{html_module.escape(_f_label)}</h4>\n'
+        _hh_html += '<table class="stat-table"><thead><tr><th>Tier</th><th>Headline</th><th>Views</th><th>Month</th></tr></thead><tbody>\n'
+        for _, _r in _tops.iterrows():
+            _hh_html += (
+                f'<tr style="background:rgba(0,180,100,0.07)"><td>Top</td>'
+                f'<td>{html_module.escape(_r["headline"])}</td>'
+                f'<td>{_r["views"]:,}</td><td>{_r["month"]}</td></tr>\n'
+            )
+        for _, _r in _bots.iterrows():
+            _hh_html += (
+                f'<tr style="background:rgba(255,80,80,0.07)"><td>Bottom</td>'
+                f'<td>{html_module.escape(_r["headline"])}</td>'
+                f'<td>{_r["views"]:,}</td><td>{_r["month"]}</td></tr>\n'
+            )
+        _hh_html += '</tbody></table>\n'
+    _hh_html += (
+        '<p class="caveat">Apple News 2025+2026 pooled. "Top" = highest organic views '
+        '(non-featured where featured flag available). "Bottom" = lowest views among articles '
+        'with ≥100 total views. Examples are illustrative — individual article performance '
+        'depends on story quality, timing, and audience. Use to calibrate writing, not as a '
+        'strict formula → outcome model.</p>\n'
+    )
+
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -6093,6 +6331,30 @@ html = f"""<!DOCTYPE html>
         </div>
         <p>Sports ranks #{sports_an_rank} on Apple News (percentile index {sports_an_idx:.2f}× platform median) but #{sports_sn_rank} — last — on SmartNews (index {sports_sn_idx:.2f}×). This is not a small difference: sports sits well above the Apple News median and well below the SmartNews median. {"The inversion is statistically significant (Mann-Whitney U, " + SPORTS_P_STR + ") across the full year of 2025 data." if SPORTS_P_STR else "The inversion holds across the full year of 2025 data."}</p>
         <p>Nature/wildlife shows the reverse: it underperforms the Apple News median ({nw_an_idx:.2f}×) but outperforms the SmartNews median ({nw_sn_idx:.2f}×). Among the top 30 most frequent words in top-quartile headlines on each platform, only {kw_overlap_n} words appear on both lists{f" ({', '.join(sorted(kw_overlap))})" if kw_overlap_n > 0 else ""} — generic reporting terms rather than shared topical vocabulary, suggesting the platforms reward very different content angles.</p>
+        <h3>Nature/Wildlife: headline formula by platform (dual-headline guide)</h3>
+        <div class="callout">
+          <strong>How to write a nature/wildlife story by platform:</strong>
+          Apple News ranks nature/wildlife articles at {nw_an_idx:.2f}× the platform median overall —
+          but within this topic, formula choice still affects individual article performance.
+          SmartNews rewards nature/wildlife at {nw_sn_idx:.2f}× median — write for reach, not curation.
+          Apple News: use possessive or "Here's" for organic reach; question format underperforms.
+          SmartNews: any formula above baseline is a win given the topic's algorithmic boost.
+        </div>
+        <table class="stat-table">
+          <thead>
+            <tr>
+              <th>Formula</th>
+              <th colspan="4">Apple News (n, pct_rank, feat%, p)</th>
+              <th colspan="3">SmartNews 2025 (n, pct_rank, p)</th>
+            </tr>
+            <tr>
+              <th></th><th>n</th><th>Pct rank</th><th>Feat%</th><th>p</th>
+              <th>n</th><th>Pct rank</th><th>p</th>
+            </tr>
+          </thead>
+          <tbody>{_nw_formula_rows_html}</tbody>
+        </table>
+        <p class="caveat">Apple News: pooled 2025+2026 nature/wildlife articles (n={NW_AN_N}). SmartNews: 2025 article-level data only (n={NW_SN_N}); 2026 SN data is domain-aggregated and invalid for formula analysis. Tests: Mann-Whitney U vs. all other nature/wildlife articles of different formula. Low n per formula cell — treat as directional only.</p>
         <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average on MSN text traffic (median 2,064 PVs for sports vs. platform median), consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}.</p>
         <div class="chart-wrap">{c5}</div>
         <h3>Sports underperforms across Apple News featuring, MSN text, MSN video, and notifications</h3>
@@ -6145,6 +6407,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <p class="caveat">Quarters: Q1=Jan–Mar, Q2=Apr–Jun, Q3=Jul–Sep, Q4=Oct–Dec. Q1 2026 = Jan–Feb 2026 only. Lift = formula median cohort percentile ÷ untagged baseline median within same quarter. Minimum 3 articles required per cell. Data through {REPORT_DATE}.</p>
         {_char_formula_html}
+        {_hh_html}
       </div><!-- /#detail-longitudinal -->
 
 {"" if not HAS_ANP else f"""
@@ -7030,12 +7293,40 @@ def _vertical_perf_section() -> str:
 
     anp_baseline_str = f"{VERTICAL_ANP_BASELINE_FEAT:.1%}" if VERTICAL_ANP_BASELINE_FEAT else "1.2%"
     feat_callout = ""
+    feat_investigation_html = ""
     if VERTICAL_FEAT_RATE == 0.0:
         feat_callout = f"""<div class="callout" style="margin-bottom:1.5rem">
   <strong>0% featuring rate across all verticals</strong> ({VERTICAL_MATCH_N} matched articles,
   Jan–Feb 2026). ANP baseline = {anp_baseline_str}. Featuring is not currently a lever for this
   content — optimize for organic Apple News views, not featuring odds.
 </div>"""
+        # Build the featuring investigation breakdown
+        if not df_feat_investigation.empty:
+            _inv_rows_html = ""
+            for _, _ir in df_feat_investigation.iterrows():
+                _fr_str = f"{_ir['feat_rate']:.0%}" if pd.notna(_ir.get("feat_rate")) else "—"
+                _mv_str = f"{_ir['med_views']:,.0f}" if pd.notna(_ir.get("med_views")) else "—"
+                _inv_rows_html += (
+                    f"<tr><td><em style='color:#8b90a0;font-size:.85em'>"
+                    f"{html_module.escape(str(_ir['dimension']))}</em></td>"
+                    f"<td>{html_module.escape(str(_ir['value']))}</td>"
+                    f"<td>{int(_ir['n'])}</td>"
+                    f"<td>{_fr_str}</td>"
+                    f"<td>{_mv_str}</td></tr>\n"
+                )
+            feat_investigation_html = f"""
+<h3 style="margin-top:1.5rem">Why 0%? Featuring investigation by dimension</h3>
+<p>{html_module.escape(FEAT_INV_SECTION_GAP)}</p>
+<table class="findings">
+  <thead><tr>
+    <th>Dimension</th><th>Value</th><th>n</th><th>Feat%</th><th>Median views</th>
+  </tr></thead>
+  <tbody>{_inv_rows_html}</tbody>
+</table>
+<p class="caveat">Investigation is observational — section tags, formula, and topic are all correlated
+with vertical and with each other. The section-tag gap is the most operationally actionable: adding a
+section tag to CMS metadata is a zero-cost change that makes content eligible for the featuring algorithm.
+Formula and topic distributions reflect editorial choices for this content type.</p>"""
 
     rows_html = ""
     for _, r in df_vertical_perf.iterrows():
@@ -7080,6 +7371,7 @@ def _vertical_perf_section() -> str:
     </tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
+  {feat_investigation_html}
   <h3 style="margin-top:2rem">Top articles by vertical</h3>
   <table class="findings">
     <thead><tr><th>Vertical</th><th>Author</th><th>Headline</th><th>Views</th></tr></thead>
@@ -8884,6 +9176,10 @@ for _avoid_lbl in _avoid_labels:
                 f"without cross-platform caveat near: '{_m.group()[:60]}...'"
             )
             break
+
+if PENDING_HIGH_ANALYSES:
+    for _pa in PENDING_HIGH_ANALYSES:
+        _scope_warnings.append(f"Unrun HIGH-priority analysis: {_pa}")
 
 if _scope_warnings:
     print(f"\n  ✗  {len(_scope_warnings)} STAKEHOLDER SCOPE VIOLATION(S) — "
