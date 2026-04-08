@@ -439,17 +439,17 @@ def render_report(
 <title>{title} · T1 Experiment</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  body.light {{
-    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#eef0f8;
-    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
-    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
-    --nav-bg:rgba(255,255,255,0.88);
-  }}
   :root {{
-    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
-    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --bg:#0f1117; --bg-card:#21253a; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#b0bec5; --text-muted:#8b90a0;
     --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
     --nav-bg:#1a1d27;
+  }}
+  body.light {{
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#f4f6fb; --bg-subtle:#eef0f8;
+    --text:#1a1d27; --text-secondary:#3a3d4a; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#eef0f8; --accent:#3d5af1;
+    --nav-bg:#ffffff;
   }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
@@ -576,17 +576,17 @@ def update_experiment_index(specs):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
-  body.light {{
-    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#eef0f8;
-    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
-    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
-    --nav-bg:rgba(255,255,255,0.88);
-  }}
   :root {{
-    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
-    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --bg:#0f1117; --bg-card:#21253a; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#b0bec5; --text-muted:#8b90a0;
     --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
     --nav-bg:#1a1d27;
+  }}
+  body.light {{
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#f4f6fb; --bg-subtle:#eef0f8;
+    --text:#1a1d27; --text-secondary:#3a3d4a; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#eef0f8; --accent:#3d5af1;
+    --nav-bg:#ffffff;
   }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
