@@ -22,7 +22,9 @@ jobs:
         run: pip install gspread google-auth groq
 
       - name: Write service account JSON
-        run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: echo "$SA_JSON" > /tmp/sa.json
 
       - name: Run grader
         env:
