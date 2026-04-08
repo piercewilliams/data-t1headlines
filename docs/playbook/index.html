@@ -28,19 +28,13 @@
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
           background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }
-  nav { background:var(--nav-bg); backdrop-filter:blur(20px);
-         -webkit-backdrop-filter:blur(20px); padding:0 28px;
-         display:flex; align-items:center; gap:0; height:44px;
-         border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
-  .brand { color:var(--text); font-weight:600; font-size:11px;
-            letter-spacing:0.07em; text-transform:uppercase; flex-shrink:0; }
-  .nav-links { display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }
-  .nav-links a { color:var(--text-muted); text-decoration:none; font-size:12px; transition:color 0.15s; }
+  .site-nav { background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }
+  .nav-links { display:flex; align-items:center; }
+  .nav-links a { color:var(--text-muted); text-decoration:none; font-size:.85em; padding:0 12px; height:44px; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .15s; }
   .nav-links a:hover { color:var(--text); }
-  .nav-links a.nav-active { color:var(--text); font-weight:600; }
-  .nav-meta { display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }
-  .theme-btn { background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s,border-color 0.15s; }
-  .theme-btn:hover { background:var(--bg-muted); color:var(--text); border-color:var(--text-muted); }
+  .nav-links a.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .nav-sep { color:var(--border); font-size:.8em; }
+  .theme-toggle { background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }
   .container { max-width:920px; margin:0 auto; padding:2.5rem 2rem 5rem; }
   .eyebrow { text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
               color:var(--accent); font-weight:700; margin-bottom:0.5rem; display:block; }
@@ -146,19 +140,9 @@
 </style>
 </head>
 <body class="theme-dark">
-<nav>
-  <span class="brand">McClatchy CSA</span>
-  <div class="nav-links">
-    <a href="../">Current Analysis</a>
-    <a href="../playbook/" class="nav-active">Editorial Playbooks</a>
-    <a href="../author-playbooks/">Author Playbooks</a>
-    <a href="../style-guide/">Style Guide</a>
-    <a href="../experiments/">Experiments</a>
-    <a href="../grader/">Headline Grader</a>
-  </div>
-  <div class="nav-meta">
-    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
-  </div>
+<nav class="site-nav">
+  <div class="nav-links"><a href="../">Current Analysis</a> <span class='nav-sep'>·</span> <a href="../playbook/" class="active">Editorial Playbooks</a> <span class='nav-sep'>·</span> <a href="../author-playbooks/">Author Playbooks</a> <span class='nav-sep'>·</span> <a href="../style-guide/">Style Guide</a> <span class='nav-sep'>·</span> <a href="../experiments/">Experiments</a> <span class='nav-sep'>·</span> <a href="../grader/">Headline Grader</a></div>
+  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button>
 </nav>
 <div class="container">
 

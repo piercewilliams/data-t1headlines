@@ -24,23 +24,16 @@ _NAV_PAGES = [
 ]
 
 def _build_nav() -> str:
-    links = []
+    link_parts = []
     for name, href in _NAV_PAGES:
-        if href == "":
-            links.append(f'    <a href="./" class="nav-active">{name}</a>')
-        else:
-            links.append(f'    <a href="{href}">{name}</a>')
-    links_html = "\n".join(links)
+        active_href = "./" if href == "" else href
+        cls = ' class="active"' if href == "" else ""
+        link_parts.append(f'<a href="{active_href}"{cls}>{name}</a>')
+    links = " <span class='nav-sep'>&middot;</span> ".join(link_parts)
     return (
-        f'<nav>\n'
-        f'  <span class="brand">McClatchy CSA</span>\n'
-        f'  <div class="nav-links">\n'
-        f'{links_html}\n'
-        f'  </div>\n'
-        f'  <div class="nav-meta">\n'
-        f'    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
-        f'aria-label="Toggle dark mode">\U0001f319</button>\n'
-        f'  </div>\n'
+        f'<nav class="site-nav">\n'
+        f'  <div class="nav-links">{links}</div>\n'
+        f'  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button>\n'
         f'</nav>'
     )
 
@@ -437,24 +430,14 @@ def generate() -> str:
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           background: var(--bg); color: var(--text); line-height: 1.5; }}
 
-  /* ── Canonical nav (identical to all other site pages) ── */
-  nav {{ position:sticky; top:0; z-index:100; background:var(--nav-bg);
-         backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-         border-bottom:1px solid var(--border); height:44px;
-         display:flex; align-items:center; gap:0; padding:0 28px; }}
-  .brand {{ font-size:11px; font-weight:600; letter-spacing:0.07em;
-            text-transform:uppercase; color:var(--text); flex-shrink:0; }}
-  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
-  .nav-links a {{ font-size:12px; color:var(--text-muted); text-decoration:none;
-                  transition:color 0.15s; }}
+  /* ── Nav (matches grader site-nav style) ── */
+  .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
+  .nav-links {{ display:flex; align-items:center; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:.85em; padding:0 12px; height:44px; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .15s; }}
   .nav-links a:hover {{ color:var(--text); }}
-  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
-  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto;
-               padding-left:20px; border-left:1px solid var(--border); }}
-  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted);
-                font-size:13px; line-height:1; cursor:pointer; border-radius:6px;
-                padding:3px 9px; transition:background 0.15s,color 0.15s,border-color 0.15s; }}
-  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); border-color:var(--text-muted); }}
+  .nav-links a.active {{ color:var(--accent); border-bottom-color:var(--accent); }}
+  .nav-sep {{ color:var(--border); font-size:.8em; }}
+  .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
 
   /* ── Page layout ─────────────────────────────────────────────── */
   .page {{ max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }}

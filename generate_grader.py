@@ -520,59 +520,42 @@ def _nav():
         ("Experiments",        "../experiments/"),
         ("Headline Grader",    ""),
     ]
-    links_html = "\n".join(
-        f'    <a href="{href}"{"  class=\"nav-active\"" if name == "Headline Grader" else ""}>{name}</a>'
-        for name, href in pages
-    )
-    return f"""<nav>
-  <span class="brand">McClatchy CSA</span>
-  <div class="nav-links">
-{links_html}
-  </div>
-  <div class="nav-meta">
-    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">\U0001f319</button>
-  </div>
+    link_parts = []
+    for name, href in pages:
+        cls = ' class="active"' if name == "Headline Grader" else ""
+        link_parts.append(f'<a href="{href}"{cls}>{name}</a>')
+    links = " <span class='nav-sep'>·</span> ".join(link_parts)
+    return f"""<nav class="site-nav">
+  <div class="nav-links">{links}</div>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">◐</button>
 </nav>"""
 
 # ── Full HTML page ────────────────────────────────────────────────────────────
 
 _CSS = """
-  /* ── Canonical theme tokens (match all other site pages) ── */
-  body.theme-dark{
-    --bg:#0f172a;--bg-card:#1e293b;--bg-muted:#1e293b;--bg-subtle:#334155;
-    --text:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;
-    --border:#334155;--border-subtle:#1e293b;--accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
-    /* grader-specific aliases */
-    --surface:#1e293b;--card:#1e293b;--muted:#94a3b8;--red:#ef5350;
-    --gold:#ffd54f;--sig:#4caf50;--dir:#ff9800;--none:#607d8b}
-  body.theme-light{
-    --bg:#ffffff;--bg-card:#ffffff;--bg-muted:#f5f5f7;--bg-subtle:#f0f0f0;
-    --text:#1d1d1f;--text-secondary:#424245;--text-muted:#6e6e73;
-    --border:#d2d2d7;--border-subtle:#f0f0f0;--accent:#0071e3;
-    --nav-bg:rgba(255,255,255,0.88);
-    --surface:#f5f5f7;--card:#ffffff;--muted:#6e6e73;--red:#d32f2f;
-    --gold:#b45309;--sig:#15803d;--dir:#d97706;--none:#64748b}
+  :root{--bg:#0f1117;--surface:#1a1d27;--card:#21253a;--border:#2e3350;
+        --text:#e8eaf6;--muted:#8b90a0;--accent:#7c9df7;--red:#ef5350;
+        --gold:#ffd54f;--sig:#4caf50;--dir:#ff9800;--none:#607d8b}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.6}
-  /* ── Canonical nav (identical to all other site pages) ── */
-  nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);
-      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border-bottom:1px solid var(--border);height:44px;
-      display:flex;align-items:center;gap:0;padding:0 28px}
-  .brand{font-size:11px;font-weight:600;letter-spacing:0.07em;
-         text-transform:uppercase;color:var(--text);flex-shrink:0}
-  .nav-links{display:flex;align-items:center;gap:16px;margin-left:24px;flex:1}
-  .nav-links a{font-size:12px;color:var(--text-muted);text-decoration:none;transition:color 0.15s}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6}
+  .container{max-width:1100px;margin:0 auto;padding:32px 24px}
+  h1{font-size:1.7em;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .subtitle{color:var(--muted);font-size:.9em;margin-bottom:28px}
+  h2{font-size:1.05em;font-weight:700;color:var(--accent);margin:32px 0 12px;
+     border-bottom:1px solid var(--border);padding-bottom:6px;
+     text-transform:uppercase;letter-spacing:.04em}
+  .site-nav{background:var(--surface);border-bottom:1px solid var(--border);
+             padding:0 24px;display:flex;align-items:center;
+             justify-content:space-between;height:44px;position:sticky;top:0;z-index:100}
+  .nav-links{display:flex;align-items:center}
+  .nav-links a{color:var(--muted);text-decoration:none;font-size:.85em;padding:0 12px;
+               height:44px;display:flex;align-items:center;
+               border-bottom:2px solid transparent;transition:color .15s}
   .nav-links a:hover{color:var(--text)}
-  .nav-links a.nav-active{color:var(--text);font-weight:600}
-  .nav-meta{display:flex;align-items:center;gap:8px;margin-left:auto;
-            padding-left:20px;border-left:1px solid var(--border)}
-  .theme-btn{background:none;border:1px solid var(--border);color:var(--text-muted);
-             font-size:13px;line-height:1;cursor:pointer;border-radius:6px;
-             padding:3px 9px;transition:background 0.15s,color 0.15s,border-color 0.15s}
-  .theme-btn:hover{background:var(--bg-muted);color:var(--text);border-color:var(--text-muted)}
-  /* ── Grader page layout ── */
+  .nav-links a.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .nav-sep{color:var(--border);font-size:.8em}
+  .theme-toggle{background:none;border:1px solid var(--border);color:var(--muted);
+                cursor:pointer;padding:4px 8px;border-radius:4px;font-size:.8em}
   .chips{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
   .chip{background:var(--card);border:1px solid var(--border);border-radius:8px;
         padding:10px 18px;min-width:160px}
@@ -647,7 +630,8 @@ _CSS = """
   .hist-day.expanded .hist-expand{display:none}
   .hist-n{font-size:.65em;color:var(--accent);font-weight:600}
   .hist-issue{font-size:.62em;color:var(--red);text-align:center;word-break:break-word}
-  /* body.theme-light tokens defined above */
+  body.light{--bg:#f4f6fb;--surface:#fff;--card:#fff;--border:#dde1f0;
+              --text:#1a1d27;--muted:#5a6070;--accent:#3d5af1}
   @media(max-width:640px){.chips{flex-direction:column}.tier-lbl{min-width:90px}
     .hist-strip{gap:4px}.hist-day{min-width:60px;padding:6px 7px}}
   .run-btn{background:none;border:1px solid var(--border);color:var(--muted);
@@ -676,18 +660,12 @@ _CSS = """
 """
 
 _JS = """
-function applyTheme(t) {
-  document.body.className = 'theme-' + t;
-  try { localStorage.setItem('theme', t); } catch(e) {}
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-}
 function toggleTheme(){
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
 }
 window.addEventListener('DOMContentLoaded', () => {
-  var stored = localStorage.getItem('theme') || 'dark';
-  applyTheme(stored);
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 });
 
 function openRunModal(){
@@ -767,7 +745,7 @@ def build_html(graded, lookback_days, run_ts, history=None):
 <style>{_CSS}</style>
 <script>{_JS}</script>
 </head>
-<body class="theme-dark">
+<body>
 {_nav()}
 <div class="container">
 

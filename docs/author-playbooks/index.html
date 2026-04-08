@@ -35,19 +35,13 @@
           background: var(--bg-muted); padding: 1px 5px; border-radius: 3px; }
 
   /* ── Nav ── */
-  nav { position: sticky; top: 0; z-index: 100; background: var(--nav-bg);
-        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        border-bottom: 1px solid var(--border); height: 44px;
-        display: flex; align-items: center; padding: 0 28px; gap: 0; }
-  .brand { font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
-            text-transform: uppercase; color: var(--text); flex-shrink: 0; }
-  .nav-links { display: flex; align-items: center; gap: 16px; margin-left: 24px; flex: 1; }
-  .nav-links a { font-size: 12px; color: var(--text-muted); transition: color 0.15s; }
-  .nav-links a:hover { color: var(--text); text-decoration: none; }
-  .nav-links a.nav-active { color: var(--text); font-weight: 600; }
-  .nav-meta { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 20px; border-left: 1px solid var(--border); }
-  .theme-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 3px 9px; transition: background 0.15s, color 0.15s, border-color 0.15s; }
-  .theme-btn:hover { background: var(--bg-muted); color: var(--text); border-color: var(--text-muted); }
+  .site-nav { background: var(--nav-bg); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 44px; position: sticky; top: 0; z-index: 100; }
+  .nav-links { display: flex; align-items: center; }
+  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: .85em; padding: 0 12px; height: 44px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: color .15s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .nav-sep { color: var(--border); font-size: .8em; }
+  .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: .8em; }
 
   /* ── Layout ── */
   .container { max-width: 1100px; margin: 0 auto; padding: 40px 28px 80px; }
@@ -140,19 +134,9 @@
 </style>
 </head>
 <body class="theme-dark">
-<nav>
-  <span class="brand">McClatchy CSA</span>
-  <div class="nav-links">
-    <a href="../">Current Analysis</a>
-    <a href="../playbook/">Editorial Playbooks</a>
-    <a href="../author-playbooks/" class="nav-active">Author Playbooks</a>
-    <a href="../style-guide/">Style Guide</a>
-    <a href="../experiments/">Experiments</a>
-    <a href="../grader/">Headline Grader</a>
-  </div>
-  <div class="nav-meta">
-    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
-  </div>
+<nav class="site-nav">
+  <div class="nav-links"><a href="../">Current Analysis</a> <span class='nav-sep'>·</span> <a href="../playbook/">Editorial Playbooks</a> <span class='nav-sep'>·</span> <a href="../author-playbooks/" class="active">Author Playbooks</a> <span class='nav-sep'>·</span> <a href="../style-guide/">Style Guide</a> <span class='nav-sep'>·</span> <a href="../experiments/">Experiments</a> <span class='nav-sep'>·</span> <a href="../grader/">Headline Grader</a></div>
+  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button>
 </nav>
 
 <div class="container">

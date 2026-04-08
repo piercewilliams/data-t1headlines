@@ -122,27 +122,16 @@ def _build_nav(active: str, depth: int) -> str:
         depth:  Directory depth from docs/ root (1 = experiments/, 2 = experiments/slug/).
     """
     prefix = "../" * depth
-    links = []
+    link_parts = []
     for name, slug in _NAV_PAGES:
-        if slug:
-            href = prefix + slug + "/"
-        else:
-            href = prefix if depth > 0 else "./"
-        cls = ' class="nav-active"' if name == active else ""
-        links.append(f'    <a href="{href}"{cls}>{name}</a>')
-    links_html = "\n".join(links)
-    meta = (
-        '\n  <div class="nav-meta">\n'
-        '    <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()" '
-        'aria-label="Toggle dark mode">\U0001f319</button>\n'
-        '  </div>'
-    )
+        href = (prefix + slug + "/") if slug else (prefix if depth > 0 else "./")
+        cls = ' class="active"' if name == active else ""
+        link_parts.append(f'<a href="{href}"{cls}>{name}</a>')
+    links = " <span class='nav-sep'>·</span> ".join(link_parts)
     return (
-        f'<nav>\n'
-        f'  <span class="brand">McClatchy CSA</span>\n'
-        f'  <div class="nav-links">\n'
-        f'{links_html}\n'
-        f'  </div>{meta}\n'
+        f'<nav class="site-nav">\n'
+        f'  <div class="nav-links">{links}</div>\n'
+        f'  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button>\n'
         f'</nav>'
     )
 
@@ -466,20 +455,13 @@ def render_report(
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
           background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
-  nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
-         -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:0; height:44px;
-         border-bottom:1px solid var(--border); }}
-  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
-            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
-  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
-  .nav-links a {{ color:var(--text-muted); text-decoration:none;
-                  font-size:12px; transition:color 0.15s; }}
+  .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
+  .nav-links {{ display:flex; align-items:center; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:.85em; padding:0 12px; height:44px; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .15s; }}
   .nav-links a:hover {{ color:var(--text); }}
-  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
-  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
-  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s; }}
-  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); }}
+  .nav-links a.active {{ color:var(--accent); border-bottom-color:var(--accent); }}
+  .nav-sep {{ color:var(--border); font-size:.8em; }}
+  .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
   .container {{ max-width:800px; margin:0 auto; padding:2.5rem 2rem 5rem; }}
   .eyebrow {{ text-transform:uppercase; letter-spacing:0.14em; font-size:0.6rem;
               color:var(--accent); font-weight:700; margin-bottom:0.5rem; display:block; }}
@@ -616,20 +598,13 @@ def update_experiment_index(specs):
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
           background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
-  nav {{ background:var(--nav-bg); backdrop-filter:blur(10px);
-         -webkit-backdrop-filter:blur(10px); padding:0 2rem;
-         display:flex; align-items:center; gap:0; height:44px;
-         border-bottom:1px solid var(--border); }}
-  .brand {{ color:var(--text); font-weight:700; font-size:0.72rem;
-            letter-spacing:0.1em; text-transform:uppercase; flex-shrink:0; }}
-  .nav-links {{ display:flex; align-items:center; gap:16px; margin-left:24px; flex:1; }}
-  .nav-links a {{ color:var(--text-muted); text-decoration:none;
-                  font-size:12px; transition:color 0.15s; }}
+  .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
+  .nav-links {{ display:flex; align-items:center; }}
+  .nav-links a {{ color:var(--text-muted); text-decoration:none; font-size:.85em; padding:0 12px; height:44px; display:flex; align-items:center; border-bottom:2px solid transparent; transition:color .15s; }}
   .nav-links a:hover {{ color:var(--text); }}
-  .nav-links a.nav-active {{ color:var(--text); font-weight:600; }}
-  .nav-meta {{ display:flex; align-items:center; gap:8px; margin-left:auto; padding-left:20px; border-left:1px solid var(--border); }}
-  .theme-btn {{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; line-height:1; cursor:pointer; border-radius:6px; padding:3px 9px; transition:background 0.15s,color 0.15s; }}
-  .theme-btn:hover {{ background:var(--bg-muted); color:var(--text); }}
+  .nav-links a.active {{ color:var(--accent); border-bottom-color:var(--accent); }}
+  .nav-sep {{ color:var(--border); font-size:.8em; }}
+  .theme-toggle {{ background:none; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:4px; font-size:.8em; }}
   .container {{ max-width:700px; margin:0 auto; padding:3rem 2rem 5rem; }}
   h1 {{ font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;
         margin-bottom:0.4rem; line-height:1.25; color:var(--text); }}
