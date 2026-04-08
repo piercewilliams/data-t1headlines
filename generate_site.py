@@ -114,6 +114,31 @@ AUTHOR_VERTICAL: dict[str, str] = {
 }
 TRENDHUNTER_VERTICALS = {"Mind-Body", "Everyday Living", "Experience"}
 
+# ── Platform-wide avoidance guardrails ────────────────────────────────────────
+# Formulas the per-author algorithm must never recommend without a cross-platform
+# caveat. Keys are classify_formula() return values; values are the reason string.
+# Checked at tile-generation time — any author recommendation involving these
+# formulas gets a machine-added warning so contradictions never silently appear.
+PLATFORM_AVOIDANCE_FORMULAS: dict[str, str] = {
+    "question_mark": (
+        "Question format is a confirmed SmartNews avoidance rule "
+        "(p=3.4e-6, n=918 — strongest single penalty in the SN dataset). "
+        "Apply this only to Apple News Featured targeting, never SmartNews."
+    ),
+    "what_to_know": (
+        "\"What to know\" is the worst-performing formula on SmartNews "
+        "(p=3.0e-6, n=213). Use for Apple News Featured targeting only — "
+        "never as a general formula or for SmartNews content."
+    ),
+}
+
+# Platforms with invalid or low-confidence signal per GOVERNOR.md.
+# When an author tile would route to one of these, add an explicit caveat
+# so editors are not sent to a platform on bad evidence.
+LOW_SIGNAL_PLATFORMS: set[str] = {
+    "Yahoo",   # AOL split created data discontinuity; article-level signal unreliable
+}
+
 # Non-T1 / staging domains to filter from Tracker→ANP join
 _TRACKER_EXCLUDE_DOMAINS = {
     "lifeandstylemag.com", "modmomsclub.com",
@@ -3535,17 +3560,49 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                 f'  </div>\n'
             )
 
+        # ── Guardrail: platform-wide avoidance formula cross-check ────
+        # If the algorithm recommended a formula that contradicts platform-wide guidance,
+        # automatically append a cross-platform caveat. This prevents author-level
+        # small-sample noise from silently overriding confirmed avoidance rules.
+        _recommended_formula_key = (
+            str(_best_f_row["formula"]) if _formula_mismatch and _best_f_row is not None
+            else str(_best_alt_row["formula"]) if _formula_dragging and _best_alt_row is not None
+            else ""
+        )
+        if _recommended_formula_key in PLATFORM_AVOIDANCE_FORMULAS:
+            _avoidance_note = PLATFORM_AVOIDANCE_FORMULAS[_recommended_formula_key]
+            _action = (
+                f"{_action} "
+                f"⚠ Cross-platform note: {_avoidance_note}"
+            )
+
+        # ── Guardrail: low-signal platform routing caveat ─────────────
+        # If Yahoo (or other low-signal platform) surfaces as best platform,
+        # flag it so editors aren't routed on unreliable evidence.
+        if _best_plat in LOW_SIGNAL_PLATFORMS:
+            _action = (
+                f"{_action} "
+                f"⚠ Platform note: {_best_plat} signal is low-confidence per current data "
+                f"(data discontinuity from platform changes). Prioritize Apple News and SmartNews "
+                f"for formula testing before routing to {_best_plat}."
+            )
+
         # ── Assemble tile + detail HTML ────────────────────────────
         _ap_id = f"ap-{_ai}"
 
         _safe_auth   = html_module.escape(_auth)
         _safe_claim  = html_module.escape(_claim[:1].upper() + _claim[1:] if _claim else _claim)
         _safe_action = html_module.escape(_action)
+        # Vertical label: show content vertical so Sarah can navigate by content type,
+        # not just by author name. Guaranteed by AUTHOR_VERTICAL mapping at module level.
+        _vert_suffix = (f' <span style="font-weight:400;color:var(--text-muted);font-size:.85em">'
+                        f'· {html_module.escape(_auth_vertical)}</span>'
+                        if _auth_vertical else "")
 
         _tile_html = (
             f'  <div class="pb-tile" onclick="togglePb(this,\'{_ap_id}\')">\n'
             f'    <span class="conf-badge {_badge_cls}">{_badge_lbl}</span>\n'
-            f'    <span class="tile-label">{_safe_auth}</span>\n'
+            f'    <span class="tile-label">{_safe_auth}{_vert_suffix}</span>\n'
             f'    <p class="tile-claim">{_safe_claim}</p>\n'
             f'    <p class="tile-action">\u2192 {_safe_action}</p>\n'
             f'    <span class="tile-toggle">Details \u2193</span>\n'
@@ -3561,10 +3618,19 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
         _guidance_rows = [(_primary_verb, _safe_action)]
         # Add platform item only if it's not redundant (i.e. not already the sole platform signal).
         if not _platform_split and _n_plats >= 2:
-            _plat_note = html_module.escape(
-                f"Route new articles through {_best_plat} first ({_best_plat_m:.0%}ile) — "
-                f"your highest-ROI distribution channel this round."
-            )
+            if _best_plat in LOW_SIGNAL_PLATFORMS:
+                # Low-signal platform: add guidance note with required caveat rather than
+                # a routing recommendation. Guardrail keeps this consistent with the tile action text.
+                _plat_note = html_module.escape(
+                    f"Platform data shows {_best_plat} at {_best_plat_m:.0%}ile — but {_best_plat} "
+                    f"signal is low-confidence (data discontinuity from platform changes). "
+                    f"Prioritize Apple News and SmartNews for formula testing first."
+                )
+            else:
+                _plat_note = html_module.escape(
+                    f"Route new articles through {_best_plat} first ({_best_plat_m:.0%}ile) — "
+                    f"your highest-ROI distribution channel this round."
+                )
             _guidance_rows.append(("DO", _plat_note))
         _guidance_li = "\n".join(
             f'    <li style="margin-bottom:0.4rem">'
@@ -6199,7 +6265,7 @@ _pb_tile_defs = [
     <p class="tile-action">\u2192 Build separate notification playbooks for news vs. celebrity content. Use attribution language for news brands. Monitor the CTR decline monthly \u2014 the channel is maturing and benchmarks need updating.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
-] + ([] if msn.empty else [
+] + ([] if (msn.empty or not SHOW_MSN_TILE) else [
     ("conf-high", "pb-msn", f"""  <div class="pb-tile" onclick="togglePb(this,'pb-msn')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">MSN \u00b7 Direct Declaratives vs. Structured Formulas</span>
@@ -8483,5 +8549,72 @@ if _tooltip_warnings:
     print("     → Fix: add the column key and a 1-sentence explanation to _COL_TOOLTIPS in generate_site.py.")
 else:
     print("  ✓  Column tooltips complete (all <th> headers have hover explanations).")
+# ── Stakeholder-scope audit ───────────────────────────────────────────────────
+# Verifies that policy flags (SHOW_MSN_TILE, LOW_SIGNAL_PLATFORMS, etc.)
+# are honored across ALL generated files — not just the pages where the
+# flag was originally applied. Catches cases where a flag gates one location
+# but a separate code path writes the same content to a different page.
+_scope_warnings: list[str] = []
+
+# Check 1: SHOW_MSN_TILE=False → no MSN-specific tile content in playbook or experiments
+if not SHOW_MSN_TILE:
+    _playbook_html = playbook_out.read_text()
+    if 'tile-label">MSN' in _playbook_html or 'pb-msn' in _playbook_html:
+        _scope_warnings.append(
+            "SHOW_MSN_TILE=False but MSN tile still present in playbook/index.html. "
+            "Gate all MSN tile code paths on `not SHOW_MSN_TILE`."
+        )
+
+# Check 2: LOW_SIGNAL_PLATFORMS — verify author tiles don't route to these without caveat
+_ap_html = author_pb_out.read_text()
+for _lsp in LOW_SIGNAL_PLATFORMS:
+    import re as _re
+    # Look for "Route.*{platform}" or "{platform} first" patterns without the ⚠ warning nearby
+    # Match editorial routing instructions specifically (not article headlines or table cells)
+    _routing_pattern = _re.compile(
+        rf"(?:Route new articles|Route the next|route.*?through)\s[^<.]*?{_lsp}",
+        _re.IGNORECASE
+    )
+    for _m in _routing_pattern.finditer(_ap_html):
+        _ctx = _ap_html[max(0, _m.start()-100):_m.end()+300]
+        if "⚠" not in _ctx and "low-confidence" not in _ctx:
+            _scope_warnings.append(
+                f"Author playbook routes to low-signal platform '{_lsp}' without "
+                f"the required caveat near: '{_m.group()[:60]}...'"
+            )
+            break
+
+# Check 3: PLATFORM_AVOIDANCE_FORMULAS — verify no author tile tile-action
+# recommends an avoidance formula without the ⚠ cross-platform caveat
+_avoid_labels = {
+    v: k for k, _reason in PLATFORM_AVOIDANCE_FORMULAS.items()
+    for v in [_FORMULA_LABELS.get(k, k)]
+}
+for _avoid_lbl in _avoid_labels:
+    _action_pattern = _re.compile(
+        rf'tile-action[^>]*>[^<]*?(?:Test|Shift|trial)\s+{_re.escape(_avoid_lbl)}',
+        _re.IGNORECASE
+    )
+    for _m in _action_pattern.finditer(_ap_html):
+        _ctx = _ap_html[max(0, _m.start()-20):_m.end()+400]
+        if "⚠" not in _ctx:
+            _scope_warnings.append(
+                f"Author playbook recommends avoidance formula '{_avoid_lbl}' "
+                f"without cross-platform caveat near: '{_m.group()[:60]}...'"
+            )
+            break
+
+if _scope_warnings:
+    print(f"\n  ✗  {len(_scope_warnings)} STAKEHOLDER SCOPE VIOLATION(S) — "
+          f"policy flags not honored across all pages:")
+    for _w in _scope_warnings:
+        print(f"     • {_w}")
+    print("     → Fix: ensure SHOW_MSN_TILE, LOW_SIGNAL_PLATFORMS, and "
+          "PLATFORM_AVOIDANCE_FORMULAS are checked at every code path that "
+          "generates author or platform recommendations.")
+else:
+    print("  ✓  Stakeholder scope clean (MSN gate, low-signal platforms, "
+        "avoidance formulas all honored across all pages).")
+
 print(f"  meta.json → {_meta_slot}/meta.json")
 print(f"{'─'*60}\n")

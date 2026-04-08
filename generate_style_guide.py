@@ -113,6 +113,24 @@ APPLE_NEWS_RULES = [
         "different algorithm signals.",
     ),
     (
+        "Directional",
+        "When using a quote lede, lead with official/authority quotes for highest "
+        "Apple News featuring odds.",
+        "Official/authority quote ledes (police, prosecutors, government officials) "
+        "feature at the highest rate among quote-lede subtypes on Apple News. Expert "
+        "quotes (scientists, researchers) also index above baseline. First-person "
+        "subject quotes perform below the quote-lede average for featuring.",
+        "Quote ledes overall outperform the baseline for Apple News featuring. "
+        "But within that group, who is being quoted matters. Institutional/authority "
+        "voices (law enforcement, officials, elected leaders) signal breaking news "
+        "and civic importance \u2014 two things Apple\u2019s editors consistently reward "
+        "with Featured placement. Expert/scientific quotes signal novelty and credibility. "
+        "First-person subject quotes (\u201cI was terrified\u201d) read as feature writing, "
+        "which Apple editors select less often for the Featured slot. This is "
+        "a directional finding \u2014 subtypes have small n and p-values are uncorrected "
+        "for multiple comparisons. Treat as strong guidance, not a confirmed rule.",
+    ),
+    (
         "Confirmed",
         "Use question format only when intentionally targeting Featured placement "
         "\u2014 never for organic reach.",
