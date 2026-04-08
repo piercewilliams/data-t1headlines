@@ -227,20 +227,20 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   Tables scroll horizontally when content is wider than the panel — text is NEVER
 #   clipped or truncated. Do not add overflow:hidden or fixed widths to table elements.
 #
-# DARK MODE TABLE COLORS — always use explicit body.theme-dark / body.theme-light selectors:
-#   CSS custom properties (--bg, --nav-bg, etc.) are defined under body.theme-light /
+# DARK MODE TABLE COLORS — always use explicit / body.light selectors:
+#   CSS custom properties (--bg, --nav-bg, etc.) are defined under body.light /
 #   body.theme-dark. Detail panels have hardcoded dark backgrounds regardless of theme.
 #   If table background/text use var(--bg) etc., the resolved color depends on the body
 #   class — which fails inside hardcoded-dark panels when body is theme-light. Rule:
 #   NEVER use CSS variables for table background or text colors. Always write:
-#       body.theme-light table.findings { background: #ffffff; }
-#       body.theme-dark  table.findings { background: #1e293b; }
+#       body.light table.findings { background: #ffffff; }
+#        table.findings { background: #1e293b; }
 #   This makes table theming unambiguous regardless of surrounding panel context.
 #
 # LIFT/STATUS COLORS — always use .lift-high/.lift-pos/.lift-neg CSS classes:
 #   NEVER use inline style="color:#60a5fa" for lift values or status indicators.
 #   Those hardcoded hex values are dark-mode-only and break in light mode. The
-#   .lift-* classes are defined with body.theme-light overrides in the main CSS block.
+#   .lift-* classes are defined with body.light overrides in the main CSS block.
 #   For semantic status colors (tags) that intentionally stay fixed, use .tag-* classes.
 #
 # ACCENT COLOR — always use var(--accent), never hardcode #60a5fa or #0071e3:
@@ -790,7 +790,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   // (Plotly.relayout throws on display:none elements). Now that this panel is
   // open, force a re-theme so the clone captures correct dark/light colors.
   if (typeof _rethemeCharts === 'function') {{
-    _rethemeCharts(document.body.classList.contains('theme-dark'));
+    _rethemeCharts(!document.body.classList.contains('light'));
   }}
 
   // Panels have no explicit background — getComputedStyle returns rgba(0,0,0,0).
@@ -798,7 +798,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var _rawBg = getComputedStyle(document.body).backgroundColor;
   var bg = (_rawBg && _rawBg !== 'rgba(0, 0, 0, 0)' && _rawBg !== 'transparent')
     ? _rawBg
-    : (document.body.classList.contains('theme-dark') ? '#0f172a' : '#ffffff');
+    : (!document.body.classList.contains('light') ? '#0f172a' : '#ffffff');
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
   // Wait 100 ms for Plotly to finish all async redraws before cloning.
@@ -3095,7 +3095,7 @@ def _make_col_tooltip_js() -> str:
   document.body.appendChild(_tip);
 
   function _tipTheme() {{
-    var dark = document.body.classList.contains('theme-dark');
+    var dark = !document.body.classList.contains('light');
     _tip.style.background = dark ? '#1e293b' : '#ffffff';
     _tip.style.color       = dark ? '#f1f5f9' : '#374151';
     _tip.style.border      = dark ? '1px solid #334155' : '1px solid #d1d5db';
@@ -5250,7 +5250,7 @@ html = f"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
-  body.theme-light {{
+  body.light {{
     --bg:           #ffffff;
     --bg-card:      #ffffff;
     --bg-muted:     #f5f5f7;
@@ -5263,7 +5263,7 @@ html = f"""<!DOCTYPE html>
     --accent:       #0071e3;
     --nav-bg:       rgba(255,255,255,0.88);
   }}
-  body.theme-dark {{
+  :root {{
     --bg:           #0f172a;
     --bg-card:      #1e293b;
     --bg-muted:     #1e293b;
@@ -5344,17 +5344,17 @@ html = f"""<!DOCTYPE html>
   table.findings td {{ padding:6px 10px; vertical-align:middle; white-space:nowrap; }}
   table.findings tr:last-child td {{ border-bottom:none; }}
   /* Light theme table colours */
-  body.theme-light table.findings {{ background:#ffffff; }}
-  body.theme-light table.findings th {{ background:#f5f5f7; color:#6e6e73; border-bottom:1px solid #d2d2d7; }}
-  body.theme-light table.findings td {{ color:#424245; border-bottom:1px solid #f0f0f0; }}
-  body.theme-light table.findings tr:hover td {{ background:#f0f0f0; }}
-  body.theme-light .table-wrap {{ box-shadow:0 0 0 1px #d2d2d7,0 1px 3px rgba(0,0,0,0.08); }}
+  body.light table.findings {{ background:#ffffff; }}
+  body.light table.findings th {{ background:#f5f5f7; color:#6e6e73; border-bottom:1px solid #d2d2d7; }}
+  body.light table.findings td {{ color:#424245; border-bottom:1px solid #f0f0f0; }}
+  body.light table.findings tr:hover td {{ background:#f0f0f0; }}
+  body.light .table-wrap {{ box-shadow:0 0 0 1px #d2d2d7,0 1px 3px rgba(0,0,0,0.08); }}
   /* Dark theme table colours — explicit so they are never ambiguous */
-  body.theme-dark table.findings {{ background:#1e293b; }}
-  body.theme-dark table.findings th {{ background:#0f172a; color:#94a3b8; border-bottom:1px solid #334155; }}
-  body.theme-dark table.findings td {{ color:#cbd5e1; border-bottom:1px solid #0f172a; }}
-  body.theme-dark table.findings tr:hover td {{ background:#253352; }}
-  body.theme-dark .table-wrap {{ box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.3); }}
+  table.findings {{ background:#1e293b; }}
+  table.findings th {{ background:#0f172a; color:#94a3b8; border-bottom:1px solid #334155; }}
+  table.findings td {{ color:#cbd5e1; border-bottom:1px solid #0f172a; }}
+  table.findings tr:hover td {{ background:#253352; }}
+  .table-wrap {{ box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.3); }}
 
   /* ── Tags (semantic status colors stay fixed) ── */
   .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; margin-right: 6px; }}
@@ -5368,9 +5368,9 @@ html = f"""<!DOCTYPE html>
   .lift-high {{ color: #4ade80; font-weight: 600; }}
   .lift-pos  {{ color: var(--accent); font-weight: 600; }}
   .lift-neg  {{ color: #f87171; font-weight: 600; }}
-  body.theme-light .lift-high {{ color: #16a34a; }}
-  body.theme-light .lift-pos  {{ color: var(--accent); }}
-  body.theme-light .lift-neg  {{ color: #dc2626; }}
+  body.light .lift-high {{ color: #16a34a; }}
+  body.light .lift-pos  {{ color: var(--accent); }}
+  body.light .lift-neg  {{ color: #dc2626; }}
 
   /* ── Charts & examples ── */
   .chart-wrap {{ margin: 16px 0; }}
@@ -5450,7 +5450,7 @@ html = f"""<!DOCTYPE html>
   .srm-shake {{ animation: srm-shake 0.35s ease; }}
 </style>
 </head>
-<body class="theme-{THEME}">
+<body>
 
 {_build_nav("Current Analysis", 0, theme_toggle=True)}
 
@@ -5931,21 +5931,14 @@ function _rethemeCharts(isDark) {{
 /* ── Theme toggle ── */
 (function () {{
   // Safari private mode throws on localStorage access — always guard with try/catch.
-  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
-  applyTheme(stored || '{THEME}');
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
 
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
-  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
-  _rethemeCharts(t === 'dark');
-}}
-
 function toggleTheme() {{
-  var next = document.body.classList.contains('theme-dark') ? 'light' : 'dark';
-  applyTheme(next);
+  document.body.classList.toggle('light');
+  var isDark = !document.body.classList.contains('light');
+  try {{ localStorage.setItem('theme', isDark ? 'dark' : 'light'); }} catch(e) {{}}
+  _rethemeCharts(isDark);
 }}
 
 /* ── Detail panels ── */
@@ -5978,7 +5971,7 @@ function showDetail(id, tile) {{
   // and cached dimensions of 0px — resize forces a correct layout pass.
   // 100 ms matches the export path — enough for Plotly's internal rAF queue to flush.
   setTimeout(function() {{
-    _rethemeCharts(document.body.classList.contains('theme-dark'));
+    _rethemeCharts(!document.body.classList.contains('light'));
     if (typeof Plotly !== 'undefined') {{
       var panelEl = document.getElementById('detail-' + id);
       if (panelEl) panelEl.querySelectorAll('.js-plotly-plot').forEach(function(div) {{
@@ -6291,13 +6284,13 @@ playbook_html = f"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
-  body.theme-light {{
+  body.light {{
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
   }}
-  body.theme-dark {{
+  :root {{
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -6338,9 +6331,9 @@ playbook_html = f"""<!DOCTYPE html>
   .conf-high {{ background:rgba(22,163,74,0.2); color:#4ade80; }}
   .conf-mod  {{ background:rgba(37,99,235,0.2);  color:#60a5fa; }}
   .conf-dir  {{ background:rgba(100,116,139,0.15); color:#94a3b8; }}
-  body.theme-light .conf-high {{ background:rgba(22,163,74,0.12); color:#15803d; }}
-  body.theme-light .conf-mod  {{ background:rgba(37,99,235,0.12); color:#1d4ed8; }}
-  body.theme-light .conf-dir  {{ background:rgba(100,116,139,0.10); color:#475569; }}
+  body.light .conf-high {{ background:rgba(22,163,74,0.12); color:#15803d; }}
+  body.light .conf-mod  {{ background:rgba(37,99,235,0.12); color:#1d4ed8; }}
+  body.light .conf-dir  {{ background:rgba(100,116,139,0.10); color:#475569; }}
   .tile-label {{ display:block; font-size:0.78rem; font-weight:700; color:var(--text);
                  letter-spacing:0.01em; margin-bottom:0.5rem; }}
   .tile-claim {{ font-size:0.84rem; color:var(--text-secondary); margin-bottom:0.5rem; line-height:1.55; }}
@@ -6419,7 +6412,7 @@ playbook_html = f"""<!DOCTYPE html>
   .export-dropdown button:hover {{ background:var(--bg-muted); }}
 </style>
 </head>
-<body class="theme-{THEME}">
+<body>
 {_build_nav("Editorial Playbooks", 1)}
 <div class="container">
 
@@ -6573,7 +6566,7 @@ function togglePb(tile, id) {{
     // page-load theme time because Plotly.relayout throws on display:none elements.
     setTimeout(function() {{
       if (typeof _rethemeCharts === 'function') {{
-        _rethemeCharts(document.body.classList.contains('theme-dark'));
+        _rethemeCharts(!document.body.classList.contains('light'));
       }}
       panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
     }}, 80);
@@ -6675,17 +6668,11 @@ function togglePb(tile, id) {{
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {{
-  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
-  applyTheme(stored || '{THEME}');
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
-}}
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
 {_make_col_tooltip_js()}
 </script>
@@ -6808,13 +6795,13 @@ author_pb_html = f"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
-  body.theme-light {{
+  body.light {{
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
   }}
-  body.theme-dark {{
+  :root {{
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -6872,9 +6859,9 @@ author_pb_html = f"""<!DOCTYPE html>
   .conf-high {{ background: rgba(22,163,74,0.2);   color: #4ade80; }}
   .conf-mod  {{ background: rgba(37,99,235,0.2);    color: #60a5fa; }}
   .conf-dir  {{ background: rgba(100,116,139,0.15); color: #94a3b8; }}
-  body.theme-light .conf-high {{ background: rgba(22,163,74,0.12); color: #15803d; }}
-  body.theme-light .conf-mod  {{ background: rgba(37,99,235,0.12); color: #1d4ed8; }}
-  body.theme-light .conf-dir  {{ background: rgba(100,116,139,0.10); color: #475569; }}
+  body.light .conf-high {{ background: rgba(22,163,74,0.12); color: #15803d; }}
+  body.light .conf-mod  {{ background: rgba(37,99,235,0.12); color: #1d4ed8; }}
+  body.light .conf-dir  {{ background: rgba(100,116,139,0.10); color: #475569; }}
   .tile-label  {{ display: block; font-size: 0.88rem; font-weight: 700; color: var(--text);
                   letter-spacing: 0.01em; margin-bottom: 0.5rem; }}
   .tile-claim  {{ font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.55; }}
@@ -6910,9 +6897,9 @@ author_pb_html = f"""<!DOCTYPE html>
   .lift-high {{ color: #4ade80; font-weight: 600; }}
   .lift-pos  {{ color: #60a5fa; font-weight: 600; }}
   .lift-neg  {{ color: #f87171; font-weight: 600; }}
-  body.theme-light .lift-high {{ color: #16a34a; }}
-  body.theme-light .lift-pos  {{ color: var(--accent); }}
-  body.theme-light .lift-neg  {{ color: #dc2626; }}
+  body.light .lift-high {{ color: #16a34a; }}
+  body.light .lift-pos  {{ color: var(--accent); }}
+  body.light .lift-neg  {{ color: #dc2626; }}
 
   /* ── Export button ── */
   .export-btn-wrap {{ float: right; position: relative; margin: 0 0 10px 16px; }}
@@ -6930,7 +6917,7 @@ author_pb_html = f"""<!DOCTYPE html>
   .export-dropdown button:hover {{ background: var(--bg-muted); }}
 </style>
 </head>
-<body class="theme-{THEME}">
+<body>
 {_build_nav("Author Playbooks", 1)}
 {_ap_body}
 <script>
@@ -6955,7 +6942,7 @@ function togglePb(tile, id) {{
     // page-load theme time because Plotly.relayout throws on display:none elements.
     setTimeout(function() {{
       if (typeof _rethemeCharts === 'function') {{
-        _rethemeCharts(document.body.classList.contains('theme-dark'));
+        _rethemeCharts(!document.body.classList.contains('light'));
       }}
       panel.scrollIntoView({{behavior:'smooth',block:'nearest'}});
     }}, 80);
@@ -7055,17 +7042,11 @@ function togglePb(tile, id) {{
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {{
-  var stored; try {{ stored = localStorage.getItem('theme'); }} catch(e) {{}}
-  applyTheme(stored || '{THEME}');
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
-}}
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
 {_make_col_tooltip_js()}
 </script>
@@ -7849,14 +7830,14 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* \u2500\u2500 Theme tokens (match main site) \u2500\u2500 */
-  body.theme-light {{
+  body.light {{
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
     --amber:#d97706; --orange:#ea580c;
   }}
-  body.theme-dark {{
+  :root {{
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -7939,7 +7920,7 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
                          margin-top:0.15rem; }}
 </style>
 </head>
-<body class="theme-dark">
+<body>
 {nav}
 
 <div class="container">
@@ -7983,12 +7964,9 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
 </div>
 
 <script>
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
-}}
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
 function _exportExpPage() {{
   var btn = document.getElementById('exp-export-btn');
@@ -8008,10 +7986,7 @@ function _exportExpPage() {{
     }});
 }}
 (function() {{
-  try {{
-    var t = localStorage.getItem('theme');
-    if (t === 'light' || t === 'dark') applyTheme(t);
-  }} catch(e) {{}}
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
 </script>
 </body>
@@ -8171,7 +8146,7 @@ def _validate_js(html_path: str, label: str) -> list[str]:
         for s in scripts:
             # Only check our custom scripts (Plotly inline scripts don't need this)
             if not any(kw in s for kw in ("showDetail", "togglePb", "_exportPanel",
-                                          "_rethemeCharts", "applyTheme", "_findTileForPanel")):
+                                          "_rethemeCharts", "toggleTheme", "_findTileForPanel")):
                 continue
             with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
                                              delete=False, encoding="utf-8") as tf:
@@ -8211,8 +8186,7 @@ def _post_build_audit(paths: dict) -> list[str]:
         ("theme-toggle",    "nav theme-toggle button — theme selection invisible to user"),
         ("localStorage",    "localStorage — theme preference won't persist across pages/sessions"),
         ("toggleTheme",     "toggleTheme() — clicking the toggle button does nothing"),
-        ("applyTheme",      "applyTheme() — theme cannot be programmatically applied"),
-        ("theme-dark",      "body class='theme-dark' default — FOUC flash on first load"),
+        ("body.light",      "body.light CSS rule — light mode has no styles, toggle is broken"),
         ("domtoimage",      "dom-to-image CDN <script> — PNG/PDF exports will fail silently"),
     ]
 

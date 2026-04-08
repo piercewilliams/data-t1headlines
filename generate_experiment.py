@@ -439,13 +439,13 @@ def render_report(
 <title>{title} · T1 Experiment</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
-  body.theme-light {{
+  body.light {{
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
   }}
-  body.theme-dark {{
+  :root {{
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -491,11 +491,11 @@ def render_report(
   .status-complete {{ background:#f0fdf4; color:#15803d; }}
   .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
   .status-pending  {{ background:var(--bg-muted); color:var(--text-muted); }}
-  body.theme-dark .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
-  body.theme-dark .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
+  .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
+  .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
 </style>
 </head>
-<body class="theme-dark">
+<body>
 {_build_nav("Experiments", 2)}
 <div class="container">
   <p class="eyebrow">Experiment · {spec.get('platform','').replace('_',' ').title()} · {spec.get('metric','').replace('_',' ').title()}</p>
@@ -537,17 +537,11 @@ def render_report(
 </div>
 <script>
 (function() {{
-  var stored = localStorage.getItem('theme') || 'dark';
-  applyTheme(stored);
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  localStorage.setItem('theme', t);
-}}
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
 </script>
 </body>
@@ -582,13 +576,13 @@ def update_experiment_index(specs):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>T1 Headline Analysis · Experiments</title>
 <style>
-  body.theme-light {{
+  body.light {{
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
   }}
-  body.theme-dark {{
+  :root {{
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -622,11 +616,11 @@ def update_experiment_index(specs):
   .status-complete {{ background:#f0fdf4; color:#15803d; }}
   .status-active   {{ background:#eff6ff; color:#1d4ed8; }}
   .status-pending  {{ background:var(--bg-muted); color:var(--text-muted); }}
-  body.theme-dark .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
-  body.theme-dark .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
+  .status-complete {{ background:rgba(22,163,74,0.15); color:#4ade80; }}
+  .status-active   {{ background:rgba(37,99,235,0.15); color:#60a5fa; }}
 </style>
 </head>
-<body class="theme-dark">
+<body>
 {_build_nav("Experiments", 1)}
 <div class="container">
 <h1>Experiments</h1>
@@ -637,17 +631,11 @@ def update_experiment_index(specs):
 </div>
 <script>
 (function() {{
-  var stored = localStorage.getItem('theme') || 'dark';
-  applyTheme(stored);
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 }})();
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0e' : '\U0001f319';
-  localStorage.setItem('theme', t);
-}}
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
 </script>
 </body>

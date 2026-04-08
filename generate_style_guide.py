@@ -416,15 +416,15 @@ def generate() -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>McClatchy Headline Style Guide</title>
 <style>
-  body.theme-light {{
-    --bg: #ffffff; --bg-muted: #f5f5f7; --text: #1d1d1f; --text-muted: #6e6e73;
-    --border: #d2d2d7; --surface: #f8fafc; --accent: #0071e3;
-    --nav-bg: rgba(255,255,255,0.88);
-  }}
-  body.theme-dark {{
+  :root {{
     --bg: #0f172a; --bg-muted: #1e293b; --text: #f1f5f9; --text-muted: #b0bec5;
     --border: #334155; --surface: #1e293b; --accent: #3b82f6;
     --nav-bg: rgba(15,23,42,0.88);
+  }}
+  body.light {{
+    --bg: #ffffff; --bg-muted: #f5f5f7; --text: #1d1d1f; --text-muted: #6e6e73;
+    --border: #d2d2d7; --surface: #f8fafc; --accent: #0071e3;
+    --nav-bg: rgba(255,255,255,0.88);
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -491,7 +491,7 @@ def generate() -> str:
   }}
 </style>
 </head>
-<body class="theme-dark">
+<body>
 {nav_html}
 <div class="page">
   <div class="header">
@@ -555,19 +555,13 @@ def generate() -> str:
 </div>
 
 <script>
-function applyTheme(t) {{
-  document.body.className = 'theme-' + t;
-  try {{ localStorage.setItem('theme', t); }} catch(e) {{}}
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '\u2600\ufe0f' : '\U0001f319';
-}}
+(function() {{
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+}})();
 function toggleTheme() {{
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try {{ localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); }} catch(e) {{}}
 }}
-window.addEventListener('DOMContentLoaded', function() {{
-  var stored = localStorage.getItem('theme') || 'dark';
-  applyTheme(stored);
-}});
 </script>
 </body>
 </html>"""

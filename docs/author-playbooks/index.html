@@ -11,13 +11,13 @@
 <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@3.7.2/dist/dom-to-image-more.min.js"></script>
 <style>
   /* ── Theme tokens ── */
-  body.theme-light {
+  body.light {
     --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
     --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
     --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
     --nav-bg:rgba(255,255,255,0.88);
   }
-  body.theme-dark {
+  :root {
     --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
     --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
     --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
@@ -75,9 +75,9 @@
   .conf-high { background: rgba(22,163,74,0.2);   color: #4ade80; }
   .conf-mod  { background: rgba(37,99,235,0.2);    color: #60a5fa; }
   .conf-dir  { background: rgba(100,116,139,0.15); color: #94a3b8; }
-  body.theme-light .conf-high { background: rgba(22,163,74,0.12); color: #15803d; }
-  body.theme-light .conf-mod  { background: rgba(37,99,235,0.12); color: #1d4ed8; }
-  body.theme-light .conf-dir  { background: rgba(100,116,139,0.10); color: #475569; }
+  body.light .conf-high { background: rgba(22,163,74,0.12); color: #15803d; }
+  body.light .conf-mod  { background: rgba(37,99,235,0.12); color: #1d4ed8; }
+  body.light .conf-dir  { background: rgba(100,116,139,0.10); color: #475569; }
   .tile-label  { display: block; font-size: 0.88rem; font-weight: 700; color: var(--text);
                   letter-spacing: 0.01em; margin-bottom: 0.5rem; }
   .tile-claim  { font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.55; }
@@ -113,9 +113,9 @@
   .lift-high { color: #4ade80; font-weight: 600; }
   .lift-pos  { color: #60a5fa; font-weight: 600; }
   .lift-neg  { color: #f87171; font-weight: 600; }
-  body.theme-light .lift-high { color: #16a34a; }
-  body.theme-light .lift-pos  { color: var(--accent); }
-  body.theme-light .lift-neg  { color: #dc2626; }
+  body.light .lift-high { color: #16a34a; }
+  body.light .lift-pos  { color: var(--accent); }
+  body.light .lift-neg  { color: #dc2626; }
 
   /* ── Export button ── */
   .export-btn-wrap { float: right; position: relative; margin: 0 0 10px 16px; }
@@ -133,7 +133,7 @@
   .export-dropdown button:hover { background: var(--bg-muted); }
 </style>
 </head>
-<body class="theme-dark">
+<body>
 <nav class="site-nav">
   <div class="nav-links"><a href="../">Current Analysis</a> <span class='nav-sep'>·</span> <a href="../playbook/">Editorial Playbooks</a> <span class='nav-sep'>·</span> <a href="../author-playbooks/" class="active">Author Playbooks</a> <span class='nav-sep'>·</span> <a href="../style-guide/">Style Guide</a> <span class='nav-sep'>·</span> <a href="../experiments/">Experiments</a> <span class='nav-sep'>·</span> <a href="../grader/">Headline Grader</a></div>
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9680;</button>
@@ -506,7 +506,7 @@ function togglePb(tile, id) {
     // page-load theme time because Plotly.relayout throws on display:none elements.
     setTimeout(function() {
       if (typeof _rethemeCharts === 'function') {
-        _rethemeCharts(document.body.classList.contains('theme-dark'));
+        _rethemeCharts(!document.body.classList.contains('light'));
       }
       panel.scrollIntoView({behavior:'smooth',block:'nearest'});
     }, 80);
@@ -622,7 +622,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
   // (Plotly.relayout throws on display:none elements). Now that this panel is
   // open, force a re-theme so the clone captures correct dark/light colors.
   if (typeof _rethemeCharts === 'function') {
-    _rethemeCharts(document.body.classList.contains('theme-dark'));
+    _rethemeCharts(!document.body.classList.contains('light'));
   }
 
   // Panels have no explicit background—getComputedStyle returns rgba(0,0,0,0).
@@ -630,7 +630,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var _rawBg = getComputedStyle(document.body).backgroundColor;
   var bg = (_rawBg && _rawBg !== 'rgba(0, 0, 0, 0)' && _rawBg !== 'transparent')
     ? _rawBg
-    : (document.body.classList.contains('theme-dark') ? '#0f172a' : '#ffffff');
+    : (!document.body.classList.contains('light') ? '#0f172a' : '#ffffff');
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
   // Wait 100 ms for Plotly to finish all async redraws before cloning.
@@ -763,17 +763,11 @@ function _exportPanel(panelEl, format, dropdownEl) {
 
 // ── Theme toggle ───────────────────────────────────────────
 (function() {
-  var stored; try { stored = localStorage.getItem('theme'); } catch(e) {}
-  applyTheme(stored || 'dark');
+  if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 })();
-function applyTheme(t) {
-  document.body.className = 'theme-' + t;
-  var btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = t === 'dark' ? '☀︎' : '🌙';
-  try { localStorage.setItem('theme', t); } catch(e) {}
-}
 function toggleTheme() {
-  applyTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+  document.body.classList.toggle('light');
+  try { localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark'); } catch(e) {}
 }
 
 /* ── Column header tooltips ───────────────────────────────────────────────── */
@@ -792,7 +786,7 @@ function toggleTheme() {
   document.body.appendChild(_tip);
 
   function _tipTheme() {
-    var dark = document.body.classList.contains('theme-dark');
+    var dark = !document.body.classList.contains('light');
     _tip.style.background = dark ? '#1e293b' : '#ffffff';
     _tip.style.color       = dark ? '#f1f5f9' : '#374151';
     _tip.style.border      = dark ? '1px solid #334155' : '1px solid #d1d5db';
