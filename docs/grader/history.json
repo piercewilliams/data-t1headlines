@@ -10,5 +10,11 @@
     "n": 60,
     "avg": 90,
     "top_issue": "Character count 80\u2013110"
+  },
+  {
+    "date": "2026-04-08",
+    "n": 64,
+    "avg": 93,
+    "top_issue": "Keyword present"
   }
 ]
