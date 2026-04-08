@@ -516,6 +516,7 @@ def _nav():
         ("Current Analysis",   "../"),
         ("Editorial Playbooks","../playbook/"),
         ("Author Playbooks",   "../author-playbooks/"),
+        ("Style Guide",        "../style-guide/"),
         ("Experiments",        "../experiments/"),
         ("Headline Grader",    ""),
     ]

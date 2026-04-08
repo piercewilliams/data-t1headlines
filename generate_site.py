@@ -650,9 +650,9 @@ _NAV_PAGES = [
     ("Current Analysis", ""),          # "" = root (docs/)
     ("Editorial Playbooks", "playbook"),
     ("Author Playbooks",    "author-playbooks"),
+    ("Style Guide",         "style-guide"),
     ("Experiments",         "experiments"),
     ("Headline Grader",     "grader"),
-    ("Style Guide",         "style-guide"),
 ]
 
 def _build_nav(active: str, depth: int, theme_toggle: bool = True) -> str:
@@ -1607,6 +1607,41 @@ for _f in FORMULA_LABELS:
     _val = _grp_feat.median() if len(_grp_feat) >= 3 else np.nan
     df_q2.loc[df_q2["formula"] == _f, "feat_med_views"] = _val
 df_q2["feat_views_lift"] = df_q2["feat_med_views"] / feat_avg_pct
+
+# ── Quote lede subtype analysis ────────────────────────────────────────────────
+# Breaks quoted_lede into four subtypes (official, expert, subject, other) and
+# compares each subtype's featuring rate vs. the overall baseline.
+# Only runs when there are ≥10 quoted_lede articles to analyse.
+_ql_subset = an[an["formula"] == "quoted_lede"].copy()
+df_ql_subtypes: "pd.DataFrame | None" = None
+if len(_ql_subset) >= 10:
+    _ql_subset["_ql_type"] = _ql_subset["Article"].apply(classify_quote_lede)
+    _ql_groups = []
+    for _qlt, _ql_grp in _ql_subset.groupby("_ql_type"):
+        _ql_feat_n   = int(_ql_grp["is_featured"].sum())
+        _ql_n        = len(_ql_grp)
+        _ql_feat_rate = _ql_grp["is_featured"].mean()
+        _ql_lift     = _ql_feat_rate / overall_feat_rate if overall_feat_rate > 0 else 1.0
+        _ql_other_feat = _tot_feat - _ql_feat_n
+        _ql_other_tot  = len(an) - _ql_n
+        _ql_ctg = np.array([[_ql_feat_n, max(_ql_n - _ql_feat_n, 0)],
+                             [_ql_other_feat, max(_ql_other_tot - _ql_other_feat, 0)]])
+        try:
+            _, _ql_p, _, _ = stats.chi2_contingency(_ql_ctg)
+        except (ValueError, ZeroDivisionError):
+            _ql_p = 1.0
+        # Within-featured median %ile for this subtype
+        _ql_feat_grp = feat_an[feat_an["Article"].apply(classify_quote_lede) == _qlt][VIEWS_METRIC]
+        _ql_within_feat_med = float(_ql_feat_grp.median()) if len(_ql_feat_grp) >= 3 else float("nan")
+        _ql_groups.append(dict(
+            ql_type=_qlt,
+            label=_QUOTE_LEDE_LABELS.get(_qlt, _qlt),
+            n=_ql_n, feat_n=_ql_feat_n,
+            feat_rate=_ql_feat_rate, lift=_ql_lift, p=_ql_p,
+            within_feat_med=_ql_within_feat_med,
+        ))
+    if _ql_groups:
+        df_ql_subtypes = pd.DataFrame(_ql_groups).sort_values("feat_rate", ascending=False)
 
 feat_at_col = "Avg. Active Time (in seconds)"
 _feat_at_an  = an[an["is_featured"]][feat_at_col].dropna()
@@ -3032,6 +3067,9 @@ _COL_TOOLTIPS: dict[str, str] = {
     "p_adj (bh-fdr)":                 "P-value after BH-FDR correction for testing multiple signals simultaneously; below 0.05 = statistically significant.",
     "sn baseline":                    "The median SmartNews percentile rank for the untagged baseline (direct declarative headlines) used as the comparison group.",
     "sn p-value":                     "P-value from Mann-Whitney U test comparing this formula to the untagged baseline on SmartNews.",
+    # Quote lede subtype analysis (Finding 1 drill-down)
+    "quote lede type":                "The speaker context identified after the closing quote mark: official/authority, expert/scientist, subject's own words, or third-party.",
+    "p (chi\u00b2)":                  "P-value from chi-square test comparing this quote lede subtype's featuring rate vs. all other articles. Uncorrected for multiple comparisons.",
     # Dual-platform headline pairs table (pb-dual playbook tile)
     "topic / content type":           "The editorial subject area or content vertical these headline examples apply to.",
     "apple news headline":            "Example headline optimized for Apple News featuring and organic reach on that platform.",
@@ -3482,6 +3520,32 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
                     f'working and where a structured formula could be applied next.</p>\n'
                 )
 
+        # ── Vertical / trendhunter context ────────────────────────
+        _auth_vertical   = AUTHOR_VERTICAL.get(_auth, "")
+        _is_trendhunter  = _auth_vertical in TRENDHUNTER_VERTICALS
+        # Look up per-vertical match count for the 0% featuring note
+        _vert_match_n    = 0
+        if _is_trendhunter and HAS_VERTICAL_DATA:
+            try:
+                _vr = df_vertical_perf[df_vertical_perf["vertical_group"] == _auth_vertical]
+                _vert_match_n = int(_vr["n"].iloc[0]) if len(_vr) > 0 else 0
+            except Exception:
+                _vert_match_n = 0
+        _trendhunter_note_html = ""
+        if _is_trendhunter:
+            _n_note = (f", n={_vert_match_n} matched articles" if _vert_match_n > 0
+                       else " (small sample — more data expected as ANP monthly drops accumulate)")
+            _prelim = " — <em>preliminary, n&lt;30</em>" if _vert_match_n < 30 else ""
+            _trendhunter_note_html = (
+                f'  <div class="callout" style="margin-top:0.75rem;background:rgba(59,130,246,0.08);'
+                f'border-left-color:#3b82f6">\n'
+                f'    <strong>Vertical: {html_module.escape(_auth_vertical)}{_prelim}</strong> — '
+                f'This vertical currently earns 0% featuring rate on Apple News Publisher data '
+                f'(Jan–Feb 2026{_n_note}). Featuring is not a lever for this content. '
+                f'Optimize for organic Apple News views and SmartNews distribution instead.\n'
+                f'  </div>\n'
+            )
+
         # ── Assemble tile + detail HTML ────────────────────────────
         _ap_id = f"ap-{_ai}"
 
@@ -3534,6 +3598,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             f'{_guidance_li}\n'
             f'  </ul>\n'
             f'  </div>\n'
+            f'{_trendhunter_note_html}'
             f'  <h3 class="rh">Performance overview</h3>\n'
             f'  <p class="detail-sub">{_n} matched articles across {_n_plats} platform(s) \u00b7 '
             f'{_med:.0%} median cohort percentile \u00b7 {_delta_pts:.1f} pts {_above_below} team median '
@@ -5503,8 +5568,20 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t2}</tbody>
         </table>
         <p class="callout-inline"><strong>Read this table as:</strong> "Featured lift" is how much more often Apple selects this formula for Featured. A high rate means Apple's algorithm rewards it — not that it organically outperforms.</p>
-        <h3>Featured placement: reach vs. reading depth</h3>
-        <p>Featured articles average {_feat_at_an.median():.0f} seconds of active reading time versus {_nfeat_at_an.median():.0f} seconds for non-Featured. The difference is statistically significant (Mann-Whitney p&lt;0.0001). Apple's editorial promotion drives discovery; readers who find an article because the algorithm surfaced it are slightly less engaged than readers who sought it out.</p>
+        {"" if df_ql_subtypes is None else f"""<h3>Quote lede breakdown: which type gets featured?</h3>
+        <div class="callout"><strong>Action:</strong> Official/authority quotes (police, prosecutors, government) are the highest-featuring subtype of quoted-lede headlines on Apple News. Use them when you have a credible sourced quote from an official — they get Featured at a higher rate than the quoted-lede average. Expert quotes (scientists, researchers) also index above baseline. First-person subject quotes perform below the quoted-lede average for featuring.</div>
+        <table class="findings">
+          <thead><tr><th>Quote lede type</th><th>n</th><th>Featured rate</th><th>Lift vs. baseline</th><th>p (chi²)</th><th>Within-Featured median %ile</th></tr></thead>
+          <tbody>{"".join(
+            f"<tr><td>{html_module.escape(str(r['label']))}</td><td>{int(r['n'])}</td>"
+            f"<td>{{r['feat_rate']:.0%}}</td>"
+            f"<td><span class=\"{'lift-high' if r['lift']>=1.5 else ('lift-pos' if r['lift']>=0.9 else 'lift-neg')}\">{{r['lift']:.2f}}\u00d7</span></td>"
+            f"<td>{{'p<0.05' if r['p']<0.05 else ('p<0.10' if r['p']<0.10 else f'p={{r[\"p\"]:.2f}}' )}}</td>"
+            f"<td>{{r['within_feat_med']:.0%}}</td></tr>"
+            for _, r in df_ql_subtypes.iterrows()
+          )}</tbody>
+        </table>
+        <p class="caveat">Subtypes classified by keywords after the closing quote mark. n={len(_ql_subset)} total quoted-lede articles. p-values are uncorrected for this exploratory breakdown. Interpret as directional guidance, not confirmed findings.</p>"""}
         <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
       </div><!-- /#detail-featured -->
 
@@ -5570,6 +5647,11 @@ html = f"""<!DOCTYPE html>
         <div class="callout">
           <strong>Key finding:</strong> Formula choice affects featuring odds — but only within topics where featuring is possible. <strong>Crime + "Here's" = 16% featuring (n=89); Business + "Here's" = 14% (n=72).</strong> Sports locks at 0% regardless of formula — the topic itself opts you out. Weather is a special case: 70%+ featuring rates reflect United Robots automated content, not editorial headline choices, and should not be used as a benchmark for editorial guidance.
         </div>
+        <h3>Editorial guidance by topic</h3>
+        <p><strong>Crime:</strong> Use "Here's" — 16% featuring rate (n=89), vs. Question at 13% (n=94). Both are viable; "Here's" has a modest edge and is the recommended default.<br>
+        <strong>Business:</strong> Use "Here's what [X] means for [community]" — 14% featuring rate (n=72), the strongest formula with adequate sample size.<br>
+        <strong>Sports:</strong> No formula affects featuring odds — Number lead 0% (n=31), What to Know 0% (n=22), Here's 11.5% (n=52). Topic overrides formula. Optimize for organic SmartNews distribution instead (see Finding 3).<br>
+        <strong>Weather:</strong> Featuring rates (53–71%) reflect United Robots automated content, not editorial choices. Exclude from any editorial formula guidance.</p>
         <p>Pooled Apple News 2025 + ANP 2026 (n&gt;15,000 articles). For editorial content (non-weather), formula choice has a real but moderate effect on featuring odds — the interaction is topic-conditional, not a universal signal. The overall featuring lift attributed to "Here's" in other analyses is substantially inflated by weather content pulling the average upward.</p>
         <div class="chart-wrap">{c_fa}</div>
         <table class="findings">
@@ -5578,11 +5660,6 @@ html = f"""<!DOCTYPE html>
             {"".join(f'<tr><td>{html_module.escape(str(r["formula"]))}</td><td>{html_module.escape(str(r["topic"]))}</td><td>{int(r["n"])}</td><td><span class="{"lift-high" if r["feat_pct"] >= 0.5 else ("lift-pos" if r["feat_pct"] >= 0.15 else "lift-neg")}">{r["feat_pct"]:.0%}</span></td></tr>' for _, r in df_fa.sort_values("feat_pct", ascending=False).iterrows())}
           </tbody>
         </table>
-        <h3>Editorial guidance by topic</h3>
-        <p><strong>Crime:</strong> "Here's" (16%, n=89) outperforms Question (13%, n=94). Both are viable; "Here's" has a modest edge.<br>
-        <strong>Business:</strong> "Here's" (14%, n=72) is the strongest formula with adequate sample size.<br>
-        <strong>Sports:</strong> No formula works — Number lead (0%, n=31), What to Know (0%, n=22), Here's (11.5%, n=52). Topic opts you out of featuring; optimize for organic SmartNews distribution instead (see Finding 3).<br>
-        <strong>Weather:</strong> High featuring rates (53–71%) reflect United Robots automated content. Not applicable to editorial headline decisions.</p>
         <p class="caveat">Pooled Apple News 2025 full year + ANP 2026 YTD article-level data (n&gt;15,000). Formula classifier unvalidated; topic classifier unvalidated. Featuring rate = share of articles in each formula × topic cell selected for Apple News Local News Featured slot. Cells with n&lt;15 excluded. Kruskal-Wallis across all combinations significant (p&lt;0.05). Interaction interpretation: observational — causal direction unconfirmed. Weather rows included for completeness; exclude from editorial formula guidance.</p>
       </div><!-- /#detail-formula-topic -->
 
@@ -6447,9 +6524,9 @@ playbook_html = f"""<!DOCTYPE html>
       </tr>
       <tr>
         <td><strong>Wellness / Mind-Body / Everyday Living</strong></td>
-        <td>Number lead or service-journalism question: "How to…"<br><span style="font-size:.8em;color:#94a3b8">Trendhunter median: 159 views (Everyday Living), 174 (Mind-Body)</span></td>
-        <td>Number lead or direct declarative; avoid "What to know"<br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula (0.37 pct_rank, p=3.0e-6)</span></td>
-        <td>0% featuring across this vertical — optimize for organic. Best observed: product/list format (shampoo for thinning hair, home décor)</td>
+        <td>Number lead or direct declarative — no vertical-specific formula signal yet<br><span style="font-size:.8em;color:#94a3b8">n&lt;30 per vertical (preliminary only); guidelines inferred from platform-wide rules</span></td>
+        <td>Number lead or direct declarative; <strong>avoid "What to know"</strong><br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula platform-wide (0.37 pct_rank, p=3.0e-6, n=213)</span></td>
+        <td>0% featuring across all trendhunter verticals (n=22 matched, Jan–Feb 2026) — featuring is not a lever. Optimize for organic Apple News views. Best observed format: product/list structure ("10 things…", "How to…")</td>
       </tr>
     </tbody>
   </table>
@@ -6662,11 +6739,13 @@ def _vertical_perf_section() -> str:
 
     rows_html = ""
     for _, r in df_vertical_perf.iterrows():
-        top_h = html_module.escape(str(r.get("top_headline", "")))[:80]
+        top_h   = html_module.escape(str(r.get("top_headline", "")))[:80]
+        _vn     = int(r['n'])
+        _prelim = " <em style='font-size:.75em;color:#f59e0b'>(preliminary, n&lt;30)</em>" if _vn < 30 else ""
         feat_str = f"{r['feat_rate']:.0%}"
         rows_html += (
-            f"<tr><td><strong>{html_module.escape(str(r['vertical_group']))}</strong></td>"
-            f"<td>{int(r['n'])}</td>"
+            f"<tr><td><strong>{html_module.escape(str(r['vertical_group']))}</strong>{_prelim}</td>"
+            f"<td>{_vn}</td>"
             f"<td>{r['med_views']:,.0f}</td>"
             f"<td>{r['max_views']:,.0f}</td>"
             f"<td>{feat_str}</td>"
