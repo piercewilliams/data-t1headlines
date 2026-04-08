@@ -23,8 +23,8 @@ jobs:
 
       - name: Write service account JSON
         env:
-          SA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-        run: echo "$SA_JSON" > /tmp/sa.json
+          SA_JSON_B64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: echo "$SA_JSON_B64" | base64 -d > /tmp/sa.json
 
       - name: Run grader
         env:
