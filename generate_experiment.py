@@ -109,7 +109,9 @@ _NAV_PAGES = [
     ("Current Analysis",   ""),
     ("Editorial Playbooks","playbook"),
     ("Author Playbooks",   "author-playbooks"),
+    ("Style Guide",        "style-guide"),
     ("Experiments",        "experiments"),
+    ("Headline Grader",    "grader"),
 ]
 
 def _build_nav(active: str, depth: int) -> str:
