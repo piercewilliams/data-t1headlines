@@ -373,7 +373,7 @@ def _rules_html(rules: list) -> str:
     conf_colors = {
         "Confirmed":   "#16a34a",
         "Directional": "#f59e0b",
-        "Setup":       "#3b82f6",
+        "Setup":       "#7c9df7",
     }
     conf_symbols = {
         "Confirmed":   "\u2713 Confirmed",
@@ -417,18 +417,18 @@ def generate() -> str:
 <title>McClatchy Headline Style Guide</title>
 <style>
   :root {{
-    --bg: #0f172a; --bg-muted: #1e293b; --text: #f1f5f9; --text-muted: #b0bec5;
-    --border: #334155; --surface: #1e293b; --accent: #3b82f6;
-    --nav-bg: rgba(15,23,42,0.88);
+    --bg: #0f1117; --bg-muted: #1a1d27; --text: #e8eaf6; --text-muted: #8b90a0;
+    --border: #2e3350; --surface: #1a1d27; --accent: #7c9df7;
+    --nav-bg: #1a1d27;
   }}
   body.light {{
-    --bg: #ffffff; --bg-muted: #f5f5f7; --text: #1d1d1f; --text-muted: #6e6e73;
-    --border: #d2d2d7; --surface: #f8fafc; --accent: #0071e3;
+    --bg: #f4f6fb; --bg-muted: #ffffff; --text: #1a1d27; --text-muted: #5a6070;
+    --border: #dde1f0; --surface: #f8fafc; --accent: #3d5af1;
     --nav-bg: rgba(255,255,255,0.88);
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          background: var(--bg); color: var(--text); line-height: 1.5; }}
+          background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }}
 
   /* ── Nav (matches grader site-nav style) ── */
   .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
@@ -515,7 +515,7 @@ def generate() -> str:
   <div class="legend">
     <span><span class="dot" style="background:#16a34a"></span> &#x2713; Confirmed (p&lt;0.05, sufficient n)</span>
     <span><span class="dot" style="background:#f59e0b"></span> &rarr; Directional (p&lt;0.10 or n-limited)</span>
-    <span><span class="dot" style="background:#3b82f6"></span> &#x2691; Setup (structural / configuration guidance)</span>
+    <span><span class="dot" style="background:#7c9df7"></span> &#x2691; Setup (structural / configuration guidance)</span>
   </div>
 
   <div class="platform-section">

@@ -12,21 +12,21 @@
 <style>
   /* ── Theme tokens ── */
   body.light {
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#f0f0f0;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
   }
   :root {
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
   }
 
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }
   .site-nav { background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }
   .nav-links { display:flex; align-items:center; }
@@ -57,7 +57,7 @@
                  letter-spacing:0.07em; padding:2px 6px; border-radius:3px; margin-bottom:8px; }
   .conf-high { background:rgba(22,163,74,0.2); color:#4ade80; }
   .conf-mod  { background:rgba(37,99,235,0.2);  color:#60a5fa; }
-  .conf-dir  { background:rgba(100,116,139,0.15); color:#94a3b8; }
+  .conf-dir  { background:rgba(100,116,139,0.15); color:#8b90a0; }
   body.light .conf-high { background:rgba(22,163,74,0.12); color:#15803d; }
   body.light .conf-mod  { background:rgba(37,99,235,0.12); color:#1d4ed8; }
   body.light .conf-dir  { background:rgba(100,116,139,0.10); color:#475569; }
@@ -255,38 +255,38 @@
     <tbody>
       <tr>
         <td><strong>Crime / Breaking</strong></td>
-        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#94a3b8">16% featuring rate (n=89)</span></td>
-        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#94a3b8">Avoid "Here's"—hurts SN rank when used broadly</span></td>
+        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#8b90a0">16% featuring rate (n=89)</span></td>
+        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#8b90a0">Avoid "Here's"—hurts SN rank when used broadly</span></td>
         <td>Attribution language ("says", "told") lifts notification CTR 1.18× for crime stories</td>
       </tr>
       <tr>
         <td><strong>Business / Economy</strong></td>
-        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#94a3b8">14% featuring rate (n=72)</span></td>
-        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#94a3b8">Avoid individual-person framing; situation stories feature better</span></td>
+        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#8b90a0">14% featuring rate (n=72)</span></td>
+        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#8b90a0">Avoid individual-person framing; situation stories feature better</span></td>
         <td>Business + "Here's" is the strongest editorially writable non-weather formula</td>
       </tr>
       <tr>
         <td><strong>Sports</strong></td>
-        <td>Any formula—0–11.5% featuring regardless<br><span style="font-size:.8em;color:#94a3b8">Topic opts you out of Apple News featuring</span></td>
-        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#94a3b8">Number leads are the only SN formula trending upward</span></td>
+        <td>Any formula—0–11.5% featuring regardless<br><span style="font-size:.8em;color:#8b90a0">Topic opts you out of Apple News featuring</span></td>
+        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#8b90a0">Number leads are the only SN formula trending upward</span></td>
         <td>SmartNews is the better channel for sports. Apple News: feature potential only for national/marquee stories</td>
       </tr>
       <tr>
         <td><strong>Nature / Wildlife / Science</strong></td>
-        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#94a3b8">General/Discovery ceiling: 53K views on snake/new species story</span></td>
-        <td>Same framing works—mystery + scientific validation<br><span style="font-size:.8em;color:#94a3b8">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
+        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#8b90a0">General/Discovery ceiling: 53K views on snake/new species story</span></td>
+        <td>Same framing works—mystery + scientific validation<br><span style="font-size:.8em;color:#8b90a0">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
         <td>Highest-ceiling content type for General/Discovery vertical. "Rare", "never seen", "scientists found" are proven hooks</td>
       </tr>
       <tr>
         <td><strong>Entertainment / Celebrity</strong></td>
-        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#94a3b8">Notification: possessive lifts CTR for celebrity content</span></td>
-        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#94a3b8">Questions hurt SN performance (p=3.4e-6)</span></td>
+        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#8b90a0">Notification: possessive lifts CTR for celebrity content</span></td>
+        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#8b90a0">Questions hurt SN performance (p=3.4e-6)</span></td>
         <td>Serial/escalating stories with named anchor are highest-CTR notification type</td>
       </tr>
       <tr>
         <td><strong>Wellness / Mind-Body / Everyday Living</strong></td>
-        <td>Number lead or direct declarative—no vertical-specific formula signal yet<br><span style="font-size:.8em;color:#94a3b8">n&lt;30 per vertical (preliminary only); guidelines inferred from platform-wide rules</span></td>
-        <td>Number lead or direct declarative; <strong>avoid "What to know"</strong><br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula platform-wide (0.37 pct_rank, p=3.0e-6, n=213)</span></td>
+        <td>Number lead or direct declarative—no vertical-specific formula signal yet<br><span style="font-size:.8em;color:#8b90a0">n&lt;30 per vertical (preliminary only); guidelines inferred from platform-wide rules</span></td>
+        <td>Number lead or direct declarative; <strong>avoid "What to know"</strong><br><span style="font-size:.8em;color:#8b90a0">WTK is the worst SN formula platform-wide (0.37 pct_rank, p=3.0e-6, n=213)</span></td>
         <td>0% featuring across all trendhunter verticals (n=22 matched, Jan–Feb 2026)—featuring is not a lever. Optimize for organic Apple News views. Best observed format: product/list structure ("10 things…", "How to…")</td>
       </tr>
     </tbody>
@@ -482,8 +482,8 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var date  = new Date().toISOString().slice(0, 10);
 
   var _toast2 = document.createElement('div');
-  _toast2.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
-    'border:1px solid #334155;color:#94a3b8;padding:12px 20px;border-radius:10px;font-size:13px;' +
+  _toast2.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1a1d27;' +
+    'border:1px solid #2e3350;color:#8b90a0;padding:12px 20px;border-radius:10px;font-size:13px;' +
     'font-family:inherit;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:opacity 0.3s;';
   _toast2.textContent = (format === 'pdf' ? 'Generating PDF' : 'Generating PNG') + '…';
   document.body.appendChild(_toast2);
@@ -521,7 +521,7 @@ function _exportPanel(panelEl, format, dropdownEl) {
   var _rawBg = getComputedStyle(document.body).backgroundColor;
   var bg = (_rawBg && _rawBg !== 'rgba(0, 0, 0, 0)' && _rawBg !== 'transparent')
     ? _rawBg
-    : (!document.body.classList.contains('light') ? '#0f172a' : '#ffffff');
+    : (!document.body.classList.contains('light') ? '#0f1117' : '#ffffff');
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
   // Wait 100 ms for Plotly to finish all async redraws before cloning.
@@ -682,9 +682,9 @@ function toggleTheme() {
 
   function _tipTheme() {
     var dark = !document.body.classList.contains('light');
-    _tip.style.background = dark ? '#1e293b' : '#ffffff';
-    _tip.style.color       = dark ? '#f1f5f9' : '#374151';
-    _tip.style.border      = dark ? '1px solid #334155' : '1px solid #d1d5db';
+    _tip.style.background = dark ? '#1a1d27' : '#ffffff';
+    _tip.style.color       = dark ? '#e8eaf6' : '#374151';
+    _tip.style.border      = dark ? '1px solid #2e3350' : '1px solid #d1d5db';
     _tip.style.boxShadow   = dark ? '0 4px 14px rgba(0,0,0,0.5)' : '0 4px 14px rgba(0,0,0,0.12)';
   }
 

@@ -124,7 +124,7 @@ _TRACKER_EXCLUDE_DOMAINS = {
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
 # ── Palette ───────────────────────────────────────────────────────────────────
-NAVY   = "#0f172a"
+NAVY   = "#0f1117"
 BLUE   = "#2563eb"
 GREEN  = "#16a34a"
 RED    = "#dc2626"
@@ -143,7 +143,7 @@ if THEME == "dark":
     GREEN = "#4ade80"   # neon green
     RED   = "#f87171"   # coral pink
     AMBER = "#fb923c"   # vivid orange
-    GRAY  = "#94a3b8"   # light slate (readable on dark)
+    GRAY  = "#8b90a0"   # light slate (readable on dark)
 
 # ── Theme system ──────────────────────────────────────────────────────────────
 THEME_LIGHT = dict(
@@ -157,10 +157,10 @@ THEME_LIGHT = dict(
 THEME_DARK = dict(
     paper_bg   = "rgba(0,0,0,0)",  # transparent — inherits CSS --bg-card behind the chart
     plot_bg    = "rgba(0,0,0,0)",  # transparent — no white rectangle in dark mode
-    text       = "#f1f5f9",        # slate-100
-    text_muted = "#94a3b8",        # slate-400
-    grid       = "#334155",        # slate-700
-    baseline   = "#64748b",        # slate-500 (same as GRAY)
+    text       = "#e8eaf6",        # grader --text
+    text_muted = "#8b90a0",        # grader --muted
+    grid       = "#2e3350",        # grader --border
+    baseline   = "#8b90a0",        # grader --muted
 )
 
 def get_theme(theme: str = "light") -> dict:
@@ -234,7 +234,7 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   class — which fails inside hardcoded-dark panels when body is theme-light. Rule:
 #   NEVER use CSS variables for table background or text colors. Always write:
 #       body.light table.findings { background: #ffffff; }
-#        table.findings { background: #1e293b; }
+#        table.findings { background: #1a1d27; }
 #   This makes table theming unambiguous regardless of surrounding panel context.
 #
 # LIFT/STATUS COLORS — always use .lift-high/.lift-pos/.lift-neg CSS classes:
@@ -243,8 +243,8 @@ def make_layout(theme: str = "light", *, height=None, margin=None, title=None) -
 #   .lift-* classes are defined with body.light overrides in the main CSS block.
 #   For semantic status colors (tags) that intentionally stay fixed, use .tag-* classes.
 #
-# ACCENT COLOR — always use var(--accent), never hardcode #60a5fa or #0071e3:
-#   --accent resolves to #0071e3 (light) or #3b82f6 (dark). Sort icon highlights,
+# ACCENT COLOR — always use var(--accent), never hardcode #60a5fa or #3d5af1:
+#   --accent resolves to #3d5af1 (light) or #7c9df7 (dark). Sort icon highlights,
 #   active borders, link colors — all must use var(--accent) so they adapt to theme.
 #   Hardcoded blues silently stop adapting when the user switches modes.
 #
@@ -766,8 +766,8 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var date  = new Date().toISOString().slice(0, 10);
 
   var _toast{s} = document.createElement('div');
-  _toast{s}.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1e293b;' +
-    'border:1px solid #334155;color:#94a3b8;padding:12px 20px;border-radius:10px;font-size:13px;' +
+  _toast{s}.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;background:#1a1d27;' +
+    'border:1px solid #2e3350;color:#8b90a0;padding:12px 20px;border-radius:10px;font-size:13px;' +
     'font-family:inherit;box-shadow:0 8px 24px rgba(0,0,0,0.5);transition:opacity 0.3s;';
   _toast{s}.textContent = (format === 'pdf' ? 'Generating PDF' : 'Generating PNG') + '\u2026';
   document.body.appendChild(_toast{s});
@@ -798,7 +798,7 @@ function _exportPanel(panelEl, format, dropdownEl) {{
   var _rawBg = getComputedStyle(document.body).backgroundColor;
   var bg = (_rawBg && _rawBg !== 'rgba(0, 0, 0, 0)' && _rawBg !== 'transparent')
     ? _rawBg
-    : (!document.body.classList.contains('light') ? '#0f172a' : '#ffffff');
+    : (!document.body.classList.contains('light') ? '#0f1117' : '#ffffff');
   var containerId = format === 'pdf' ? '_exp_print_src' : '_exp_png';
 
   // Wait 100 ms for Plotly to finish all async redraws before cloning.
@@ -3096,9 +3096,9 @@ def _make_col_tooltip_js() -> str:
 
   function _tipTheme() {{
     var dark = !document.body.classList.contains('light');
-    _tip.style.background = dark ? '#1e293b' : '#ffffff';
-    _tip.style.color       = dark ? '#f1f5f9' : '#374151';
-    _tip.style.border      = dark ? '1px solid #334155' : '1px solid #d1d5db';
+    _tip.style.background = dark ? '#1a1d27' : '#ffffff';
+    _tip.style.color       = dark ? '#e8eaf6' : '#374151';
+    _tip.style.border      = dark ? '1px solid #2e3350' : '1px solid #d1d5db';
     _tip.style.boxShadow   = dark ? '0 4px 14px rgba(0,0,0,0.5)' : '0 4px 14px rgba(0,0,0,0.12)';
   }}
 
@@ -3527,7 +3527,7 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
             _prelim = " — <em>preliminary, n&lt;30</em>" if _vert_match_n < 30 else ""
             _trendhunter_note_html = (
                 f'  <div class="callout" style="margin-top:0.75rem;background:rgba(59,130,246,0.08);'
-                f'border-left-color:#3b82f6">\n'
+                f'border-left-color:#7c9df7">\n'
                 f'    <strong>Vertical: {html_module.escape(_auth_vertical)}{_prelim}</strong> — '
                 f'This vertical currently earns 0% featuring rate on Apple News Publisher data '
                 f'(Jan–Feb 2026{_n_note}). Featuring is not a lever for this content. '
@@ -4199,7 +4199,7 @@ def _yoy_table() -> str:
     for _, r in df_yoy.iterrows():
         if r["suppressed"]:
             # Show suppressed rows with caveat (n<10 in 2025 = unreliable)
-            html_out += (f"<tr style='color:#94a3b8'>"
+            html_out += (f"<tr style='color:#8b90a0'>"
                          f"<td>{r['label']} <em style='font-size:0.85em'>(n={int(r['n_2025'])} in 2025 — too few to compare)</em></td>"
                          f"<td colspan='4' style='text-align:center'>—</td></tr>\n")
             continue
@@ -4229,7 +4229,7 @@ def _periods_table() -> str:
         cells = ""
         for p in _all_periods:
             lv, nv = _cell(p)
-            cells += f"<td>{lv}</td><td style='color:#94a3b8'>(n={nv})</td>"
+            cells += f"<td>{lv}</td><td style='color:#8b90a0'>(n={nv})</td>"
         html_out += f"<tr><td>{label}</td>{cells}</tr>\n"
     return html_out
 
@@ -5251,30 +5251,30 @@ html = f"""<!DOCTYPE html>
 <style>
   /* ── Theme tokens ── */
   body.light {{
-    --bg:           #ffffff;
+    --bg:           #f4f6fb;
     --bg-card:      #ffffff;
-    --bg-muted:     #f5f5f7;
+    --bg-muted:     #ffffff;
     --bg-subtle:    #f0f0f0;
-    --text:         #1d1d1f;
+    --text:         #1a1d27;
     --text-secondary: #424245;
-    --text-muted:   #6e6e73;
-    --border:       #d2d2d7;
+    --text-muted:   #5a6070;
+    --border:       #dde1f0;
     --border-subtle:#f0f0f0;
-    --accent:       #0071e3;
+    --accent:       #3d5af1;
     --nav-bg:       rgba(255,255,255,0.88);
   }}
   :root {{
-    --bg:           #0f172a;
-    --bg-card:      #1e293b;
-    --bg-muted:     #1e293b;
-    --bg-subtle:    #334155;
-    --text:         #f1f5f9;
+    --bg:           #0f1117;
+    --bg-card:      #1a1d27;
+    --bg-muted:     #1a1d27;
+    --bg-subtle:    #2e3350;
+    --text:         #e8eaf6;
     --text-secondary: #cbd5e1;
     --text-muted:   #b0bec5;
-    --border:       #334155;
-    --border-subtle:#1e293b;
-    --accent:       #3b82f6;
-    --nav-bg:       rgba(15,23,42,0.88);
+    --border:       #2e3350;
+    --border-subtle:#1a1d27;
+    --accent:       #7c9df7;
+    --nav-bg:       #1a1d27;
   }}
 
   /* ── Reset ── */
@@ -5345,16 +5345,16 @@ html = f"""<!DOCTYPE html>
   table.findings tr:last-child td {{ border-bottom:none; }}
   /* Light theme table colours */
   body.light table.findings {{ background:#ffffff; }}
-  body.light table.findings th {{ background:#f5f5f7; color:#6e6e73; border-bottom:1px solid #d2d2d7; }}
+  body.light table.findings th {{ background:#f5f5f7; color:#5a6070; border-bottom:1px solid #dde1f0; }}
   body.light table.findings td {{ color:#424245; border-bottom:1px solid #f0f0f0; }}
   body.light table.findings tr:hover td {{ background:#f0f0f0; }}
-  body.light .table-wrap {{ box-shadow:0 0 0 1px #d2d2d7,0 1px 3px rgba(0,0,0,0.08); }}
+  body.light .table-wrap {{ box-shadow:0 0 0 1px #dde1f0,0 1px 3px rgba(0,0,0,0.08); }}
   /* Dark theme table colours — explicit so they are never ambiguous */
-  table.findings {{ background:#1e293b; }}
-  table.findings th {{ background:#0f172a; color:#94a3b8; border-bottom:1px solid #334155; }}
-  table.findings td {{ color:#cbd5e1; border-bottom:1px solid #0f172a; }}
+  table.findings {{ background:#1a1d27; }}
+  table.findings th {{ background:#0f1117; color:#8b90a0; border-bottom:1px solid #2e3350; }}
+  table.findings td {{ color:#cbd5e1; border-bottom:1px solid #0f1117; }}
   table.findings tr:hover td {{ background:#253352; }}
-  .table-wrap {{ box-shadow:0 0 0 1px #334155,0 1px 3px rgba(0,0,0,0.3); }}
+  .table-wrap {{ box-shadow:0 0 0 1px #2e3350,0 1px 3px rgba(0,0,0,0.3); }}
 
   /* ── Tags (semantic status colors stay fixed) ── */
   .tag {{ display: inline-block; font-size: 10px; font-weight: 600; border-radius: 4px; padding: 2px 6px; margin-right: 6px; }}
@@ -5400,7 +5400,7 @@ html = f"""<!DOCTYPE html>
 
   /* ── Sortable tables ── */
   table thead th {{ cursor: pointer; user-select: none; white-space: nowrap; }}
-  table thead th:hover {{ color: var(--text-primary, #f1f5f9); }}
+  table thead th:hover {{ color: var(--text-primary, #e8eaf6); }}
   .sort-icon {{ opacity: 0.4; font-size: 0.75em; margin-left: 4px; font-style: normal; }}
   table thead th[data-sort] .sort-icon {{ opacity: 1; color: var(--accent); }}
 
@@ -5620,7 +5620,7 @@ html = f"""<!DOCTYPE html>
               <td><span class="lift-pos">1.18×</span></td><td>59</td>
               <td>p=0.004 **</td><td>p=0.020 *</td>
             </tr>
-            <tr style="color:#94a3b8">
+            <tr style="color:#8b90a0">
               <td colspan="6"><em>All other signals tested (questions, urgency words, local geo-anchor, superlatives, named person lead, money amounts, opinion flags, possessives): not significant after FDR correction.</em></td>
             </tr>
           </tbody>
@@ -5857,7 +5857,7 @@ html = f"""<!DOCTYPE html>
    properties (text/grid colors) and swaps trace colors neon ↔ normal.
    Built as function declarations so they are hoisted above the IIFE below. */
 
-var _NEON_COLORS  = ['#60a5fa','#4ade80','#f87171','#fb923c','#94a3b8'];
+var _NEON_COLORS  = ['#60a5fa','#4ade80','#f87171','#fb923c','#8b90a0'];
 var _NORM_COLORS  = ['#2563eb','#16a34a','#dc2626','#f59e0b','#64748b'];
 
 function _hexFromColor(c) {{
@@ -5888,8 +5888,8 @@ function _remapTraceColor(c, toDark) {{
 
 function _rethemeCharts(isDark) {{
   if (typeof Plotly === 'undefined') return;
-  var text  = isDark ? '#f1f5f9' : '#374151';
-  var grid  = isDark ? '#334155' : '#e2e8f0';
+  var text  = isDark ? '#e8eaf6' : '#374151';
+  var grid  = isDark ? '#2e3350' : '#e2e8f0';
   var zero  = isDark ? '#64748b' : '#9ca3af';
   document.querySelectorAll('.js-plotly-plot').forEach(function(div) {{
     try {{
@@ -6285,21 +6285,21 @@ playbook_html = f"""<!DOCTYPE html>
 <style>
   /* ── Theme tokens ── */
   body.light {{
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#f0f0f0;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
   }}
   :root {{
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
   }}
 
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
   .nav-links {{ display:flex; align-items:center; }}
@@ -6330,7 +6330,7 @@ playbook_html = f"""<!DOCTYPE html>
                  letter-spacing:0.07em; padding:2px 6px; border-radius:3px; margin-bottom:8px; }}
   .conf-high {{ background:rgba(22,163,74,0.2); color:#4ade80; }}
   .conf-mod  {{ background:rgba(37,99,235,0.2);  color:#60a5fa; }}
-  .conf-dir  {{ background:rgba(100,116,139,0.15); color:#94a3b8; }}
+  .conf-dir  {{ background:rgba(100,116,139,0.15); color:#8b90a0; }}
   body.light .conf-high {{ background:rgba(22,163,74,0.12); color:#15803d; }}
   body.light .conf-mod  {{ background:rgba(37,99,235,0.12); color:#1d4ed8; }}
   body.light .conf-dir  {{ background:rgba(100,116,139,0.10); color:#475569; }}
@@ -6468,38 +6468,38 @@ playbook_html = f"""<!DOCTYPE html>
     <tbody>
       <tr>
         <td><strong>Crime / Breaking</strong></td>
-        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#94a3b8">16% featuring rate (n=89)</span></td>
-        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#94a3b8">Avoid "Here's" — hurts SN rank when used broadly</span></td>
+        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#8b90a0">16% featuring rate (n=89)</span></td>
+        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#8b90a0">Avoid "Here's" — hurts SN rank when used broadly</span></td>
         <td>Attribution language ("says", "told") lifts notification CTR 1.18× for crime stories</td>
       </tr>
       <tr>
         <td><strong>Business / Economy</strong></td>
-        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#94a3b8">14% featuring rate (n=72)</span></td>
-        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#94a3b8">Avoid individual-person framing; situation stories feature better</span></td>
+        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#8b90a0">14% featuring rate (n=72)</span></td>
+        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#8b90a0">Avoid individual-person framing; situation stories feature better</span></td>
         <td>Business + "Here's" is the strongest editorially writable non-weather formula</td>
       </tr>
       <tr>
         <td><strong>Sports</strong></td>
-        <td>Any formula — 0–11.5% featuring regardless<br><span style="font-size:.8em;color:#94a3b8">Topic opts you out of Apple News featuring</span></td>
-        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#94a3b8">Number leads are the only SN formula trending upward</span></td>
+        <td>Any formula — 0–11.5% featuring regardless<br><span style="font-size:.8em;color:#8b90a0">Topic opts you out of Apple News featuring</span></td>
+        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#8b90a0">Number leads are the only SN formula trending upward</span></td>
         <td>SmartNews is the better channel for sports. Apple News: feature potential only for national/marquee stories</td>
       </tr>
       <tr>
         <td><strong>Nature / Wildlife / Science</strong></td>
-        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#94a3b8">General/Discovery ceiling: 53K views on snake/new species story</span></td>
-        <td>Same framing works — mystery + scientific validation<br><span style="font-size:.8em;color:#94a3b8">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
+        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#8b90a0">General/Discovery ceiling: 53K views on snake/new species story</span></td>
+        <td>Same framing works — mystery + scientific validation<br><span style="font-size:.8em;color:#8b90a0">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
         <td>Highest-ceiling content type for General/Discovery vertical. "Rare", "never seen", "scientists found" are proven hooks</td>
       </tr>
       <tr>
         <td><strong>Entertainment / Celebrity</strong></td>
-        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#94a3b8">Notification: possessive lifts CTR for celebrity content</span></td>
-        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#94a3b8">Questions hurt SN performance (p=3.4e-6)</span></td>
+        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#8b90a0">Notification: possessive lifts CTR for celebrity content</span></td>
+        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#8b90a0">Questions hurt SN performance (p=3.4e-6)</span></td>
         <td>Serial/escalating stories with named anchor are highest-CTR notification type</td>
       </tr>
       <tr>
         <td><strong>Wellness / Mind-Body / Everyday Living</strong></td>
-        <td>Number lead or direct declarative — no vertical-specific formula signal yet<br><span style="font-size:.8em;color:#94a3b8">n&lt;30 per vertical (preliminary only); guidelines inferred from platform-wide rules</span></td>
-        <td>Number lead or direct declarative; <strong>avoid "What to know"</strong><br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula platform-wide (0.37 pct_rank, p=3.0e-6, n=213)</span></td>
+        <td>Number lead or direct declarative — no vertical-specific formula signal yet<br><span style="font-size:.8em;color:#8b90a0">n&lt;30 per vertical (preliminary only); guidelines inferred from platform-wide rules</span></td>
+        <td>Number lead or direct declarative; <strong>avoid "What to know"</strong><br><span style="font-size:.8em;color:#8b90a0">WTK is the worst SN formula platform-wide (0.37 pct_rank, p=3.0e-6, n=213)</span></td>
         <td>0% featuring across all trendhunter verticals (n=22 matched, Jan–Feb 2026) — featuring is not a lever. Optimize for organic Apple News views. Best observed format: product/list structure ("10 things…", "How to…")</td>
       </tr>
     </tbody>
@@ -6717,7 +6717,7 @@ def _vertical_perf_section() -> str:
             f"<td>{r['med_views']:,.0f}</td>"
             f"<td>{r['max_views']:,.0f}</td>"
             f"<td>{feat_str}</td>"
-            f"<td style='font-size:.85em;color:#94a3b8'>{top_h}…</td></tr>\n"
+            f"<td style='font-size:.85em;color:#8b90a0'>{top_h}…</td></tr>\n"
         )
 
     top_arts_html = ""
@@ -6726,7 +6726,7 @@ def _vertical_perf_section() -> str:
         hl = html_module.escape(str(r["Headline"]))[:90]
         feat = " ★" if r["is_featured"] else ""
         top_arts_html += (
-            f"<tr><td><span style='font-size:.8em;background:#1e293b;padding:2px 6px;"
+            f"<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;"
             f"border-radius:3px'>{vert_badge}</span></td>"
             f"<td>{html_module.escape(str(r['t_author']))}</td>"
             f"<td>{hl}{feat}</td>"
@@ -6796,16 +6796,16 @@ author_pb_html = f"""<!DOCTYPE html>
 <style>
   /* ── Theme tokens ── */
   body.light {{
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#f0f0f0;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
   }}
   :root {{
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
   }}
 
   /* ── Reset ── */
@@ -6858,7 +6858,7 @@ author_pb_html = f"""<!DOCTYPE html>
                  padding: 2px 6px; border-radius: 3px; margin-bottom: 8px; }}
   .conf-high {{ background: rgba(22,163,74,0.2);   color: #4ade80; }}
   .conf-mod  {{ background: rgba(37,99,235,0.2);    color: #60a5fa; }}
-  .conf-dir  {{ background: rgba(100,116,139,0.15); color: #94a3b8; }}
+  .conf-dir  {{ background: rgba(100,116,139,0.15); color: #8b90a0; }}
   body.light .conf-high {{ background: rgba(22,163,74,0.12); color: #15803d; }}
   body.light .conf-mod  {{ background: rgba(37,99,235,0.12); color: #1d4ed8; }}
   body.light .conf-dir  {{ background: rgba(100,116,139,0.10); color: #475569; }}
@@ -7831,22 +7831,22 @@ def _generate_experiments_page(suggs: list[dict], report_date: str) -> str:
 <style>
   /* \u2500\u2500 Theme tokens (match main site) \u2500\u2500 */
   body.light {{
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#f0f0f0;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
     --amber:#d97706; --orange:#ea580c;
   }}
   :root {{
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
     --amber:#f59e0b; --orange:#f97316;
   }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
   .nav-links {{ display:flex; align-items:center; }}
@@ -7972,7 +7972,7 @@ function _exportExpPage() {{
   var btn = document.getElementById('exp-export-btn');
   if (btn) btn.textContent = 'Exporting…';
   var target = document.querySelector('.container');
-  domtoimage.toPng(target, {{bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f172a'}})
+  domtoimage.toPng(target, {{bgcolor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f1117'}})
     .then(function(dataUrl) {{
       var a = document.createElement('a');
       a.download = 'experiments-{report_date}.png';

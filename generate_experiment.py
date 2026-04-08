@@ -34,7 +34,7 @@ from scipy import stats
 DATA_2025 = "Top syndication content 2025.xlsx"
 DATA_2026 = "Top Stories 2026 Syndication.xlsx"
 
-NAVY  = "#0f172a"
+NAVY  = "#0f1117"
 BLUE  = "#2563eb"
 GREEN = "#16a34a"
 RED   = "#dc2626"
@@ -420,7 +420,7 @@ def render_report(
             f"(n={result['n_a']:,} before, n={result['n_b']:,} after)."
         )
         callout_color = GRAY
-        callout_bg = "#f1f5f9"
+        callout_bg = "#e8eaf6"
 
     ts_block = ""
     if timeseries_html:
@@ -440,20 +440,20 @@ def render_report(
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <style>
   body.light {{
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#eef0f8;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
   }}
   :root {{
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
   }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
   .nav-links {{ display:flex; align-items:center; }}
@@ -560,7 +560,7 @@ def update_experiment_index(specs):
         platform = spec.get("platform", "").replace("_", " ").title()
         metric = spec.get("metric", "").replace("_", " ")
         link = (f'<a href="{slug}/index.html">{title}</a>'
-                if status != "pending" else f'<span style="color:#94a3b8">{title}</span>')
+                if status != "pending" else f'<span style="color:#8b90a0">{title}</span>')
         rows += (
             f'<li>'
             f'{link}'
@@ -577,20 +577,20 @@ def update_experiment_index(specs):
 <title>T1 Headline Analysis · Experiments</title>
 <style>
   body.light {{
-    --bg:#ffffff; --bg-card:#ffffff; --bg-muted:#f5f5f7; --bg-subtle:#f0f0f0;
-    --text:#1d1d1f; --text-secondary:#424245; --text-muted:#6e6e73;
-    --border:#d2d2d7; --border-subtle:#f0f0f0; --accent:#0071e3;
+    --bg:#f4f6fb; --bg-card:#ffffff; --bg-muted:#ffffff; --bg-subtle:#eef0f8;
+    --text:#1a1d27; --text-secondary:#424245; --text-muted:#5a6070;
+    --border:#dde1f0; --border-subtle:#f0f0f0; --accent:#3d5af1;
     --nav-bg:rgba(255,255,255,0.88);
   }}
   :root {{
-    --bg:#0f172a; --bg-card:#1e293b; --bg-muted:#1e293b; --bg-subtle:#334155;
-    --text:#f1f5f9; --text-secondary:#cbd5e1; --text-muted:#94a3b8;
-    --border:#334155; --border-subtle:#1e293b; --accent:#3b82f6;
-    --nav-bg:rgba(15,23,42,0.88);
+    --bg:#0f1117; --bg-card:#1a1d27; --bg-muted:#1a1d27; --bg-subtle:#2e3350;
+    --text:#e8eaf6; --text-secondary:#cbd5e1; --text-muted:#8b90a0;
+    --border:#2e3350; --border-subtle:#1a1d27; --accent:#7c9df7;
+    --nav-bg:#1a1d27;
   }}
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-          background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+          background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
           -webkit-font-smoothing:antialiased; transition:background 0.2s,color 0.2s; }}
   .site-nav {{ background:var(--nav-bg); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:44px; position:sticky; top:0; z-index:100; }}
   .nav-links {{ display:flex; align-items:center; }}
