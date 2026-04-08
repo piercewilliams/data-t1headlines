@@ -73,6 +73,46 @@ TIER_LABELS = {
     "platform":  "Platform-Specific (informational)",
 }
 
+# ── Author → Content Vertical mapping (confirmed by Sarah Price 2026-04-08) ───
+AUTHOR_VERTICAL: dict[str, str] = {
+    "Allison Palmer":       "Mind-Body",
+    "Lauren J-G":           "Everyday Living",
+    "Lauren Jarvis-Gibson": "Everyday Living",
+    "Lauren Schuster":      "Experience",
+    "Ryan Brennan":         "General/Discovery",
+    "Hanna Wickes":         "General/Discovery",
+    "Hanna WIckes":         "General/Discovery",
+    "Samantha Agate":       "General/Discovery",
+}
+
+# Per-vertical headline tips shown in grader cards
+VERTICAL_TIPS: dict[str, list[str]] = {
+    "Mind-Body": [
+        "Number leads and service-journalism framing work well ('5 ways to…', 'How to…')",
+        "Avoid 'What to know' — worst-performing formula on SmartNews",
+        "Target 90–120 chars for Apple News; 70–90 for SmartNews",
+        "0% featuring rate on Apple News — optimize for organic reach, not featuring",
+    ],
+    "Everyday Living": [
+        "List/number-lead format is the strongest signal for this vertical (home, décor, lifestyle)",
+        "Avoid question format for SmartNews distribution",
+        "Target 90–120 chars for Apple News; 70–90 for SmartNews",
+        "0% featuring rate on Apple News — optimize for organic reach",
+    ],
+    "Experience": [
+        "Service framing ('Here's how to…', 'Everything you need to know about…') works for travel/experiences",
+        "Avoid 'What to know' and question format for SmartNews",
+        "Financial experience headlines (retirement, HSA) perform well — specific numbers help",
+        "0% featuring rate on Apple News — optimize for organic reach",
+    ],
+    "General/Discovery": [
+        "Nature/wildlife/science: discovery framing ('Scientists found…', 'Never-before-seen…') drives highest ceiling",
+        "Avoid question format for SmartNews (−0.08 pct_rank, p=3.4e-6)",
+        "Number leads are trending upward — use when story allows",
+        "High ceiling potential (53K+ views) for breaking science/wildlife stories — prioritize strong specificity",
+    ],
+}
+
 # ── Google Sheets ─────────────────────────────────────────────────────────────
 
 def fetch_records():
@@ -349,7 +389,8 @@ def _esc(s):
 
 def _headline_card(record, res, sc):
     h      = str(record.get("Headline", "")).strip()
-    author = _esc(record.get("Author", ""))
+    author_raw = str(record.get("Author", "")).strip()
+    author = _esc(author_raw)
     brand  = _esc(record.get("Brand Type", ""))
     date   = _esc(record.get("Publication Date", ""))
     url    = record.get("Published URL/Link", "") or record.get("Draft URL/Link", "")
@@ -358,6 +399,26 @@ def _headline_card(record, res, sc):
     h_esc  = _esc(h)
     hl_html = (f'<a href="{url}" target="_blank" rel="noopener" class="hl-link" onclick="event.stopPropagation()">{h_esc}</a>'
                if url else h_esc)
+
+    # Vertical badge + tips
+    vertical = AUTHOR_VERTICAL.get(author_raw, "")
+    vert_badge_html = ""
+    vert_tips_html  = ""
+    if vertical:
+        vert_badge_html = (
+            f'<span class="vert-badge" style="font-size:.72em;background:#1e3a5f;color:#93c5fd;'
+            f'padding:1px 7px;border-radius:3px;margin-left:6px">{_esc(vertical)}</span>'
+        )
+        tips = VERTICAL_TIPS.get(vertical, [])
+        if tips:
+            tips_li = "".join(f"<li>{_esc(t)}</li>" for t in tips)
+            vert_tips_html = (
+                f'<div class="vert-tips" style="font-size:.78em;color:#94a3b8;'
+                f'margin-top:.5rem;padding:.5rem .75rem;background:#0f172a;'
+                f'border-left:2px solid #2563eb;border-radius:0 3px 3px 0">'
+                f'<strong style="color:#60a5fa">{_esc(vertical)} tips:</strong>'
+                f'<ul style="margin:.25rem 0 0 1rem;padding:0">{tips_li}</ul></div>'
+            )
 
     tiers_html = ""
     for tier, label in TIER_LABELS.items():
@@ -371,14 +432,14 @@ def _headline_card(record, res, sc):
 
     return f"""<div class="hcard" onclick="this.classList.toggle('expanded')">
   <div class="hcard-top">
-    <span class="hcard-meta">{author} · {brand} · {date}</span>
+    <span class="hcard-meta">{author}{vert_badge_html} · {brand} · {date}</span>
     <span style="display:flex;align-items:center">
       <span class="hcard-score" style="color:{color}">{sc}%</span>
       <span class="hcard-toggle">▸</span>
     </span>
   </div>
   <div class="hcard-hl">{hl_html}</div>
-  <div class="hcard-criteria">{tiers_html}</div>
+  <div class="hcard-criteria">{tiers_html}{vert_tips_html}</div>
 </div>"""
 
 

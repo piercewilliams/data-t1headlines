@@ -99,6 +99,28 @@ EXCLUDE_MSN = False
 # Data is still loaded and computed (for platform topic inversion etc.) but the tile is hidden.
 SHOW_MSN_TILE = False
 
+# ── Author → Content Vertical mapping (confirmed by Sarah Price 2026-04-08) ───
+# Verticals are not labeled in the Tracker — author is the proxy.
+# General/Discovery = search/discover optimized; distinct from trendhunter verticals.
+AUTHOR_VERTICAL: dict[str, str] = {
+    "Allison Palmer":     "Mind-Body",
+    "Lauren J-G":         "Everyday Living",
+    "Lauren Jarvis-Gibson": "Everyday Living",
+    "Lauren Schuster":    "Experience",
+    "Ryan Brennan":       "General/Discovery",
+    "Hanna Wickes":       "General/Discovery",
+    "Hanna WIckes":       "General/Discovery",
+    "Samantha Agate":     "General/Discovery",
+}
+TRENDHUNTER_VERTICALS = {"Mind-Body", "Everyday Living", "Experience"}
+
+# Non-T1 / staging domains to filter from Tracker→ANP join
+_TRACKER_EXCLUDE_DOMAINS = {
+    "lifeandstylemag.com", "modmomsclub.com",
+    "modmomsclubstg.wpenginepowered.com", "usmagazine.com",
+    "womansworld.com", "star-telegram.com",
+}
+
 REFERENCE_DATE = pd.Timestamp.today().normalize()
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -477,6 +499,28 @@ def classify_formula(text: str) -> str:
     if t.startswith("\u2018"): return "quoted_lede"
     return "untagged"
 
+def classify_quote_lede(text: str) -> str:
+    """Subtype a quoted-lede headline. Call only on headlines already classified as quoted_lede.
+    Returns one of: quote_official, quote_expert, quote_subject, quote_other."""
+    t = str(text).lower()
+    # Text after the closing quote marks contains the speaker context
+    after = re.split(r"['\u2019\u201d]", t, maxsplit=2)[-1]
+    if re.search(r"\b(police|sheriff|officer|prosecutor|official|authorities|spokesperson|court|judge|fbi|agency|department|administration|government)\b", after):
+        return "quote_official"
+    if re.search(r"\b(scientist|researcher|doctor|dr\.|expert|study|professor|analyst|biologist|zoologist|scientist|climatologist|economist)\b", after):
+        return "quote_expert"
+    # Named subject: possessive or first-person cue, name-like pattern before/in after
+    if re.search(r"\b(i |my |me |we |our )\b", after) or re.search(r"\b(says?|said|tell|told|reveal|open|share)\b", after):
+        return "quote_subject"
+    return "quote_other"
+
+_QUOTE_LEDE_LABELS: dict[str, str] = {
+    "quote_official": "Official/authority quote",
+    "quote_expert":   "Expert/scientist quote",
+    "quote_subject":  "Subject's own words",
+    "quote_other":    "Third-party attribution",
+}
+
 def _classify_untagged_structure(text: str) -> str:
     """Secondary micro-classifier for untagged headlines. Identifies structural patterns
     that don't fit the main formula taxonomy but are still informative."""
@@ -521,7 +565,10 @@ def tag_topic(text: str) -> str:
     if re.search(r"\b(trump|biden|congress|senate|white house|president|governor|election|vote|campaign|ballot|democrat|republican|gop|legislation|bill|policy|lawmaker|politician)\b", t): return "politics"
     if re.search(r"\b(school|student|teacher|education|college|university|city|county|state|local|community|neighborhood)\b", t): return "local_civic"
     if re.search(r"\b(restaurant|food|eat|chef|menu|recipe|bar|coffee|dining|hotel|travel|beach|park|festival|concert)\b", t): return "lifestyle"
-    if re.search(r"\b(animal|creature|species|wildlife|shark|bear|alligator|snake|bird|dog|cat|pet)\b", t): return "nature_wildlife"
+    if re.search(r"\b(animal|creature|species|wildlife|shark|bear|alligator|snake|bird|dog|cat|pet|whale|dolphin|wolf|fox|deer|turtle|fish|octopus|squid|seal|lion|tiger|elephant|gorilla|chimp|monkey|reptile|amphibian|insect|spider|bee|butterfly|coral|reef)\b", t): return "nature_wildlife"
+    if re.search(r"\b(dinosaur|fossil|prehistoric|extinct|extinction|paleontol|archaeolog|dig site|ancient creature|ancient animal)\b", t): return "nature_wildlife"
+    if re.search(r"\b(scientist|researchers?|biologist|zoologist|naturalist|conservationist)\b.*\b(found|discover|identified|spotted|filmed|captured|recorded|document)\b", t): return "nature_wildlife"
+    if re.search(r"\b(new species|rare species|never.before.seen|first.ever.found|never seen before|rediscover)\b", t): return "nature_wildlife"
     return "other"
 
 def tag_subtopic(text: str, topic: str) -> "str | None":
@@ -605,6 +652,7 @@ _NAV_PAGES = [
     ("Author Playbooks",    "author-playbooks"),
     ("Experiments",         "experiments"),
     ("Headline Grader",     "grader"),
+    ("Style Guide",         "style-guide"),
 ]
 
 def _build_nav(active: str, depth: int, theme_toggle: bool = True) -> str:
@@ -2657,6 +2705,99 @@ if HAS_TRACKER:
     print(f"Tracker join: {N_TRACKED} total matched articles "
           f"(AN={len(an_joined)}, SN={len(sn26_j)}, Yahoo={len(yahoo26_j)})")
 
+# ── Tracker → ANP vertical performance join ───────────────────────────────────
+# Separate from the Tarrow join above (which uses top-performers-only Apple News sheet).
+# ANP has 420K rows / full article-level coverage — much higher match rate for Sara's team.
+HAS_VERTICAL_DATA = False
+df_vertical_perf   = pd.DataFrame()
+df_vertical_top    = pd.DataFrame()
+VERTICAL_FEAT_RATE = 0.0
+VERTICAL_ANP_BASELINE_FEAT = 0.0
+VERTICAL_MATCH_N   = 0
+VERTICAL_MATCH_TOT = 0
+
+if HAS_TRACKER and HAS_ANP:
+    import glob as _glob
+    _anp_files = _glob.glob(os.path.join(ANP_DATA_DIR, "*.csv"))
+    if _anp_files:
+        print("Building Tracker→ANP vertical performance join…")
+        _anp_all = pd.concat(
+            [pd.read_csv(f, low_memory=False) for f in _anp_files],
+            ignore_index=True
+        )
+        _anp_all = _anp_all.rename(columns={"Publisher Article ID": "_pub_url"})
+        _anp_all["_pub_url"] = _anp_all["_pub_url"].astype(str).str.strip().str.rstrip("/").str.lower()
+        _anp_all["_is_feat"] = _anp_all["Featured by Apple"].astype(str).str.strip().str.lower().isin(["yes","true","1"])
+        _anp_all["_views"]   = pd.to_numeric(_anp_all["Total Views"], errors="coerce")
+
+        # Aggregate ANP to article level (sum views across days, any_featured)
+        _anp_agg = (_anp_all.groupby("_pub_url")
+            .agg(views_total=("_views","sum"),
+                 is_featured=("_is_feat","any"),
+                 article_title=("Article","first"),
+                 sections=("Sections","first"))
+            .reset_index())
+        VERTICAL_ANP_BASELINE_FEAT = _anp_all["_is_feat"].any() and (_anp_agg["is_featured"].sum() / len(_anp_agg))
+
+        # Build Tracker URL table with vertical_group derived from author
+        def _extract_domain(u: str) -> str:
+            m = re.search(r"https?://(?:www\.)?([^/]+)", str(u))
+            return m.group(1) if m else ""
+
+        _tk = tracker_df.copy()
+        _tk["_pub_url"] = _tk["_url"].str.rstrip("/")
+        _tk["_domain"]  = _tk["_pub_url"].apply(_extract_domain)
+        # Filter staging and non-T1 domains
+        _tk = _tk[~_tk["_domain"].isin(_TRACKER_EXCLUDE_DOMAINS)]
+        # Derive vertical_group from author name
+        _tk["vertical_group"] = _tk["t_author"].str.strip().map(AUTHOR_VERTICAL).fillna("Other")
+        # Filter staging URLs
+        _tk = _tk[~_tk["_pub_url"].str.contains("wpenginepowered|post\\.php|wp-admin", na=False)]
+
+        _vert_merged = _tk.merge(
+            _anp_agg[["_pub_url","views_total","is_featured","article_title","sections"]],
+            on="_pub_url", how="left"
+        )
+        VERTICAL_MATCH_TOT = len(_vert_merged)
+        VERTICAL_MATCH_N   = _vert_merged["views_total"].notna().sum()
+
+        _vert_matched = _vert_merged[_vert_merged["views_total"].notna()].copy()
+        _vert_matched["formula"] = _vert_matched["Headline"].apply(
+            lambda h: classify_formula(str(h)) if pd.notna(h) else "untagged"
+        )
+        _vert_matched["topic"] = _vert_matched["Headline"].apply(
+            lambda h: tag_topic(str(h)) if pd.notna(h) else "other"
+        )
+
+        VERTICAL_FEAT_RATE = _vert_matched["is_featured"].mean() if len(_vert_matched) > 0 else 0.0
+
+        if len(_vert_matched) >= 5:
+            HAS_VERTICAL_DATA = True
+            # Per-vertical summary
+            _vg = (_vert_matched.groupby("vertical_group")
+                .agg(n=("views_total","count"),
+                     med_views=("views_total","median"),
+                     mean_views=("views_total","mean"),
+                     max_views=("views_total","max"),
+                     feat_rate=("is_featured","mean"))
+                .reset_index()
+                .sort_values("med_views", ascending=False))
+            # Add top article per vertical
+            _top_per_vert = (_vert_matched.loc[_vert_matched.groupby("vertical_group")["views_total"].idxmax()]
+                [["vertical_group","Headline","views_total","is_featured"]].copy())
+            df_vertical_perf = _vg.merge(_top_per_vert.rename(
+                columns={"Headline":"top_headline","views_total":"top_views","is_featured":"top_featured"}),
+                on="vertical_group", how="left")
+
+            # Top 10 articles overall from matched
+            df_vertical_top = (_vert_matched.sort_values("views_total", ascending=False)
+                [["vertical_group","t_author","Headline","views_total","is_featured","sections"]]
+                .head(10).reset_index(drop=True))
+
+            print(f"Vertical perf: {VERTICAL_MATCH_N}/{VERTICAL_MATCH_TOT} matched, "
+                  f"feat_rate={VERTICAL_FEAT_RATE:.1%}, "
+                  f"{len(df_vertical_perf)} verticals")
+
     if N_TRACKED > 0:
         author_stats = (team_combined.groupby(["author", "platform"])
             .agg(n=("headline", "count"),
@@ -2891,6 +3032,14 @@ _COL_TOOLTIPS: dict[str, str] = {
     "p_adj (bh-fdr)":                 "P-value after BH-FDR correction for testing multiple signals simultaneously; below 0.05 = statistically significant.",
     "sn baseline":                    "The median SmartNews percentile rank for the untagged baseline (direct declarative headlines) used as the comparison group.",
     "sn p-value":                     "P-value from Mann-Whitney U test comparing this formula to the untagged baseline on SmartNews.",
+    # Dual-platform headline pairs table (pb-dual playbook tile)
+    "topic / content type":           "The editorial subject area or content vertical these headline examples apply to.",
+    "apple news headline":            "Example headline optimized for Apple News featuring and organic reach on that platform.",
+    "smartnews headline":             "Example headline optimized for SmartNews algorithmic distribution on that platform.",
+    "max views":                      "The highest single-article view count observed for this formula or topic combination.",
+    "median views":                   "The middle article's raw view count for this formula or topic combination.",
+    "notes":                          "Additional context about the rule or tradeoff for this topic-platform pairing.",
+    "top article":                    "The headline of the highest-performing article observed in this group, as a real-world example.",
 }
 
 
@@ -6017,7 +6166,15 @@ _pb_tile_defs = [
     <p class="tile-action">\u2192 Don\u2019t use Apple News as the primary distribution channel for national wire stories. Apple News users follow local outlets for local content; they get national news from national brands. Route national wire through MSN or SmartNews instead, where platform topology differs.</p>
     <span class="tile-toggle">Details \u2193</span>
   </div>"""),
-] if HAS_ANP else [])
+] if HAS_ANP else []) + [
+    ("conf-high", "pb-dual", """  <div class="pb-tile" onclick="togglePb(this,'pb-dual')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Platform Headline Pairs \u00b7 Same Story, Different Headline</span>
+    <p class="tile-claim">The same story needs two different headlines. Apple News editors favor structured formulas (\u201cHere\u2019s\u201d, \u201cWhat to know\u201d, questions) for featuring. SmartNews algorithmically penalizes those same formulas \u2014 question format drops to 0.42 pct_rank (p=3.4e\u20136), \u201cWhat to know\u201d to 0.37 (p=3.0e\u20136). \u201cHere\u2019s\u201d is the only formula directionally above baseline on both platforms.</p>
+    <p class="tile-action">\u2192 Write the Apple News headline first, then rewrite for SmartNews. See the topic-by-topic pairing guide below.</p>
+    <span class="tile-toggle">Details \u2193</span>
+  </div>"""),
+]
 
 _pb_tile_defs.sort(key=lambda x: _CONF_RANK.get(x[0], 3))  # stable sort preserves original order within same rank
 _pb_tiles_html = "\n\n".join(t for _, _, t in _pb_tile_defs)
@@ -6252,6 +6409,83 @@ playbook_html = f"""<!DOCTYPE html>
   <p class="caveat">Based on Jan–Feb 2026 only. Treat as directional guidance pending additional months of data.</p>
 </div>
 
+<div id="pb-dual" class="pb-detail" style="display:none">
+  <h3 class="rh">Topic-by-topic pairing guide</h3>
+  <p class="detail-sub">Write the Apple News headline first, then rewrite for SmartNews. These are two different editorial decisions.</p>
+  <table>
+    <thead><tr><th>Topic / Content type</th><th>Apple News headline</th><th>SmartNews headline</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Crime / Breaking</strong></td>
+        <td>"Here's what we know about [event]" or "Here's what happened"<br><span style="font-size:.8em;color:#94a3b8">16% featuring rate (n=89)</span></td>
+        <td>Direct declarative: "[Subject] [action]"<br><span style="font-size:.8em;color:#94a3b8">Avoid "Here's" — hurts SN rank when used broadly</span></td>
+        <td>Attribution language ("says", "told") lifts notification CTR 1.18× for crime stories</td>
+      </tr>
+      <tr>
+        <td><strong>Business / Economy</strong></td>
+        <td>"Here's what [X] means for [community]"<br><span style="font-size:.8em;color:#94a3b8">14% featuring rate (n=72)</span></td>
+        <td>Situation/event framing: "[Event] hits [place]"<br><span style="font-size:.8em;color:#94a3b8">Avoid individual-person framing; situation stories feature better</span></td>
+        <td>Business + "Here's" is the strongest editorially writable non-weather formula</td>
+      </tr>
+      <tr>
+        <td><strong>Sports</strong></td>
+        <td>Any formula — 0–11.5% featuring regardless<br><span style="font-size:.8em;color:#94a3b8">Topic opts you out of Apple News featuring</span></td>
+        <td>Number lead or direct declarative<br><span style="font-size:.8em;color:#94a3b8">Number leads are the only SN formula trending upward</span></td>
+        <td>SmartNews is the better channel for sports. Apple News: feature potential only for national/marquee stories</td>
+      </tr>
+      <tr>
+        <td><strong>Nature / Wildlife / Science</strong></td>
+        <td>Discovery framing: "Scientists found…" / "Never-before-seen…"<br><span style="font-size:.8em;color:#94a3b8">General/Discovery ceiling: 53K views on snake/new species story</span></td>
+        <td>Same framing works — mystery + scientific validation<br><span style="font-size:.8em;color:#94a3b8">Avoid question format (−0.08 pct_rank, p=3.4e-6)</span></td>
+        <td>Highest-ceiling content type for General/Discovery vertical. "Rare", "never seen", "scientists found" are proven hooks</td>
+      </tr>
+      <tr>
+        <td><strong>Entertainment / Celebrity</strong></td>
+        <td>Possessive named entity: "[Celebrity]'s [situation]"<br><span style="font-size:.8em;color:#94a3b8">Notification: possessive lifts CTR for celebrity content</span></td>
+        <td>Direct declarative; avoid question format<br><span style="font-size:.8em;color:#94a3b8">Questions hurt SN performance (p=3.4e-6)</span></td>
+        <td>Serial/escalating stories with named anchor are highest-CTR notification type</td>
+      </tr>
+      <tr>
+        <td><strong>Wellness / Mind-Body / Everyday Living</strong></td>
+        <td>Number lead or service-journalism question: "How to…"<br><span style="font-size:.8em;color:#94a3b8">Trendhunter median: 159 views (Everyday Living), 174 (Mind-Body)</span></td>
+        <td>Number lead or direct declarative; avoid "What to know"<br><span style="font-size:.8em;color:#94a3b8">WTK is the worst SN formula (0.37 pct_rank, p=3.0e-6)</span></td>
+        <td>0% featuring across this vertical — optimize for organic. Best observed: product/list format (shampoo for thinning hair, home décor)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="caveat">Apple News featuring rates from pooled 2025+ANP 2026 (n&gt;15,000). SmartNews formula ranks from 2025 article-level data (n=38,251). Trendhunter performance from Tracker→ANP join (Jan–Feb 2026). All formula effects are observational — treat as directional guidance for CSA persona configuration.</p>
+</div>
+
+<div class="pb-detail" style="display:block; margin-top:2.5rem; border-top:2px solid var(--accent)">
+  <h3 class="rh" style="margin-top:1rem">CSA Persona Configuration \u00b7 Ready-to-Use Instructions</h3>
+  <p class="detail-sub">Copy these instructions directly into CSA persona configuration. Each rule is drawn from a confirmed or directional finding. Confidence tier shown in brackets.</p>
+
+  <h3 class="rh" style="margin-top:1.5rem">Apple News Persona</h3>
+  <ul class="rules">
+    <li><strong>[HIGH] Featured targeting formula:</strong> Use "What to know" or "Here's" format when the editorial goal is Featured placement. These are associated with {WTN_FEAT_LIFT:.1f}× and higher featuring rates respectively.</li>
+    <li><strong>[HIGH] Organic reach formula:</strong> Avoid "What to know" for non-Featured articles — organic view performance trends lower. Use possessive named entity or number lead for organic reach.</li>
+    <li><strong>[HIGH] Question format:</strong> Apple editors over-select questions for featuring, but the algorithm penalizes them organically. Use questions only for intentional Featured targeting, not for general organic distribution.</li>
+    <li><strong>[HIGH] Character length:</strong> Target 90–120 characters. Below 70 chars and above 130 chars both underperform the median.</li>
+    <li><strong>[HIGH] Crime/Business formula:</strong> "Here's" format associated with 16% featuring rate for crime (n=89) and 14% for business (n=72). Use it when targeting Featured in these topics.</li>
+    <li><strong>[HIGH] Sports:</strong> Formula choice does not affect featuring odds for sports content (0% across all formulas, n=22–52). Optimize for organic only; do not target Featured for sports.</li>
+    <li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. Untagged articles land in the bottom 20% at {_anp_fail['ANP_FAIL_MAIN_BOT_PCT']:.0%} — 2.4× the baseline rate.</li>
+    <li><strong>[MOD] Number lead trend:</strong> Number leads are the only formula trending upward over time (Q1 2025 → Q1 2026). Lean into them; deprioritize question format which is trending down.</li>
+    <li><strong>[MOD] Trendhunter content:</strong> Mind-Body, Everyday Living, and Experience content currently earns 0% featuring. Focus persona configuration on organic Apple News reach, not featuring optimization.</li>
+  </ul>
+
+  <h3 class="rh" style="margin-top:1.5rem">SmartNews Persona</h3>
+  <ul class="rules">
+    <li><strong>[HIGH] Avoid question format:</strong> Question headlines drop to 0.42 pct_rank — 0.08 below baseline (p=3.4e-6, n=918). This is the strongest single avoidance rule in the SmartNews data.</li>
+    <li><strong>[HIGH] Avoid "What to know":</strong> Drops to 0.37 pct_rank — the worst-performing formula (p=3.0e-6, n=213). Never use for SmartNews.</li>
+    <li><strong>[DIR] "Here's" is the safest cross-platform formula:</strong> Directionally above SmartNews baseline (p=0.038, does not survive Bonferroni at k=5). Use when writing one headline for both platforms.</li>
+    <li><strong>[HIGH] Number leads trending upward:</strong> Only formula with positive trajectory across 2025–2026. Prioritize for SmartNews when topic allows.</li>
+    <li><strong>[HIGH] Character length:</strong> Target 70–90 characters for SmartNews. 80–99 char optimal bin confirmed; 100-char ceiling has no statistical basis.</li>
+    <li><strong>[HIGH] Direct declarative baseline:</strong> Unformatted subject-verb-object headlines are the SmartNews default — never penalized. Use as the fallback when no formula signal applies.</li>
+    <li><strong>[MOD] Nature/wildlife/science:</strong> Discovery framing ("Scientists found", "Never-before-seen") drives highest-ceiling performance in General/Discovery content. Do not apply question or WTK format to these stories for SmartNews.</li>
+  </ul>
+  <p class="caveat">HIGH = p&lt;0.05 confirmed finding. MOD = multiple-comparisons corrected or n-limited directional. DIR = directional (p&lt;0.10). All findings are observational — use as configuration starting points; validate against post-publication performance data.</p>
+</div>
+
 {_pub_section_html}
 
 {_inline_sections_html}
@@ -6412,6 +6646,71 @@ _ap_details_html = "\n\n".join(d for _, _, _, _, d in _author_playbook_defs)
 _ap_n_authors    = len(_author_playbook_defs)
 _ap_n_articles   = sum(n for _, n, _, _, _ in _author_playbook_defs)
 
+def _vertical_perf_section() -> str:
+    """Generate the content vertical performance section for author-playbooks page."""
+    if not HAS_VERTICAL_DATA:
+        return ""
+
+    anp_baseline_str = f"{VERTICAL_ANP_BASELINE_FEAT:.1%}" if VERTICAL_ANP_BASELINE_FEAT else "1.2%"
+    feat_callout = ""
+    if VERTICAL_FEAT_RATE == 0.0:
+        feat_callout = f"""<div class="callout" style="margin-bottom:1.5rem">
+  <strong>0% featuring rate across all verticals</strong> ({VERTICAL_MATCH_N} matched articles,
+  Jan–Feb 2026). ANP baseline = {anp_baseline_str}. Featuring is not currently a lever for this
+  content — optimize for organic Apple News views, not featuring odds.
+</div>"""
+
+    rows_html = ""
+    for _, r in df_vertical_perf.iterrows():
+        top_h = html_module.escape(str(r.get("top_headline", "")))[:80]
+        feat_str = f"{r['feat_rate']:.0%}"
+        rows_html += (
+            f"<tr><td><strong>{html_module.escape(str(r['vertical_group']))}</strong></td>"
+            f"<td>{int(r['n'])}</td>"
+            f"<td>{r['med_views']:,.0f}</td>"
+            f"<td>{r['max_views']:,.0f}</td>"
+            f"<td>{feat_str}</td>"
+            f"<td style='font-size:.85em;color:#94a3b8'>{top_h}…</td></tr>\n"
+        )
+
+    top_arts_html = ""
+    for _, r in df_vertical_top.iterrows():
+        vert_badge = html_module.escape(str(r["vertical_group"]))
+        hl = html_module.escape(str(r["Headline"]))[:90]
+        feat = " ★" if r["is_featured"] else ""
+        top_arts_html += (
+            f"<tr><td><span style='font-size:.8em;background:#1e293b;padding:2px 6px;"
+            f"border-radius:3px'>{vert_badge}</span></td>"
+            f"<td>{html_module.escape(str(r['t_author']))}</td>"
+            f"<td>{hl}{feat}</td>"
+            f"<td>{r['views_total']:,.0f}</td></tr>\n"
+        )
+
+    return f"""
+<section class="vert-perf-section" style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Content Vertical Performance — Apple News</h2>
+  <p class="sub" style="margin-bottom:1.5rem">
+    Based on Tracker→ANP join ({VERTICAL_MATCH_N} matched / {VERTICAL_MATCH_TOT} Tracker articles,
+    Jan–Feb 2026). Verticals identified by author. Match rate improves as ANP data accumulates monthly.
+  </p>
+  {feat_callout}
+  <table class="findings">
+    <thead><tr>
+      <th>Vertical</th><th>n matched</th><th>Median views</th>
+      <th>Max views</th><th>Featuring rate</th><th>Top article</th>
+    </tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+  <h3 style="margin-top:2rem">Top articles by vertical</h3>
+  <table class="findings">
+    <thead><tr><th>Vertical</th><th>Author</th><th>Headline</th><th>Views</th></tr></thead>
+    <tbody>{top_arts_html}</tbody>
+  </table>
+  <p class="caveat">Apple News Publisher data, Jan–Feb 2026 (March pending). Staging URLs and
+  non-T1 domains excluded. ★ = Apple News featured placement. Views = total across all days
+  article appeared in ANP data.</p>
+</section>"""
+
 if _ap_n_authors == 0:
     _ap_body = """
 <div class="container">
@@ -6432,6 +6731,8 @@ else:
   </div>
 
 {_ap_details_html}
+
+{_vertical_perf_section()}
 </div>"""
 
 author_pb_html = f"""<!DOCTYPE html>

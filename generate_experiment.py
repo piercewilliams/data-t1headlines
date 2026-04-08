@@ -744,7 +744,8 @@ def main() -> None:
     target = Path(sys.argv[1])
     if target.is_dir():
         spec_files = sorted(target.glob("*.md"))
-        spec_files = [f for f in spec_files if f.name != "README.md"]
+        _SKIP = {"README.md", "experiment_log.md"}
+        spec_files = [f for f in spec_files if f.name not in _SKIP]
     else:
         spec_files = [target]
 
