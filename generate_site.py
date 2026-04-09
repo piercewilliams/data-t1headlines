@@ -9321,11 +9321,8 @@ _build_summary = {
     "sn_median_hl_len":     SN_MEDIAN_HL_LEN,
 }
 
-import pathlib as _pathlib
-_summary_path = _pathlib.Path("data/build_summary.json")
+_summary_path = Path("data/build_summary.json")
 _summary_path.parent.mkdir(parents=True, exist_ok=True)
-_summary_path.write_text(
-    __import__("json").dumps(_build_summary, indent=2), encoding="utf-8"
-)
+_summary_path.write_text(json.dumps(_build_summary, indent=2), encoding="utf-8")
 print(f"  build_summary.json → {_summary_path}")
 print(f"{'─'*60}\n")
