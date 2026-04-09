@@ -39,5 +39,6 @@ jobs:
           git add docs/grader/index.html docs/grader/history.json
           git diff --cached --quiet && echo "Nothing to commit" || (
             git commit -m "Auto: Headline Grader $(date '+%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main
             git push
           )
