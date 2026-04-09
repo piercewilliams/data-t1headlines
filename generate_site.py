@@ -9300,4 +9300,32 @@ else:
         "avoidance formulas all honored across all pages).")
 
 print(f"  meta.json → {_meta_slot}/meta.json")
+
+# ── Build summary (for longitudinal snapshot tracking) ────────────────────────
+# Writes key metric constants to data/build_summary.json so update_snapshots.py
+# can append them with a date stamp to data/weekly_snapshots.json.
+# Add new metrics here as new findings mature — every key here becomes a tracked
+# longitudinal series.
+_build_summary = {
+    # SmartNews formula performance (Finding 8 — historical rank fractions)
+    "fb_wtk_sn_rank":       FB_WTK_SN_RANK,
+    "fb_q_sn_rank":         FB_Q_SN_RANK,
+    "fb_sn_n":              FB_SN_N,
+    # Push notification optimal length CTR (Finding 4)
+    "notif_len_best_ctr":   NOTIF_LEN_BEST_CTR,
+    # SmartNews channel share (Finding 3)
+    "sn_top_share":         SN_TOP_SHARE,
+    "sn_channel_rows":      SN_CHANNEL_ROWS,
+    # Headline length medians (Finding 1 / §8)
+    "an_median_hl_len":     AN_MEDIAN_HL_LEN,
+    "sn_median_hl_len":     SN_MEDIAN_HL_LEN,
+}
+
+import pathlib as _pathlib
+_summary_path = _pathlib.Path("data/build_summary.json")
+_summary_path.parent.mkdir(parents=True, exist_ok=True)
+_summary_path.write_text(
+    __import__("json").dumps(_build_summary, indent=2), encoding="utf-8"
+)
+print(f"  build_summary.json → {_summary_path}")
 print(f"{'─'*60}\n")

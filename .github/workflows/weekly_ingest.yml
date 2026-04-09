@@ -1,0 +1,73 @@
+name: Weekly Site Refresh
+
+on:
+  schedule:
+    - cron: '0 1 * * 2'   # 8pm CDT Monday (01:00 UTC Tuesday); adjust to '0 0 * * 2' in winter (CST)
+  workflow_dispatch:        # manual trigger via GitHub UI or API
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            pandas numpy scipy plotly openpyxl xlrd \
+            statsmodels scikit-learn pingouin \
+            google-auth google-auth-httplib2 requests
+
+      - name: Write service account credentials
+        env:
+          SA_JSON_B64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: echo "$SA_JSON_B64" | base64 -d > /tmp/sa.json
+
+      - name: Download 2026 sheet from Google Drive
+        env:
+          GOOGLE_SERVICE_ACCOUNT_FILE: /tmp/sa.json
+        run: python3 download_tarrow.py
+
+      - name: Check if data changed
+        id: data_check
+        run: |
+          # Compare new download against last committed version (if it exists)
+          if git show HEAD:"Top Stories 2026 Syndication.xlsx" > /tmp/prev.xlsx 2>/dev/null; then
+            if cmp -s "Top Stories 2026 Syndication.xlsx" /tmp/prev.xlsx; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "Data unchanged — skipping site regeneration."
+            else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "Data changed — regenerating site."
+            fi
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "No previous version found — treating as changed."
+          fi
+
+      - name: Regenerate site
+        if: steps.data_check.outputs.changed == 'true'
+        run: python3 generate_site.py --skip-main-archive
+
+      - name: Update longitudinal snapshots
+        if: steps.data_check.outputs.changed == 'true'
+        run: python3 update_snapshots.py
+
+      - name: Commit and push if changed
+        if: steps.data_check.outputs.changed == 'true'
+        run: |
+          git config user.name "Weekly Ingest"
+          git config user.email "actions@github.com"
+          git add docs/ data/build_summary.json data/weekly_snapshots.json
+          git diff --cached --quiet && echo "Nothing to commit" || (
+            git commit -m "Auto: Weekly refresh $(date '+%Y-%m-%d')"
+            git push
+          )
