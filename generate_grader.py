@@ -47,20 +47,21 @@ GROQ_FALLBACK = "llama3-8b-8192"
 # method:  "obj" | "llm" | "info"
 
 CRITERIA = [
-    ("char_count",     "Character count 80–110",          "structure", 1,  "obj"),
-    ("subject_leads",  "Named entity leads",               "structure", 1,  "obj"),
-    ("no_articles",    "No article lead",                  "structure", 1,  "obj"),
-    ("active_voice",   "Active voice",                     "structure", 1,  "llm"),
-    ("no_lead_burial", "No lead burial",                   "structure", 2,  "llm"),
-    ("formula",        "Formula present",                  "formula",   2,  "obj"),
-    ("no_vague_wtk",   "No vague 'What to know' subject",  "formula",   1,  "llm"),
-    ("keyword",        "Keyword present",                  "formula",   1,  "obj"),
-    ("number",         "Number in headline",               "formula",   0,  "info"),
-    ("no_dym",         "No 'Did you miss'",                "quality",   2,  "obj"),
-    ("no_allcaps",     "No all-caps words",                "quality",   1,  "obj"),
-    ("curiosity",      "Curiosity gap",                    "quality",   1,  "llm"),
-    ("accurate",       "Factually accurate",               "quality",   2,  "llm"),
-    ("apple_heres",    "Here's/Here are (Apple News)",     "platform",  0,  "info"),
+    ("char_count",     "Character count (SN 70–90 / AN 90–120)", "structure", 1,  "obj"),
+    ("subject_leads",  "Named entity leads",                      "structure", 1,  "obj"),
+    ("no_articles",    "No article lead",                         "structure", 1,  "obj"),
+    ("active_voice",   "Active voice",                            "structure", 1,  "llm"),
+    ("no_lead_burial", "No lead burial",                          "structure", 2,  "llm"),
+    ("formula",        "Formula present",                         "formula",   2,  "obj"),
+    ("no_vague_wtk",   "No vague 'What to know' subject",         "formula",   1,  "llm"),
+    ("keyword",        "Keyword present",                         "formula",   1,  "obj"),
+    ("number",         "Number lead (SmartNews ↑ / Apple News ↓)","formula",   0,  "info"),
+    ("no_dym",         "No 'Did you miss'",                       "quality",   2,  "obj"),
+    ("no_questions",   "No question headline (organic reach)",    "quality",   1,  "obj"),
+    ("no_allcaps",     "No all-caps words",                       "quality",   1,  "obj"),
+    ("curiosity",      "Curiosity gap",                           "quality",   1,  "llm"),
+    ("accurate",       "Factually accurate",                      "quality",   2,  "llm"),
+    ("apple_heres",    "Here's/Here are (Apple News)",            "platform",  0,  "info"),
 ]
 
 META = {k: {"name": n, "tier": t, "weight": w, "method": m}
@@ -149,7 +150,11 @@ _STOP = {"a","an","the","it","there","they","this","that","these","those",
 
 _ACRONYMS = {"FBI","CIA","NFL","NBA","MLB","NHL","GOP","NASA","CDC","FDA",
              "IRS","TSA","AOL","MSN","CNN","BBC","ABC","NBC","CBS","US","UK",
-             "EU","UN","AI","CEO","CFO","COO","LGBTQ","NYPD","LAPD","AP","UX"}
+             "EU","UN","AI","CEO","CFO","COO","LGBTQ","LGBTQIA","NYPD","LAPD",
+             "AP","UX","SEC","EPA","DOJ","FCC","FTC","FDIC","WHO","IMF","GDP",
+             "NYT","NAACP","ACLU","NRA","DEA","ATF","ICE","DHS","DOD","NATO",
+             "OPEC","IPO","NFT","ESG","DEI","HR","PR","LA","NYC","DC","TX",
+             "HGTV","ESPN","HBO","PBS","NPR","BET","MTV","TMZ","ET","WSJ"}
 
 _FORMULAS = [
     (r"^\d",                 "Number lead"),
@@ -161,7 +166,18 @@ _FORMULAS = [
 
 def _char_count(h):
     n = len(h)
-    return 80 <= n <= 110, f"{n} chars"
+    # Valid for at least one platform: SmartNews 70–90, Apple News 90–120
+    ok = 70 <= n <= 120
+    note = f"{n} chars"
+    if n < 70:
+        note += " (too short for both platforms)"
+    elif n > 120:
+        note += " (too long for both platforms)"
+    elif n <= 90:
+        note += " (SmartNews range; short for Apple News)"
+    elif n <= 120:
+        note += " (Apple News range; long for SmartNews)"
+    return ok, note
 
 
 def _subject_leads(h):
@@ -203,6 +219,13 @@ def _number(h):
 def _no_dym(h):
     fail = bool(re.search(r"\bdid you miss\b", h, re.I))
     return not fail, "Contains \u2018Did you miss\u2019" if fail else "OK"
+
+
+def _no_questions(h):
+    """Question headlines underperform on both Apple News and SmartNews (organic reach).
+    Featured-placement exception exists for Apple News but does not apply to Sara's content type."""
+    fail = h.strip().endswith("?")
+    return not fail, "Question headline \u2014 underperforms on both platforms" if fail else "OK"
 
 
 def _no_allcaps(h):
@@ -272,6 +295,7 @@ def grade(record, llm_client):
     res["keyword"]        = _keyword(h, kws)
     res["number"]         = _number(h)
     res["no_dym"]         = _no_dym(h)
+    res["no_questions"]   = _no_questions(h)
     res["no_allcaps"]     = _no_allcaps(h)
     res["apple_heres"]    = _apple_heres(h)
 
