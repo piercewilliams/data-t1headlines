@@ -164,19 +164,57 @@ _FORMULAS = [
 ]
 
 
-def _char_count(h):
+def _parse_platform(record):
+    """Normalize the Tracker 'Syndication platform' value to an internal key."""
+    raw = str(record.get("Syndication platform", "")).strip().lower()
+    if "apple" in raw:
+        return "apple_news"
+    if "smart" in raw:
+        return "smart_news"
+    if "msn" in raw:
+        return "msn"
+    if "google" in raw:
+        return "google_news"
+    return "unknown"
+
+_PLATFORM_LABELS = {
+    "apple_news":  "Apple News",
+    "smart_news":  "SmartNews",
+    "msn":         "MSN",
+    "google_news": "Google News",
+    "unknown":     "",
+}
+
+
+def _char_count(h, platform="unknown"):
     n = len(h)
-    # Valid for at least one platform: SmartNews 70–90, Apple News 90–120
-    ok = 70 <= n <= 120
-    note = f"{n} chars"
-    if n < 70:
-        note += " (too short for both platforms)"
-    elif n > 120:
-        note += " (too long for both platforms)"
-    elif n <= 90:
-        note += " (SmartNews range; short for Apple News)"
-    elif n <= 120:
-        note += " (Apple News range; long for SmartNews)"
+    if platform == "apple_news":
+        ok = 90 <= n <= 120
+        if n < 90:
+            note = f"{n} chars — below Apple News target (90–120)"
+        elif n > 120:
+            note = f"{n} chars — above Apple News target (90–120)"
+        else:
+            note = f"{n} chars — Apple News range ✓"
+    elif platform == "smart_news":
+        ok = 70 <= n <= 90
+        if n < 70:
+            note = f"{n} chars — below SmartNews target (70–90)"
+        elif n > 90:
+            note = f"{n} chars — above SmartNews target (70–90)"
+        else:
+            note = f"{n} chars — SmartNews range ✓"
+    else:
+        # Unknown/other: pass if valid for at least one platform
+        ok = 70 <= n <= 120
+        if n < 70:
+            note = f"{n} chars (too short for both platforms)"
+        elif n > 120:
+            note = f"{n} chars (too long for both platforms)"
+        elif n <= 90:
+            note = f"{n} chars (SmartNews range; short for Apple News)"
+        else:
+            note = f"{n} chars (Apple News range; long for SmartNews)"
     return ok, note
 
 
@@ -211,9 +249,17 @@ def _keyword(h, kw_str):
     return False, f"Missing: {', '.join(keywords[:3])}"
 
 
-def _number(h):
+def _number(h, platform="unknown"):
     has = bool(re.search(r"\d", h))
-    return has, "Number detected" if has else "No number"
+    if platform == "smart_news":
+        note = ("Number detected — positive SmartNews signal" if has
+                else "No number lead (consider for SmartNews)")
+    elif platform == "apple_news":
+        note = ("Number detected — caution: underperforms on Apple News" if has
+                else "No number lead")
+    else:
+        note = "Number detected" if has else "No number"
+    return has, note
 
 
 def _no_dym(h):
@@ -289,17 +335,18 @@ def eval_llm(headline, client):
 # ── Grade one record ──────────────────────────────────────────────────────────
 
 def grade(record, llm_client):
-    h   = str(record.get("Headline", "")).strip()
-    kws = str(record.get("Primary Keywords", ""))
+    h        = str(record.get("Headline", "")).strip()
+    kws      = str(record.get("Primary Keywords", ""))
+    platform = _parse_platform(record)
 
     res = {}
-    res["char_count"]     = _char_count(h)
+    res["char_count"]     = _char_count(h, platform)
     res["subject_leads"]  = _subject_leads(h)
     res["no_articles"]    = _no_articles(h)
     res["formula"]        = _formula(h)
     res["no_vague_wtk"]   = _no_wtk(h)
     res["keyword"]        = _keyword(h, kws)
-    res["number"]         = _number(h)
+    res["number"]         = _number(h, platform)
     res["no_dym"]         = _no_dym(h)
     res["no_questions"]   = _no_questions(h)
     res["no_allcaps"]     = _no_allcaps(h)
@@ -430,7 +477,16 @@ def _headline_card(record, res, sc):
     hl_html = (f'<a href="{url}" target="_blank" rel="noopener" class="hl-link" onclick="event.stopPropagation()">{h_esc}</a>'
                if url else h_esc)
 
-    # Vertical badge + tips
+    # Platform + Vertical badges
+    platform     = _parse_platform(record)
+    plat_label   = _PLATFORM_LABELS.get(platform, "")
+    plat_badge_html = ""
+    if plat_label:
+        plat_badge_html = (
+            f'<span class="vert-badge" style="font-size:.72em;background:#1a2e1a;color:#86efac;'
+            f'padding:1px 7px;border-radius:3px;margin-left:6px">{_esc(plat_label)}</span>'
+        )
+
     vertical = AUTHOR_VERTICAL.get(author_raw, "")
     vert_badge_html = ""
     vert_tips_html  = ""
@@ -462,7 +518,7 @@ def _headline_card(record, res, sc):
 
     return f"""<div class="hcard" onclick="this.classList.toggle('expanded')">
   <div class="hcard-top">
-    <span class="hcard-meta">{author}{vert_badge_html} · {brand} · {date}</span>
+    <span class="hcard-meta">{author}{vert_badge_html}{plat_badge_html} · {brand} · {date}</span>
     <span style="display:flex;align-items:center">
       <span class="hcard-score" style="color:{color}">{sc}%</span>
       <span class="hcard-toggle">▸</span>
@@ -808,8 +864,10 @@ def build_html(graded, lookback_days, run_ts, history=None):
 <div class="warn">
   LLM criteria (active voice, lead burial, curiosity gap, accuracy) use
   Groq {GROQ_MODEL}. 'What to Know' avoidance is rule-based (regex, not LLM).
-  Keyword criterion uses Primary Keywords from the Tracker.
-  Platform-specific criteria are informational only and do not affect score.
+  Keyword criterion checks Primary Keywords from the Tracker against the headline.
+  Character count scoring uses the platform-specific target range when Syndication
+  Platform is set in the Tracker (Apple News: 90–120 chars; SmartNews: 70–90 chars;
+  unknown: passes if valid for either). Number lead note is also platform-aware.
   Hover any badge for details.
 </div>
 
