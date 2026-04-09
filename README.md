@@ -1,6 +1,6 @@
 # T1 Headline Analysis
 
-Monthly analysis of headline and topic performance across Apple News, SmartNews, MSN, and Yahoo for McClatchy Tier 1 outlets. The site is generated fully programmatically from Tarrow's export data — no manual HTML editing.
+Analysis of headline and topic performance across Apple News, SmartNews, MSN, and Yahoo for McClatchy Tier 1 outlets. The site is generated fully programmatically from Tarrow's export data — no manual HTML editing. Full pipeline runs monthly; the 2026 sheet auto-refreshes weekly every Monday at 8 PM CDT via GitHub Actions.
 
 > *"The narrative is being driven outside of us currently. We should be driving and documenting what we are testing and learning."* — Chris Tarrow, March 24, 2026
 
@@ -133,8 +133,8 @@ Each headline is evaluated against 14 criteria in four tiers:
 
 | Tier | Criteria | Method |
 |------|----------|--------|
-| Structure & Length | Character count (80–110), named entity leads, no article lead, active voice, no lead burial | Rule-based + LLM |
-| Formula & Signal | Formula present, no vague "What to know," keyword present | Rule-based + LLM |
+| Structure & Length | Character count (SN 70–90 / AN 90–120), named entity leads, no article lead, active voice, no lead burial | Rule-based + LLM |
+| Formula & Signal | Formula present, no "What to know" headline, keyword present, no question headline | Rule-based |
 | Quality Flags | No "Did you miss," no all-caps, curiosity gap, factually accurate | Rule-based + LLM |
 | Platform (informational) | Here's/Here are (Apple News signal) | Rule-based |
 
@@ -411,10 +411,12 @@ The experiment appears at `docs/experiments/my-slug/index.html` and is added to 
 | File | Purpose |
 |------|---------|
 | `ingest.py` | Monthly entry point. Profiles data, diffs against last run, archives old site, calls generator, regenerates all experiment pages, commits. |
-| `generate_site.py` | Full analysis pipeline + site generator. Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Nav via `_build_nav()`, export JS via `_make_export_js()`, tooltips via `_make_col_tooltip_js()`. |
-| `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files and regenerates the experiment index. Uses the same `_NAV_PAGES` / `_build_nav()` pattern. |
+| `generate_site.py` | Full analysis pipeline + site generator. Reads Excel files, runs all analyses, writes three HTML outputs (main, playbook, author-playbooks). Writes `data/build_summary.json` at end of every run. |
+| `generate_experiment.py` | Generates individual experiment pages from `experiments/*.md` spec files and regenerates the experiment index. |
 | `generate_grader.py` | Daily headline grader. Reads Sara Vallone's Google Tracker, grades last 24h of headlines via rule-based and LLM criteria, writes `docs/grader/index.html` and `docs/grader/history.json`. |
-| `run_grader.sh` | Cron wrapper for `generate_grader.py`. Sources `~/.grader_env`, runs the grader, commits and pushes if output changed. Invoked at 10 AM Chicago time daily. |
+| `download_tarrow.py` | Downloads the live 2026 Google Sheet from Google Drive as XLSX using the existing service account. Called by `weekly_ingest.yml` every Monday. |
+| `update_snapshots.py` | Reads `data/build_summary.json` and appends a date-stamped entry to `data/weekly_snapshots.json` for longitudinal metric tracking. |
+| `run_grader.sh` | Local shell wrapper for `generate_grader.py` (legacy; Actions is now the primary runner). |
 | `requirements.txt` | All Python dependencies. `pip3 install -r requirements.txt` to set up a new machine. |
 
 ### Documentation
@@ -438,14 +440,16 @@ The experiment appears at `docs/experiments/my-slug/index.html` and is added to 
 | `docs/grader/index.html` | Daily headline grader page. Regenerated each cron run. |
 | `docs/grader/history.json` | 30-day rolling score log (date, n, avg score, top issue per day). |
 | `docs/archive/YYYY-MM/` | Monthly snapshot: `index.html` (with archived banner), `data_profile.json`, `meta.json`. |
+| `data/build_summary.json` | Key metric snapshot from the most recent `generate_site.py` run (8 tracked metrics). Overwritten on each run. |
+| `data/weekly_snapshots.json` | Longitudinal metric log — one entry per week, date-stamped. Append-only; idempotent on same-day reruns. |
 
 ### Data files (in repo root)
 
-| Default filename | Contents |
-|-----------------|---------|
-| `Top syndication content 2025.xlsx` | Full-year 2025: Apple News, SmartNews, MSN (Dec only), Yahoo |
-| `Top Stories 2026 Syndication.xlsx` | 2026 YTD: Apple News, Apple News Notifications, SmartNews, Yahoo, MSN |
-| `Tracker Template.xlsx` | Content tracker: Author, Vertical, Word Count, Published URL — optional; enables Finding 9 |
+| Default filename | Contents | Update cadence |
+|-----------------|---------|----------------|
+| `Top syndication content 2025.xlsx` | Full-year 2025: Apple News, SmartNews, MSN, Yahoo | Static — complete year |
+| `Top Stories 2026 Syndication.xlsx` | 2026 YTD: Apple News, Apple News Notifications, SmartNews, Yahoo, MSN | Auto-refreshed weekly (Monday EOD) via `download_tarrow.py` |
+| `Tracker Template.xlsx` | Content tracker: Author, Vertical, Word Count, Published URL — optional; enables Finding 9 | Manual |
 
 ---
 
@@ -501,17 +505,17 @@ Check the GitHub Actions tab → `grader.yml` workflow for the last run status. 
 
 Run this before any push:
 ```bash
-# Syntax + unit tests (16 tests, no Excel or API keys needed):
+# Syntax + unit tests (no Excel or API keys needed):
 python3 -m pytest tests/ -v
-
-# Lint (no install needed — ruff is in requirements.txt):
-ruff check generate_site.py generate_grader.py ingest.py generate_experiment.py
 
 # Grader smoke check (objective criteria only, no API calls):
 python3 generate_grader.py --skip-llm --dry-run
+
+# Syntax check on new pipeline scripts:
+python3 -c "import ast; [ast.parse(open(f).read()) for f in ['download_tarrow.py','update_snapshots.py']]; print('ok')"
 ```
 
-All three must be clean before committing.
+All three must pass before committing.
 
 ---
 

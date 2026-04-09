@@ -24,7 +24,7 @@ jobs:
           pip install \
             pandas numpy scipy plotly openpyxl xlrd \
             statsmodels scikit-learn pingouin \
-            google-auth google-auth-httplib2 requests
+            google-auth requests
 
       - name: Write service account credentials
         env:
@@ -66,7 +66,10 @@ jobs:
         run: |
           git config user.name "Weekly Ingest"
           git config user.email "actions@github.com"
-          git add docs/ data/build_summary.json data/weekly_snapshots.json
+          # Commit the updated xlsx so next week's change-detection compares against the
+          # current version, not a stale HEAD. Without this, 'changed=true' would fire
+          # every week regardless of whether Tarrow actually updated the sheet.
+          git add "Top Stories 2026 Syndication.xlsx" docs/ data/build_summary.json data/weekly_snapshots.json
           git diff --cached --quiet && echo "Nothing to commit" || (
             git commit -m "Auto: Weekly refresh $(date '+%Y-%m-%d')"
             git push

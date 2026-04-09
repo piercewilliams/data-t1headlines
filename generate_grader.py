@@ -806,8 +806,9 @@ def build_html(graded, lookback_days, run_ts, history=None):
 <h2>Pass Rates by Criterion</h2>
 {_criterion_table(agg)}
 <div class="warn">
-  LLM criteria (active voice, lead burial, curiosity gap, accuracy, vague WTK) use
-  Groq {GROQ_MODEL}. Keyword criterion uses Primary Keywords from the Tracker.
+  LLM criteria (active voice, lead burial, curiosity gap, accuracy) use
+  Groq {GROQ_MODEL}. 'What to Know' avoidance is rule-based (regex, not LLM).
+  Keyword criterion uses Primary Keywords from the Tracker.
   Platform-specific criteria are informational only and do not affect score.
   Hover any badge for details.
 </div>

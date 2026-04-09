@@ -54,7 +54,7 @@ Stable facts for this project. Updated in place when facts change — not a log.
 ## Primary Data Asset
 
 **Tarrow's T1 Headline Performance Sheet**
-- Maintained by Chris Tarrow; live Google Sheet updated at the start of every month
+- Maintained by Chris Tarrow; updated EOD every Monday
 - Coverage: Apple News, SmartNews, MSN
 - Outlets: Tier 1 only
 - Time range: full 2025 + Jan 1, 2026–present

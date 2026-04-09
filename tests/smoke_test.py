@@ -22,11 +22,13 @@ import unittest
 from pathlib import Path
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-REPO_ROOT      = Path(__file__).resolve().parent.parent
-GENERATE_SITE  = REPO_ROOT / "generate_site.py"
-INGEST_PY      = REPO_ROOT / "ingest.py"
-GRADER_PY      = REPO_ROOT / "generate_grader.py"
-STYLE_GUIDE_PY = REPO_ROOT / "generate_style_guide.py"
+REPO_ROOT         = Path(__file__).resolve().parent.parent
+GENERATE_SITE     = REPO_ROOT / "generate_site.py"
+INGEST_PY         = REPO_ROOT / "ingest.py"
+GRADER_PY         = REPO_ROOT / "generate_grader.py"
+STYLE_GUIDE_PY    = REPO_ROOT / "generate_style_guide.py"
+DOWNLOAD_TARROW   = REPO_ROOT / "download_tarrow.py"
+UPDATE_SNAPSHOTS  = REPO_ROOT / "update_snapshots.py"
 
 
 # ── 1. AST-parse smoke tests ──────────────────────────────────────────────────
@@ -58,6 +60,12 @@ class TestAstParse(unittest.TestCase):
 
     def test_generate_style_guide_parses(self):
         self._assert_parses(STYLE_GUIDE_PY)
+
+    def test_download_tarrow_parses(self):
+        self._assert_parses(DOWNLOAD_TARROW)
+
+    def test_update_snapshots_parses(self):
+        self._assert_parses(UPDATE_SNAPSHOTS)
 
 
 # ── Helpers extracted for unit-testing without importing the pipeline ──────────
