@@ -53,7 +53,7 @@ CRITERIA = [
     ("active_voice",   "Active voice",                            "structure", 1,  "llm"),
     ("no_lead_burial", "No lead burial",                          "structure", 2,  "llm"),
     ("formula",        "Formula present",                         "formula",   2,  "obj"),
-    ("no_vague_wtk",   "No vague 'What to know' subject",         "formula",   1,  "llm"),
+    ("no_vague_wtk",   "No 'What to know' headline",               "formula",   1,  "obj"),
     ("keyword",        "Keyword present",                         "formula",   1,  "obj"),
     ("number",         "Number lead (SmartNews ↑ / Apple News ↓)","formula",   0,  "info"),
     ("no_dym",         "No 'Did you miss'",                       "quality",   2,  "obj"),
@@ -222,10 +222,16 @@ def _no_dym(h):
 
 
 def _no_questions(h):
-    """Question headlines underperform on both Apple News and SmartNews (organic reach).
-    Featured-placement exception exists for Apple News but does not apply to Sara's content type."""
+    """Question headlines underperform on both Apple News and SmartNews for organic reach."""
     fail = h.strip().endswith("?")
     return not fail, "Question headline \u2014 underperforms on both platforms" if fail else "OK"
+
+
+def _no_wtk(h):
+    """'What to Know' is the worst-performing SmartNews formula (pct_rank 0.37, p=3.0e-6, n=213).
+    Avoid on all platforms for organic reach."""
+    fail = bool(re.search(r"\bwhat to know\b", h, re.I))
+    return not fail, "\u2018What to know\u2019 \u2014 worst SmartNews formula (p=3.0e\u22126, n=213)" if fail else "OK"
 
 
 def _no_allcaps(h):
@@ -239,7 +245,7 @@ def _apple_heres(h):
 
 # ── LLM evaluation ────────────────────────────────────────────────────────────
 
-_LLM_PROMPT = """Evaluate this news headline against 5 criteria. Keep each reason under 8 words.
+_LLM_PROMPT = """Evaluate this news headline against 4 criteria. Keep each reason under 8 words.
 
 Headline: {headline}
 
@@ -248,12 +254,11 @@ Criteria:
 2. no_lead_burial — Key news fact is in the first half of the headline.
 3. curiosity — Creates a compelling click reason without being misleading.
 4. accurate — Headline appears factually accurate and not sensationalized.
-5. no_vague_wtk — IF "What to know" appears, the subject before it is a specific named entity or topic. IF "What to know" is NOT in the headline, set pass=true, reason="N/A".
 
 Return ONLY valid JSON, no extra text:
-{{"active_voice":{{"pass":bool,"reason":"str"}},"no_lead_burial":{{"pass":bool,"reason":"str"}},"curiosity":{{"pass":bool,"reason":"str"}},"accurate":{{"pass":bool,"reason":"str"}},"no_vague_wtk":{{"pass":bool,"reason":"str"}}}}"""
+{{"active_voice":{{"pass":bool,"reason":"str"}},"no_lead_burial":{{"pass":bool,"reason":"str"}},"curiosity":{{"pass":bool,"reason":"str"}},"accurate":{{"pass":bool,"reason":"str"}}}}"""
 
-_LLM_KEYS = ("active_voice", "no_lead_burial", "curiosity", "accurate", "no_vague_wtk")
+_LLM_KEYS = ("active_voice", "no_lead_burial", "curiosity", "accurate")
 
 
 def eval_llm(headline, client):
@@ -292,6 +297,7 @@ def grade(record, llm_client):
     res["subject_leads"]  = _subject_leads(h)
     res["no_articles"]    = _no_articles(h)
     res["formula"]        = _formula(h)
+    res["no_vague_wtk"]   = _no_wtk(h)
     res["keyword"]        = _keyword(h, kws)
     res["number"]         = _number(h)
     res["no_dym"]         = _no_dym(h)

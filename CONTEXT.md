@@ -60,7 +60,7 @@ For session history: see [sessions/](sessions/)
 - [ ] O&O + syndication PV data layer (Chris Palo request; Amplitude access needed)
 - [ ] Automate Sarah Price's Amplitude → Tracker join — she manually exports + joins monthly; ideal end state is PVs auto-populated into Vallone's live tracker; matching on title/URL/author; Pierce likely has Amplitude API access; engagement metrics also wanted eventually
 - [x] ~~Analyze Sara Voluone's SmartNews/Apple News formatting guide~~ — done 2026-04-03
-- [ ] Downgrade WTK/SmartNews finding on site from "significant" to "directional" — raw p=0.046 does not survive Bonferroni correction at k=7 (threshold α/7=0.0071). NOTE: _SN_FORMULA_DATA has WTK at p=3.0e-6 (different run) — needs human resolution before touching site prose.
+- [x] ~~WTK/SmartNews p-value resolved~~ — more recent run (p=3.0e-6, n=213) takes precedence; survives Bonferroni at k=7. Grader hardened to objective check; featured placement exception removed from all standards docs.
 - [ ] Active time outliers in source Excel (3 rows up to 23,496s); pipeline caps at 600s but Tarrow should be notified
 - [x] ~~Tracker→ANP vertical analysis: 0% featuring~~ — ✅ done 2026-04-08c; content type (not section/formula) is the constraint; no editorial lever
 - [ ] Wire Tracker→ANP join into pipeline (both aggregate and per-outlet views); blocked on March ANP drop for Allison Palmer data
