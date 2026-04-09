@@ -16,7 +16,7 @@ For session history: see [sessions/](sessions/)
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
 - **Experiments:** `docs/experiments/index.html` — auto-generated each run; directional findings routed here; append-only log at `experiments/experiment_log.md`
 - **Headline Grader:** `docs/grader/index.html` — 15 criteria (rule-based + Groq LLM); 30-day history; daily at 10am CDT via GitHub Actions; Run Now button (passcode 8812, fine-grained PAT in localStorage); service account key as base64 in `GOOGLE_SERVICE_ACCOUNT_JSON` secret (use `~/.credentials/pierce-tools.json`)
-- **Weekly ingest:** `.github/workflows/weekly_ingest.yml` — Monday 8pm CDT; downloads 2026 sheet via `download_tarrow.py`, regenerates site if data changed, appends to `data/weekly_snapshots.json` via `update_snapshots.py`; **pending: Tarrow must share sheet with `pierce-tools-service-account@pierce-tools.iam.gserviceaccount.com`** (message sent 2026-04-09)
+- **Weekly ingest:** `.github/workflows/weekly_ingest.yml` — Monday 8pm CDT; downloads 2026 sheet via `download_tarrow.py`, regenerates site if data changed, appends to `data/weekly_snapshots.json` via `update_snapshots.py`; sheet shared with service account ✅ (confirmed 2026-04-09)
 - **Generator:** `generate_site.py` — run via `ingest.py`; `SHOW_MSN_TILE = False` (MSN data present, tile paused); `PENDING_HIGH_ANALYSES = []` (build-time scope guardrail); writes `data/build_summary.json` at end of every run for longitudinal tracking
 
 ## Data Status (as of 2026-04-08)
@@ -54,6 +54,13 @@ For session history: see [sessions/](sessions/)
 - [ ] Share SmartNews formula trap (question/WTK hurt SN) → distribution team
 - [ ] Sara Vallone + Sarah Price: criteria refinement feedback for grader; individual per-author breakdown in grader (committed at C&P Weekly)
 - [ ] Sarah Price: review tiles 1–13, flag usefulness (no rush; feeds report tuning)
+
+**Architecture — adapter pattern (Chris Palo directive, 2026-04-09):**
+- [ ] Split `GOVERNOR.md` → `GOVERNOR_CORE.md` (Part 2 rigor, universal) + `GOVERNOR_SARAH.md` (Part 1 relevance, Sarah-specific)
+- [ ] Create `ADAPTER_TEMPLATE.md` — 6-section starter file each team member copies and fills in (use case, stakeholder focus, scope filters, probing queue, what "interesting" means, output preferences)
+- [ ] Update `CLAUDE.md` — adapter loading logic: if `ADAPTER.md` present, load `GOVERNOR_CORE.md` + `ADAPTER.md`; else load `GOVERNOR.md` as-is
+- [ ] Create `README_ADAPTER.md` — explains the pattern, documents three output modes (interactive session / narrative memo / site tile), uses Sarah's adapter as the worked example
+- Goal: each team member clones repo, copies template → `ADAPTER.md`, fills it in; rigor floor is inviolable regardless of adapter
 
 ## Recent Session: 2026-04-09
 
