@@ -430,7 +430,6 @@ def _rules_html(rules: list) -> str:
     for conf, rule, note, context in rules:
         color   = conf_colors.get(conf, "#64748b")
         label   = conf_symbols.get(conf, conf)
-        ctx_id  = f"ctx-{abs(hash(rule)) % 100000}"
         rows += f"""
 <div class="rule">
   <div class="rule-top">

@@ -41,7 +41,7 @@ A finding that cannot fill in all fields is **not ready to present**. Report it 
 
 **Anti-hallucination — hard rules (full list in GOVERNOR.md § Anti-Hallucination Rules):**
 - Never cite a specific number (n, p-value, median, lift) without having computed it this session
-- SmartNews 2026 is domain-aggregated — formula/length analysis on it is invalid; say so explicitly
+- SmartNews 2026 (April 8 build onward) is **article-level** with 28 columns including per-channel views — formula/length analysis IS valid; verify column presence before assuming
 - Always verify `classify_formula()` baseline key = `"untagged"` before any formula comparison
 - MSN analysis: use raw `"Pageviews"` column, not `percentile_within_cohort`
 - Read GOVERNOR.md § Known Data Quirks before any analysis — silent failure modes are documented there
@@ -148,3 +148,23 @@ pip3 install -r requirements.txt
 ```
 
 The build report shows which optional packages are active (statsmodels ✓/✗, sklearn ✓/✗, polars ✓/✗, pingouin ✓/✗). If any show ✗, the pipeline still runs but with reduced analytical capability — install missing packages to restore full output.
+
+## Key policy flags in generate_site.py
+
+| Flag | Current value | Effect |
+|------|---------------|--------|
+| `SHOW_MSN_TILE` | `False` | Gates ALL MSN output (main tile, playbook tile, detail panel content). Set True only when MSN inclusion is explicitly resumed. |
+| `PENDING_HIGH_ANALYSES` | `[]` | Build-time compliance guardrail. Add strings here when a HIGH-priority probing queue item exists but hasn't been implemented — triggers a scope warning in the build report. Empty = clean. |
+| `_AUTHOR_MIN_N` | `1` | Minimum matched articles for author playbook inclusion. Lowered from 5 to retain Trendhunter authors with limited Tarrow export coverage. |
+| `LOW_SIGNAL_PLATFORMS` | `{"yahoo"}` | Auto-caveats routing recommendations for these platforms. |
+| `PLATFORM_AVOIDANCE_FORMULAS` | see code | Auto-appends ⚠ warnings to author tiles recommending question/WTK formulas (SmartNews penalty). |
+
+## Quality suite
+
+Run before any push:
+```bash
+python3 -m pytest tests/ -v                          # 16 smoke tests (AST parse + unit tests)
+ruff check generate_site.py generate_style_guide.py ingest.py generate_grader.py
+python3 generate_site.py                             # full build + all automated quality gates
+python3 generate_style_guide.py                      # style guide page (separate generator)
+```

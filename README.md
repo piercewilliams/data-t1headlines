@@ -65,7 +65,7 @@ The current work establishes the historical ROI baseline. Two additional pieces 
 | Priority | Gap | Why it matters |
 |----------|-----|---------------|
 | High | MSN full-year 2025 (currently Dec only) | Can't do any MSN temporal analysis |
-| Medium | SmartNews 2026 category breakdown | Category ROI signal disappears for 2026 |
+| Medium | ~~SmartNews 2026 category breakdown~~ | ✅ Resolved — April 8 export is article-level with 28 channel columns |
 | Medium | Apple News Notifications 2025 | Would validate CTR lift findings across full news cycle |
 | Low | Yahoo Content Viewers 2026 (82% null) | Unique reach metric currently unusable |
 
@@ -142,19 +142,17 @@ LLM evaluation uses **Groq** (free tier, `llama-3.3-70b-versatile`). Rule-based 
 
 ### How it runs
 
-The cron entry (in the user's crontab):
-```
-TZ=America/Chicago
-0 10 * * * /bin/bash /path/to/run_grader.sh
-```
+The grader runs daily via **GitHub Actions** (`.github/workflows/grader.yml`) — no local machine required. The workflow triggers at 10 AM CDT (`schedule` cron), runs `generate_grader.py`, and commits updated HTML + history JSON via the built-in `GITHUB_TOKEN`.
 
-`run_grader.sh` sources `~/.grader_env` (never committed; holds `GROQ_API_KEY`, `GITHUB_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_FILE`), runs `generate_grader.py`, then commits and pushes `docs/grader/index.html` and `docs/grader/history.json` if they changed.
+Required GitHub Actions secrets: `GROQ_API_KEY` and `GOOGLE_SERVICE_ACCOUNT_JSON` (base64-encoded service account JSON — use `~/.credentials/pierce-tools.json`; encode with `base64 -i ~/.credentials/pierce-tools.json | pbcopy`).
+
+A **Run Now** button in the grader UI lets you trigger a manual run without touching the command line. First use requires entering a fine-grained GitHub PAT (actions:write scope); it's stored in `localStorage` after first entry. Passcode: **8812**.
 
 ### Running manually
 
 ```bash
 # Full run (last 24 hours, with LLM):
-source ~/.grader_env && python3 generate_grader.py
+GROQ_API_KEY=... GOOGLE_SERVICE_ACCOUNT_FILE=~/.credentials/pierce-tools.json python3 generate_grader.py
 
 # Wider lookback for initial run or catch-up:
 python3 generate_grader.py --lookback 7
@@ -166,15 +164,14 @@ python3 generate_grader.py --skip-llm
 python3 generate_grader.py --dry-run
 ```
 
-### Required credentials (one-time setup)
+### Required credentials
 
-| Credential | Where to store | Purpose |
-|-----------|---------------|---------|
-| `GROQ_API_KEY` | `~/.grader_env` | LLM headline evaluation |
-| `GITHUB_TOKEN` | `~/.grader_env` | Automated push from cron |
-| `GOOGLE_SERVICE_ACCOUNT_FILE` | `~/.grader_env` (path to JSON) | Google Sheets read access |
+| Credential | Where to set | Purpose |
+|-----------|--------------|---------|
+| `GROQ_API_KEY` | GitHub Actions secret | LLM headline evaluation |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | GitHub Actions secret (base64) | Google Sheets read access |
 
-The service account JSON lives at `~/.credentials/pierce-tools.json` (outside the repo — never commit it). The Tracker sheet must be shared with the service account email.
+Service account JSON: `~/.credentials/pierce-tools.json` (outside the repo — never commit). The Tracker sheet must be shared with the service account email. To encode: `base64 -i ~/.credentials/pierce-tools.json | pbcopy`.
 
 **Key thresholds to watch month-to-month:**
 
@@ -495,8 +492,8 @@ The LLM call returned no result for that criterion. Usually a transient Groq rat
 ### Headline Grader shows no 30-day history strip
 `docs/grader/history.json` is missing or empty (expected on first run). The strip populates automatically after the first successful daily run commits the file.
 
-### Cron grader not running
-Check `/tmp/grader.log` for errors. Common causes: `~/.grader_env` not found or missing a key; machine asleep at 10 AM; `python3` not on `PATH` in the cron environment (the script uses `command -v python3` to locate it).
+### Grader not running daily
+Check the GitHub Actions tab → `grader.yml` workflow for the last run status. Common causes: `GROQ_API_KEY` or `GOOGLE_SERVICE_ACCOUNT_JSON` secret missing/expired; workflow file has a syntax error. Use the Run Now button in the grader UI for a manual trigger.
 
 ---
 

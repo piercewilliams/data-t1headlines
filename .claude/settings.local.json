@@ -58,7 +58,8 @@
       "Read(//tmp/**)",
       "Bash(xargs sed:*)",
       "Bash(git checkout:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(wc -l *.py)"
     ]
   }
 }

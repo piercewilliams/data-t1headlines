@@ -1405,7 +1405,18 @@ yahoo26 = pd.read_excel(DATA_2026, sheet_name="Yahoo")
 notif = notif.dropna(subset=["CTR"]).copy()
 
 # MSN: Jan–Mar 2026 from new sheet format in 2026 file (no minimum-PV filter beyond sheet definition)
-msn   = pd.read_excel(DATA_2026, sheet_name="MSN")
+# Wrapped in try/except because the sheet name has changed before (was "MSN (minumum 10k PV)").
+# A friendly SystemExit is better than a raw ValueError stack trace.
+try:
+    msn = pd.read_excel(DATA_2026, sheet_name="MSN")
+except ValueError as _msn_err:
+    _avail = pd.ExcelFile(DATA_2026).sheet_names
+    raise SystemExit(
+        f"\n✗  Could not find 'MSN' sheet in {DATA_2026}.\n"
+        f"   Available sheets: {_avail}\n"
+        f"   Update the sheet_name in generate_site.py (search for sheet_name=\"MSN\").\n"
+        f"   Original error: {_msn_err}"
+    ) from _msn_err
 yahoo = pd.read_excel(DATA_2025, sheet_name="Yahoo")
 
 # ── Column validation — friendly errors instead of KeyError crashes ───────────
@@ -2264,14 +2275,20 @@ an_2nd_label = TOPIC_LABELS.get(an_ranked.iloc[1]["topic"], an_ranked.iloc[1]["t
 an_2nd_med   = float(an_ranked.iloc[1]["an_median"])
 sn_top_label = TOPIC_LABELS.get(sn_ranked.iloc[0]["topic"], sn_ranked.iloc[0]["topic"])
 sn_top_med   = float(sn_ranked.iloc[0]["sn_median"])
-sports_an_rank = int(an_ranked[an_ranked["topic"] == "sports"].index[0]) + 1
-sports_sn_rank = int(sn_ranked[sn_ranked["topic"] == "sports"].index[0]) + 1
-sports_an_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "an_idx"].iloc[0])
-sports_sn_idx  = float(topic_df.loc[topic_df["topic"] == "sports", "sn_idx"].iloc[0])
-sports_msn_idx = float(topic_df.loc[topic_df["topic"] == "sports", "msn_idx"].iloc[0]) if "sports" in topic_df["topic"].values else 0.0
+# Guard all topic-specific .index[0] / .iloc[0] accesses: a topic may be absent
+# from topic_df if it never appears in both an_topic and sn_topic (inner merge).
+_sp_an_rows = an_ranked[an_ranked["topic"] == "sports"]
+_sp_sn_rows = sn_ranked[sn_ranked["topic"] == "sports"]
+sports_an_rank = int(_sp_an_rows.index[0]) + 1 if not _sp_an_rows.empty else len(an_ranked)
+sports_sn_rank = int(_sp_sn_rows.index[0]) + 1 if not _sp_sn_rows.empty else len(sn_ranked)
+_sp_td = topic_df.loc[topic_df["topic"] == "sports"]
+sports_an_idx  = float(_sp_td["an_idx"].iloc[0])  if not _sp_td.empty else 0.0
+sports_sn_idx  = float(_sp_td["sn_idx"].iloc[0])  if not _sp_td.empty else 0.0
+sports_msn_idx = float(_sp_td["msn_idx"].iloc[0]) if not _sp_td.empty else 0.0
 politics_msn_idx = float(topic_df.loc[topic_df["topic"] == "politics", "msn_idx"].iloc[0]) if "politics" in topic_df["topic"].values else 0.0
-nw_an_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "an_idx"].iloc[0])
-nw_sn_idx = float(topic_df.loc[topic_df["topic"] == "nature_wildlife", "sn_idx"].iloc[0])
+_nw_td = topic_df.loc[topic_df["topic"] == "nature_wildlife"]
+nw_an_idx = float(_nw_td["an_idx"].iloc[0]) if not _nw_td.empty else 0.0
+nw_sn_idx = float(_nw_td["sn_idx"].iloc[0]) if not _nw_td.empty else 0.0
 
 # ── Nature/Wildlife formula analysis by platform ─────────────────────────────
 # Sarah-requested: for a NW story, what headline formula wins on AN vs. SN?
@@ -3322,7 +3339,7 @@ if HAS_TRACKER and HAS_ANP:
 
 
 # ── Per-author analysis for Author Playbooks page ────────────────────────────
-_AUTHOR_MIN_N = 5   # minimum matched articles to include an author
+_AUTHOR_MIN_N = 1   # minimum matched articles to include an author (set low — trendhunter authors have limited Tarrow top-stories coverage; show all with n≥1 and caveat low-n)
 # List of (author, n, med_pct, tile_html, detail_html) — filled below if tracker loaded
 _author_playbook_defs: list[tuple[str, int, float, str, str]] = []
 
@@ -6148,7 +6165,7 @@ html = f"""<!DOCTYPE html>
 
     <div class="tile" onclick="showDetail('topics', this)">
       <span class="tile-num">3 · Platform Topic Inversion</span>
-      <p class="tile-claim">Sports underperforms across Apple News featuring, MSN text (2,064 median PVs), MSN video completion, and notifications (lowest CTR topic). It performs organically well on Apple News and SmartNews — but algorithms don't surface it.</p>
+      <p class="tile-claim">Sports underperforms across Apple News featuring and notifications (lowest CTR topic among all topics). It performs organically well on Apple News and SmartNews — but algorithms don't surface it. Nature/wildlife is the mirror: underperforms on Apple News but overperforms on SmartNews.</p>
       <p class="tile-action">→ Write platform-specific sports briefs. Sports is a reader-intent topic, not a distribution topic. Don't rely on algorithmic reach for sports content.</p>
       <span class="tile-more">Details ↓</span>
     </div>
@@ -6444,13 +6461,13 @@ html = f"""<!DOCTYPE html>
           <tbody>{_nw_formula_rows_html}</tbody>
         </table>
         <p class="caveat">Apple News: pooled 2025+2026 nature/wildlife articles (n={NW_AN_N}). SmartNews: 2025 article-level data only (n={NW_SN_N}); 2026 SN data is domain-aggregated and invalid for formula analysis. Tests: Mann-Whitney U vs. all other nature/wildlife articles of different formula. Low n per formula cell — treat as directional only.</p>
-        <p>MSN shows a third distinct ranking (orange bars). Sports scores {sports_msn_idx:.2f}× the MSN platform median — {"above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average on MSN text traffic (median 2,064 PVs for sports vs. platform median), consistent with the SmartNews pattern"}. Politics indexes at {politics_msn_idx:.2f}× on MSN — {"above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median"}.</p>
+        {"<p>MSN shows a third distinct ranking (orange bars). Sports scores " + f"{sports_msn_idx:.2f}" + "× the MSN platform median — " + ("above average, making it the only platform where sports is a reliable volume driver" if sports_msn_idx > 1.0 else "below average on MSN text traffic (median 2,064 PVs for sports vs. platform median), consistent with the SmartNews pattern") + ". Politics indexes at " + f"{politics_msn_idx:.2f}" + "× on MSN — " + ("above average, suggesting MSN's audience skews toward political content" if politics_msn_idx > 1.0 else "near the platform median") + ".</p>" if SHOW_MSN_TILE else ""}
         <div class="chart-wrap">{c5}</div>
-        <h3>Sports underperforms across Apple News featuring, MSN text, MSN video, and notifications</h3>
-        <p>The Apple News/SmartNews sports inversion now extends to three additional signals, making sports the most consistently platform-penalized topic in this dataset:</p>
+        <h3>Sports underperforms across Apple News featuring and notifications</h3>
+        <p>The Apple News/SmartNews sports inversion extends to additional signals, making sports the most consistently platform-penalized topic in this dataset:</p>
         <ul>
-          <li><strong>MSN text:</strong> Sports median pageviews 2,064 — near-lowest among T1 news brand topics. Sports scores {sports_msn_idx:.2f}× the MSN platform median.</li>
-          {"<li><strong>MSN video:</strong> Sports video completion rate " + MSN_VID_SPORTS_IDX_STR + " vs. platform baseline — the only topic with a statistically significant video completion penalty (" + MSN_VID_SPORTS_P_STR + ").</li>" if HAS_MSN_VIDEO and not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else ""}
+          {"<li><strong>MSN text:</strong> Sports median pageviews 2,064 — near-lowest among T1 news brand topics. Sports scores " + f"{sports_msn_idx:.2f}" + "× the MSN platform median.</li>" if SHOW_MSN_TILE else ""}
+          {"<li><strong>MSN video:</strong> Sports video completion rate " + MSN_VID_SPORTS_IDX_STR + " vs. platform baseline — the only topic with a statistically significant video completion penalty (" + MSN_VID_SPORTS_P_STR + ").</li>" if SHOW_MSN_TILE and HAS_MSN_VIDEO and not np.isnan(MSN_VID_SPORTS_COMPLETION_IDX) else ""}
           <li><strong>Apple News notifications:</strong> Sports notification CTR {NOTIF_CTR_SPORTS_STR} — lowest topic — vs. crime {NOTIF_CTR_CRIME_STR}, weather {NOTIF_CTR_WEATHER_STR}. Sports drives Apple News organic views ({sports_an_idx:.2f}× platform median) but Apple doesn't feature it and it doesn't click-through on push.</li>
         </ul>
         <p>The exception remains SmartNews, where sports performs organically (topic ranking #{sports_sn_rank} from bottom — but at {sports_sn_idx:.2f}× median, still below platform average). The pattern is consistent: sports is a reader-intent topic (fans seek it out directly) rather than a distribution topic (algorithms don't surface it). This has direct implications for headline strategy — sports headlines should prioritize depth over reach, with different playbooks for each platform.</p>
@@ -8210,12 +8227,12 @@ def _collect_experiment_suggestions() -> list[dict]:
             + _nl_signal_extra
         ),
         "gap": (
-            f"Some length bins have n\u2009<\u200930 news brand notifications, so the "
-            f"Mann-Whitney comparisons are underpowered. The analysis does not control "
-            f"for formula type within each bin \u2014 length and formula are correlated "
-            f"(longer notifications may use more formula structure), so the length signal "
-            f"may partly proxy formula type. A prospective controlled test is needed "
-            f"to isolate length as an independent variable."
+            "Some length bins have n\u2009<\u200930 news brand notifications, so the "
+            "Mann-Whitney comparisons are underpowered. The analysis does not control "
+            "for formula type within each bin \u2014 length and formula are correlated "
+            "(longer notifications may use more formula structure), so the length signal "
+            "may partly proxy formula type. A prospective controlled test is needed "
+            "to isolate length as an independent variable."
         ),
         "question": (
             "Do shorter notifications (\u226480 chars) outperform longer ones for CTR, "
