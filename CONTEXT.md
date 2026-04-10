@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-09 — Grader hardening + weekly auto-ingest pipeline built
+**Last session:** 2026-04-09 — Grader platform-aware scoring + adapter pattern planning + stakeholder documentation
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -15,7 +15,7 @@ For session history: see [sessions/](sessions/)
 - **Playbook:** `docs/playbook/index.html` — 5 tiles (Featured Targeting, Push Notifications, Section Tagging, Local vs. National, MSN Formula)
 - **Author Playbooks:** `docs/author-playbooks/index.html` — per-author profiles (requires Tracker)
 - **Experiments:** `docs/experiments/index.html` — auto-generated each run; directional findings routed here; append-only log at `experiments/experiment_log.md`
-- **Headline Grader:** `docs/grader/index.html` — 15 criteria (rule-based + Groq LLM); 30-day history; daily at 10am CDT via GitHub Actions; Run Now button (passcode 8812, fine-grained PAT in localStorage); service account key as base64 in `GOOGLE_SERVICE_ACCOUNT_JSON` secret (use `~/.credentials/pierce-tools.json`)
+- **Headline Grader:** `docs/grader/index.html` — 15 criteria (rule-based + Groq LLM); 30-day history; daily at 10am CDT via GitHub Actions; Run Now button (passcode 8812, fine-grained PAT in localStorage); service account key as base64 in `GOOGLE_SERVICE_ACCOUNT_JSON` secret (use `~/.credentials/pierce-tools.json`); **platform-aware scoring** — reads `Syndication platform` (col H) from Tracker; char count scored against platform-specific target (AN: 90–120, SN: 70–90); number lead note is platform-aware; platform badge shown on each card
 - **Weekly ingest:** `.github/workflows/weekly_ingest.yml` — Monday 8pm CDT; downloads 2026 sheet via `download_tarrow.py`, regenerates site if data changed, appends to `data/weekly_snapshots.json` via `update_snapshots.py`; sheet shared with service account ✅ (confirmed 2026-04-09)
 - **Generator:** `generate_site.py` — run via `ingest.py`; `SHOW_MSN_TILE = False` (MSN data present, tile paused); `PENDING_HIGH_ANALYSES = []` (build-time scope guardrail); writes `data/build_summary.json` at end of every run for longitudinal tracking
 
@@ -31,7 +31,7 @@ For session history: see [sessions/](sessions/)
 | SmartNews 2026 | ✅ In repo | Article-level, 28 columns, per-channel views |
 | MSN 2026 | ✅ In repo | 113 rows after T1 + politics filter |
 | Yahoo 2026 | ✅ In repo | 1,043 rows |
-| 2026 XLSX | 🔄 Auto-refreshed | Weekly via GitHub Actions — active once Tarrow shares sheet |
+| 2026 XLSX | 🔄 Auto-refreshed | Weekly via GitHub Actions — Tarrow share confirmed ✅ |
 
 ## Open Items
 
@@ -62,7 +62,15 @@ For session history: see [sessions/](sessions/)
 - [ ] Create `README_ADAPTER.md` — explains the pattern, documents three output modes (interactive session / narrative memo / site tile), uses Sarah's adapter as the worked example
 - Goal: each team member clones repo, copies template → `ADAPTER.md`, fills it in; rigor floor is inviolable regardless of adapter
 
-## Recent Session: 2026-04-09
+## Recent Session: 2026-04-09 (session 2)
+
+**Grader platform-aware scoring:** `generate_grader.py` updated to read `Syndication platform` (Tracker col H) per article. `_parse_platform()` added; `_char_count()` now scores against platform-specific target (AN: 90–120, SN: 70–90, unknown: 70–120 fallback); `_number()` note is platform-aware ("positive SmartNews signal" / "caution: underperforms on Apple News"). Platform badge shown on each headline card. 19/19 tests pass. Also confirmed: `Primary Keywords` (col H→R) and `Headline` (col I) were already being read correctly — no gap there.
+
+**Adapter pattern planned (Chris Palo directive):** Full architecture documented in CONTEXT.md open items and memory. Four files to build off-hours: `GOVERNOR_CORE.md`, `GOVERNOR_SARAH.md`, `ADAPTER_TEMPLATE.md`, `README_ADAPTER.md`. CLAUDE.md adapter-loading logic defined. No code changes needed.
+
+**Stakeholder documentation produced:** Three "one-sheet dummies guides" written for Chris Palo — how each artifact works, how to build one, what the guardrails are, how outputs are prioritized by stakeholder interest. Analytics pipeline doc includes full Governor explanation (Part 1 relevance / Part 2 rigor / continuous improvement loop).
+
+## Recent Session: 2026-04-09 (session 1)
 
 **Grader hardening:** CRITERIA updated — char count label corrected to SN 70–90 / AN 90–120 range; `no_questions` added as scored criterion; `no_vague_wtk` moved from LLM → regex (p=3.0e-6 badge); `_ACRONYMS` expanded ~30→55; LLM prompt reduced to 4 criteria. Stale LLM warning text corrected. 19/19 tests pass.
 
