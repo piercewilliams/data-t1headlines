@@ -2964,6 +2964,8 @@ df_content_type    = pd.DataFrame()
 df_author_profiles = pd.DataFrame()
 df_vert_plat       = pd.DataFrame()
 PARENT_MED_PCT = CHILD_MED_PCT = CT_P = np.nan
+CLUSTER_SIZE_R = CLUSTER_SIZE_P = np.nan
+N_CLUSTER_SIZED = 0
 _ft_untagged_share = 0.0
 _ft_top_formula    = "untagged"
 _ft_top_formula_pct = 0.0
@@ -2974,8 +2976,36 @@ def _hn(t: str) -> str:
 
 try:
     tracker_raw = pd.read_excel(TRACKER, sheet_name="Data")
+
+    # Pre-compute cluster size from Parent_ID linkage (before filtering).
+    # cluster_size = 1 parent + n children that share that Parent_ID.
+    # Parent-P rows use their own Asset_ID as the key; Child-C rows use Parent_ID.
+    if {"Asset_ID", "Parent_ID", "Content_Type"}.issubset(tracker_raw.columns):
+        _nc = tracker_raw.groupby("Parent_ID").size().to_dict()
+        def _csz(r):
+            ct = str(r.get("Content_Type", ""))
+            if ct == "Parent-P":
+                return 1 + _nc.get(str(r.get("Asset_ID", "")), 0)
+            elif ct == "Child-C":
+                pid = r.get("Parent_ID")
+                return 1 + _nc.get(str(pid), 0) if pd.notna(pid) else np.nan
+            return np.nan
+        tracker_raw["_cluster_size"] = tracker_raw.apply(_csz, axis=1)
+
+        # cluster_id = the parent's Asset_ID for all articles in a cluster.
+        # Allows grouping all variants of the same story together after the join.
+        def _cid(r):
+            ct = str(r.get("Content_Type", ""))
+            if ct == "Parent-P":
+                return str(r.get("Asset_ID", ""))
+            elif ct == "Child-C":
+                pid = r.get("Parent_ID")
+                return str(pid) if pd.notna(pid) else None
+            return None
+        tracker_raw["_cluster_id"] = tracker_raw.apply(_cid, axis=1)
+
     _t_cols = ["Published URL/Link", "Author", "Vertical", "Word Count", "Headline"]
-    for _opt in ["Content_Type", "Personas (Target Audience)"]:
+    for _opt in ["Content_Type", "Personas (Target Audience)", "_cluster_size", "_cluster_id"]:
         if _opt in tracker_raw.columns:
             _t_cols.append(_opt)
     tracker_df  = tracker_raw[_t_cols].copy()
@@ -2987,6 +3017,8 @@ try:
         "Author": "t_author", "Vertical": "t_vertical",
         "Content_Type": "t_content_type",
         "Personas (Target Audience)": "t_persona",
+        "_cluster_size": "t_cluster_size",
+        "_cluster_id":   "t_cluster_id",
     })
     HAS_TRACKER = True
 except Exception as e:
@@ -3000,7 +3032,7 @@ if HAS_TRACKER:
     an_work["_url"] = an_work["Publisher Article ID"].fillna("").str.strip().str.lower()
     an_work["_hn"]  = an_work["Article"].apply(_hn)
     # Build merge column list (includes optional tracker columns if present)
-    _t_extra_cols = [c for c in ["t_content_type","t_persona"] if c in tracker_df.columns]
+    _t_extra_cols = [c for c in ["t_content_type","t_persona","t_cluster_size","t_cluster_id"] if c in tracker_df.columns]
     _t_merge_base = ["t_author","t_vertical","Word Count"] + _t_extra_cols
     # URL join
     an_url_j = (an_work[an_work["_url"] != ""]
@@ -3024,6 +3056,8 @@ if HAS_TRACKER:
             percentile=r[VIEWS_METRIC],
             featured=r.get("is_featured", False),
             word_count=r.get("Word Count", np.nan),
+            cluster_size=r.get("t_cluster_size", np.nan),
+            cluster_id=r.get("t_cluster_id", None),
         ))
 
     # ── 2. SmartNews 2026: URL join ───────────────────────────────────────────
@@ -3046,6 +3080,8 @@ if HAS_TRACKER:
             percentile=r["percentile"],
             featured=False,
             word_count=r.get("Word Count", np.nan),
+            cluster_size=r.get("t_cluster_size", np.nan),
+            cluster_id=r.get("t_cluster_id", None),
         ))
 
     # ── 3. Yahoo 2026: headline join ──────────────────────────────────────────
@@ -3068,6 +3104,8 @@ if HAS_TRACKER:
             percentile=r["percentile"],
             featured=False,
             word_count=r.get("Word Count", np.nan),
+            cluster_size=r.get("t_cluster_size", np.nan),
+            cluster_id=r.get("t_cluster_id", None),
         ))
 
     team_combined = pd.DataFrame(rows)
@@ -3310,6 +3348,23 @@ if HAS_TRACKER and HAS_ANP:
                 if len(_p_v) >= 5 and len(_c_v) >= 5:
                     _, CT_P = stats.mannwhitneyu(_p_v, _c_v, alternative="two-sided")
 
+        # ── Cluster size vs. views correlation ───────────────────────────────
+        # Tests whether producing more variants per story correlates with
+        # higher per-article syndication performance (Spearman, non-parametric).
+        CLUSTER_SIZE_R = CLUSTER_SIZE_P = np.nan
+        N_CLUSTER_SIZED = 0
+        if "cluster_size" in team_combined.columns:
+            _cs_data = team_combined[
+                team_combined["cluster_size"].notna() &
+                team_combined["percentile"].notna() &
+                (team_combined["cluster_size"] >= 1)
+            ].copy()
+            N_CLUSTER_SIZED = len(_cs_data)
+            if N_CLUSTER_SIZED >= 20:
+                _csr, _csp = stats.spearmanr(_cs_data["cluster_size"], _cs_data["percentile"])
+                CLUSTER_SIZE_R = float(_csr)
+                CLUSTER_SIZE_P = float(_csp)
+
         # ── Author formula profiles ──────────────────────────────────────────
         # Per author: most-used formula, median percentile, n articles
         df_author_formula = (team_combined.groupby(["author","formula"])
@@ -3368,6 +3423,7 @@ _COL_TOOLTIPS: dict[str, str] = {
     "n":                              "Number of articles in this group.",
     "median %ile":                    "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.",
     "cohort %ile":                    "The middle article's rank within its publication-month cohort; 0.5 = exactly average for that outlet and month.",
+    "median views percentile":        "The middle article's views rank within its platform cohort; 0.5 = exactly average, 0.7 = top 30%.",
     "type":                           "Whether the article is an original piece or an AI-generated variant.",
     "structure":                      "The sub-pattern used by headlines that don't fit any main formula—helps identify emerging patterns.",
     "formula":                        "The structural template used in this headline (e.g. 'What to know', number lead).",
@@ -3509,6 +3565,10 @@ _COL_TOOLTIPS: dict[str, str] = {
     # SmartNews channel distribution table
     "total views":                        "Sum of article views attributed to this SmartNews channel across all T1 articles in the dataset.",
     "share %":                            "This channel's share of total article_view for T1 content; shows where SmartNews routes the most T1 traffic.",
+    # Variant production / cluster sections
+    "clusters":                           "Number of story clusters this author originated as Parent-P rows in the Tracker.",
+    "mean variants/cluster":              "Average number of articles per story cluster (original + CSA-generated variants) for this author.",
+    "variants per cluster":               "Number of articles in this story cluster: 1 = original only, 2 = original + 1 variant, etc.",
 }
 
 
@@ -7488,6 +7548,157 @@ Formula and topic distributions reflect editorial choices for this content type.
   article appeared in ANP data.</p>
 </section>"""
 
+def _variant_perf_section() -> str:
+    """Original (Parent-P) vs. Variant (Child-C) syndication performance section."""
+    if df_content_type.empty or not HAS_TRACKER:
+        return ""
+    _CT_LABELS = {"Parent-P": "Original article (Parent-P)", "Child-C": "Variant (Child-C)"}
+    rows_html = ""
+    for _, r in df_content_type.iterrows():
+        label = _CT_LABELS.get(r["content_type"], r["content_type"])
+        rows_html += f"<tr><td>{label}</td><td>{int(r['n'])}</td><td>{r['med_pct']:.0%}</td></tr>\n"
+
+    # Significance badge
+    sig_note = ""
+    if pd.notna(CT_P) and pd.notna(PARENT_MED_PCT) and pd.notna(CHILD_MED_PCT):
+        tier = ("significant" if CT_P < 0.05
+                else "directional" if CT_P < 0.10 else "no detectable difference")
+        direction = ("Originals outperform" if PARENT_MED_PCT > CHILD_MED_PCT
+                     else "Variants outperform" if CHILD_MED_PCT > PARENT_MED_PCT
+                     else "No difference in")
+        sig_note = (f"<p class='caveat' style='margin-top:.75rem'>"
+                    f"Mann-Whitney p={CT_P:.3f} ({tier}). "
+                    f"{direction} variants: original median {PARENT_MED_PCT:.0%} "
+                    f"vs. variant median {CHILD_MED_PCT:.0%} (views percentile within cohort).</p>")
+
+    # Cluster size correlation block
+    cluster_html = ""
+    if N_CLUSTER_SIZED >= 20 and pd.notna(CLUSTER_SIZE_R):
+        cs_tier = ("significant" if pd.notna(CLUSTER_SIZE_P) and CLUSTER_SIZE_P < 0.05
+                   else "directional" if pd.notna(CLUSTER_SIZE_P) and CLUSTER_SIZE_P < 0.10
+                   else "no detectable relationship")
+        cs_dir = "positive" if CLUSTER_SIZE_R > 0 else "negative"
+        cluster_html = f"""
+<h3 style="margin-top:1.5rem">Cluster size vs. per-article performance</h3>
+<p>Does producing more variants per story correlate with higher per-article views?</p>
+<p class='caveat' style='margin-top:.5rem'>
+  Spearman r={CLUSTER_SIZE_R:.3f}, p={CLUSTER_SIZE_P:.3f} (n={N_CLUSTER_SIZED}, {cs_tier}).
+  {cs_dir.capitalize()} association between cluster size and views percentile.
+  Observational — cluster size and content type are correlated; cannot isolate variant
+  production as the cause. Cluster size = 1 parent + n children in Tracker.
+</p>"""
+    elif N_CLUSTER_SIZED > 0:
+        cluster_html = (f"<p class='caveat' style='margin-top:.75rem'>"
+                        f"Cluster size data present for {N_CLUSTER_SIZED} articles — "
+                        f"insufficient n for Spearman test (need ≥20). Will populate as "
+                        f"Tracker coverage improves.</p>")
+
+    return f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Original vs. Variant Performance</h2>
+  <p class="sub" style="margin-bottom:1rem">
+    Tracker Content_Type field: Parent-P = original article, Child-C = CSA-generated variant.
+    Tests whether variants syndicate as well as originals across matched platforms.
+  </p>
+  <table class="findings">
+    <thead><tr><th>Content type</th><th>n matched</th><th>Median views percentile</th></tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+  {sig_note}
+  {cluster_html}
+  <p class="caveat" style="margin-top:.75rem">
+    Tracker→platform join ({N_TRACKED} matched articles across Apple News, SmartNews, Yahoo).
+    Views percentile is normalized within platform cohort (year). Observational data only —
+    content type and distribution platform are correlated with topic and author, which are
+    also correlated with performance.
+  </p>
+</section>"""
+
+
+def _cluster_production_section() -> str:
+    """Tracker-level cluster production stats — no performance join required."""
+    if not HAS_TRACKER:
+        return ""
+    if "_cluster_size" not in tracker_raw.columns or "_cluster_id" not in tracker_raw.columns:
+        return ""
+    # One row per cluster = all Parent-P rows (each parent defines one cluster)
+    parents = tracker_raw[tracker_raw["Content_Type"] == "Parent-P"].copy()
+    if len(parents) < 5:
+        return ""
+
+    n_clusters = len(parents)
+    n_multi    = int((parents["_cluster_size"] > 1).sum())
+    mean_cs    = float(parents["_cluster_size"].mean())
+    median_cs  = float(parents["_cluster_size"].median())
+    max_cs     = int(parents["_cluster_size"].max())
+    pct_multi  = n_multi / n_clusters
+
+    # Distribution table — bins 1–4, then 5+
+    cs_counts = parents["_cluster_size"].value_counts().sort_index()
+    dist_rows = ""
+    for sz in [1, 2, 3, 4]:
+        count = int(cs_counts.get(sz, 0))
+        dist_rows += f"<tr><td>{sz}</td><td>{count}</td><td>{count/n_clusters:.0%}</td></tr>\n"
+    n_5plus = int((parents["_cluster_size"] >= 5).sum())
+    if n_5plus:
+        dist_rows += f"<tr><td>5+</td><td>{n_5plus}</td><td>{n_5plus/n_clusters:.0%}</td></tr>\n"
+
+    # Author breakdown — only if Author column present in tracker_raw
+    author_section = ""
+    if "Author" in tracker_raw.columns:
+        author_stats = (
+            parents.groupby("Author")["_cluster_size"]
+            .agg(clusters="count", mean_size="mean")
+            .sort_values("clusters", ascending=False)
+            .head(10)
+        )
+        author_rows = ""
+        for author, row in author_stats.iterrows():
+            author_rows += (f"<tr><td>{author}</td><td>{int(row['clusters'])}</td>"
+                            f"<td>{row['mean_size']:.1f}</td></tr>\n")
+        author_section = f"""
+<h3 style="margin-top:1.5rem">Variant production by author (top 10 by cluster count)</h3>
+<table class="findings">
+  <thead><tr>
+    <th>Author</th>
+    <th>Clusters</th>
+    <th>Mean variants/cluster</th>
+  </tr></thead>
+  <tbody>{author_rows}</tbody>
+</table>"""
+
+    return f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Variant Production — Tracker Overview</h2>
+  <p class="sub" style="margin-bottom:1rem">
+    Based on {n_clusters} clusters in the Tracker. Cluster = 1 original (Parent-P) +
+    its CSA-generated variants (Child-C). This analysis uses the Tracker directly —
+    no platform performance join required.
+  </p>
+  <p>
+    <strong>{n_multi} of {n_clusters} clusters ({pct_multi:.0%})</strong> have ≥2 articles
+    (original + at least one variant).
+    Mean cluster size: <strong>{mean_cs:.2f}</strong>.
+    Median: {median_cs:.0f}. Max: {max_cs}.
+  </p>
+  <h3 style="margin-top:1.5rem">Cluster size distribution</h3>
+  <table class="findings">
+    <thead><tr>
+      <th>Variants per cluster</th>
+      <th>Clusters</th>
+      <th>Share</th>
+    </tr></thead>
+    <tbody>{dist_rows}</tbody>
+  </table>
+  {author_section}
+  <p class="caveat" style="margin-top:.75rem">
+    Cluster size = 1 (original) + count of Child-C rows sharing the same Parent_ID.
+    Only Parent-P rows are counted here — each represents one cluster.
+    Child-C rows without a valid Parent_ID are excluded from cluster counts.
+  </p>
+</section>"""
+
+
 if _ap_n_authors == 0:
     _ap_body = """
 <div class="container">
@@ -7508,6 +7719,10 @@ else:
 {_ap_details_html}
 
 {_vertical_perf_section()}
+
+{_variant_perf_section()}
+
+{_cluster_production_section()}
 </div>"""
 
 author_pb_html = f"""<!DOCTYPE html>
@@ -8807,6 +9022,87 @@ def _validate_exp_suggestion(s: dict) -> bool:
 _exp_suggs_raw  = _collect_experiment_suggestions()
 _exp_suggs      = [s for s in _exp_suggs_raw if _validate_exp_suggestion(s)]
 _exp_html       = _generate_experiments_page(_exp_suggs, REPORT_DATE_SLUG)
+
+# ── Append weekly longitudinal trends section ─────────────────────────────────
+# Reads data/weekly_snapshots.json (written by update_snapshots.py after each run).
+# Requires ≥3 entries before rendering trend lines — single-point trends are noise.
+_snapshots_path = Path("data/weekly_snapshots.json")
+_snapshots: list[dict] = []
+if _snapshots_path.exists():
+    try:
+        _snapshots = json.loads(_snapshots_path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+_SNAP_METRICS = [
+    ("fb_wtk_sn_rank",     "'What to Know' SmartNews rank",   "Lower = penalty stronger"),
+    ("fb_q_sn_rank",       "Question format SmartNews rank",  "Lower = penalty stronger"),
+    ("notif_len_best_ctr", "Notification best-bin CTR",       "Optimal 70–89 char bin"),
+    ("an_median_hl_len",   "Apple News median headline length","chars"),
+    ("sn_median_hl_len",   "SmartNews median headline length", "chars"),
+]
+
+if len(_snapshots) < 3:
+    _lts_section = f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
+  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
+             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
+  <p style="font-size:.85em;color:#8b90a0">
+    Building history — trend lines will appear after {3 - len(_snapshots)} more weekly run(s).
+    Currently {len(_snapshots)} snapshot(s) recorded. Tracked metrics:
+    WTK SmartNews rank, question format SmartNews rank, notification CTR,
+    Apple News median headline length, SmartNews median headline length.
+  </p>
+</section>"""
+else:
+    _dates = [s["date"] for s in _snapshots]
+    _rows_html = ""
+    for _key, _label, _note in _SNAP_METRICS:
+        _vals = [s.get(_key) for s in _snapshots]
+        if all(v is None for v in _vals):
+            continue
+        _first  = next((v for v in _vals if v is not None), None)
+        _last   = next((v for v in reversed(_vals) if v is not None), None)
+        _change = ((_last - _first) / abs(_first) * 100) if (_first and _first != 0) else 0
+        _dir    = "▲" if _change > 1 else ("▼" if _change < -1 else "→")
+        _color  = "#4caf50" if _change > 1 else ("#ef5350" if _change < -1 else "#8b90a0")
+        _rows_html += (
+            f"<tr><td>{_label}</td>"
+            f"<td style='font-family:monospace'>{_first:.3f}</td>"
+            f"<td style='font-family:monospace'>{_last:.3f}</td>"
+            f"<td style='color:{_color};font-weight:700'>{_dir} {abs(_change):.1f}%</td>"
+            f"<td style='color:#8b90a0;font-size:.82em'>{_note}</td></tr>\n"
+        )
+    _lts_section = f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
+  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
+             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
+  <p style="font-size:.85em;color:#8b90a0;margin-bottom:1rem">
+    {len(_snapshots)} weekly snapshots · {_dates[0]} → {_dates[-1]}.
+    Tracks whether key performance signals are stable, strengthening, or shifting over time.
+    A stable signal is evidence the finding is durable; a shifting signal is a reason to re-examine.
+  </p>
+  <table style="width:100%;border-collapse:collapse;font-size:.82em">
+    <thead>
+      <tr style="background:#1a1d27;color:#8b90a0;font-size:.75em;text-transform:uppercase;letter-spacing:.05em">
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Metric</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">First</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Latest</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Change</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Notes</th>
+      </tr>
+    </thead>
+    <tbody>{_rows_html}</tbody>
+  </table>
+  <p style="font-size:.78em;color:#8b90a0;margin-top:.75rem">
+    Values computed from source data on each weekly ingest run.
+    Change = (latest − first) / first. Signals that shift &gt;5% over 4+ weeks warrant re-examination.
+  </p>
+</section>"""
+
+_exp_html = _exp_html.replace("</body></html>",
+    f'<div style="max-width:1100px;margin:0 auto;padding:0 28px 80px">{_lts_section}</div>\n</body></html>')
+
 experiments_out = Path("docs/experiments/index.html")
 experiments_out.parent.mkdir(exist_ok=True)
 experiments_out.write_text(_exp_html, encoding="utf-8")

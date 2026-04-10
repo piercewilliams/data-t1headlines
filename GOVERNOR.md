@@ -228,6 +228,7 @@ Every number that appears in prose must trace to one of these fields. If it can'
 | Question format headlines: `classify_question_word()` requires headline to start with a canonical question word | Apple News | Most question headlines (n≈162 of 178) fall into "other" bucket because phrasing doesn't begin with How/Why/What/Who/etc. Named word-type buckets have n=2–5 — too small for any inference before mid-2026 | Report question-word type as illustrative-only until per-bucket n≥30 |
 | SmartNews 2026 `recommended_view` is 0.5% of `article_view` for T1 content (Jan–Mar 2026) | 2026 SmartNews | Near-zero signal; not analytically useful as a standalone metric until dataset grows past 2026-Q2 | Track but do not surface as a primary metric until share exceeds ~5% |
 | Enabling previously-excluded platforms may surface latent ordering bugs | generate_site.py | When MSN was re-included (2026-04), a `_fmt_p` function ordering bug surfaced that was previously silent. Pattern: helper functions defined after the call sites they serve. | After any platform re-inclusion, run a full build and check for NameError / UnboundLocalError |
+| Tracker `Syndication platform` column uses short-form values | Tracker (col H) | Raw string comparisons to "Apple News" or "SmartNews" will silently fail — values are `Apple`, `Smart News`, `MSN`, `Google News` | Always use `_parse_platform()` in generate_grader.py to normalize; never compare raw strings directly |
 
 ---
 

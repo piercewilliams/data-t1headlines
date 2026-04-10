@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-09 — Grader platform-aware scoring + adapter pattern planning + stakeholder documentation
+**Last session:** 2026-04-10 — Cluster/variant production section added to author-playbooks; no actionable performance findings
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -61,6 +61,16 @@ For session history: see [sessions/](sessions/)
 - [ ] Update `CLAUDE.md` — adapter loading logic: if `ADAPTER.md` present, load `GOVERNOR_CORE.md` + `ADAPTER.md`; else load `GOVERNOR.md` as-is
 - [ ] Create `README_ADAPTER.md` — explains the pattern, documents three output modes (interactive session / narrative memo / site tile), uses Sarah's adapter as the worked example
 - Goal: each team member clones repo, copies template → `ADAPTER.md`, fills it in; rigor floor is inviolable regardless of adapter
+
+## Recent Session: 2026-04-10
+
+**Cluster/variant production section:** `_cluster_production_section()` added to `generate_site.py` and wired into author-playbooks page after the performance-join variant section. Shows: total clusters (422), share with ≥2 articles (94%), mean/median/max cluster size, distribution table (1–4 bins + 5+), author breakdown by cluster count and mean variants/cluster. Runs on `tracker_raw` directly — no performance join required.
+
+**cluster_id propagation** (carried from prior session): `_cluster_id` computed from `tracker_raw` alongside `_cluster_size`, propagated through `_t_cols` → `_t_extra_cols` → all three platform join `rows.append` dicts.
+
+**Actionable findings assessment:** None. Production section is operational inventory (Ryan Brennan 154 clusters/3.15 mean, Hanna Wickes 144/3.15; Lauren Schuster 47/2.21, Lauren J-G 40/2.0, Allison Palmer 19/1.95). Performance join: Mann-Whitney p=0.635, no detectable difference between originals and variants (n=37 total — underpowered). **Data quality flag:** "Hanna Wickes" and "Hanna WIckes" (capital I) appear as separate authors in Tracker — 148 clusters split across two rows. Worth fixing in source data.
+
+**Three new `_COL_TOOLTIPS` entries added** for cluster section column headers. 19/19 tests pass, all build checks clean.
 
 ## Recent Session: 2026-04-09 (session 2)
 
