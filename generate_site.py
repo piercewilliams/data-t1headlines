@@ -5971,6 +5971,26 @@ if not df_sn_channels.empty:
 <p class="caveat">SmartNews 2026 data, T1 outlets only (excluding Us Weekly). Jan–Mar 2026, n={SN_CHANNEL_ROWS} articles. Channel views may not sum to article_view (some views are unattributed to a channel). New in April 2026 data export.</p>
 """
 
+# ── Pre-compute any table fragments that use backslashes (Python 3.11 forbids
+# backslashes inside f-string expression parts, even inside nested literals).
+_ql_subtypes_rows_html = ""
+if df_ql_subtypes is not None:
+    _ql_rows = []
+    for _, _r in df_ql_subtypes.iterrows():
+        _lc = 'lift-high' if _r['lift'] >= 1.5 else ('lift-pos' if _r['lift'] >= 0.9 else 'lift-neg')
+        _p  = 'p<0.05' if _r['p'] < 0.05 else ('p<0.10' if _r['p'] < 0.10 else f'p={_r["p"]:.2f}')
+        _ql_rows.append(
+            f'<tr>'
+            f'<td>{html_module.escape(str(_r["label"]))}</td>'
+            f'<td>{int(_r["n"])}</td>'
+            f'<td>{_r["feat_rate"]:.0%}</td>'
+            f'<td><span class="{_lc}">{_r["lift"]:.2f}\u00d7</span></td>'
+            f'<td>{_p}</td>'
+            f'<td>{_r["within_feat_med"]:.0%}</td>'
+            f'</tr>'
+        )
+    _ql_subtypes_rows_html = ''.join(_ql_rows)
+
 # ── HTML ──────────────────────────────────────────────────────────────────────
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -6295,14 +6315,7 @@ html = f"""<!DOCTYPE html>
         <div class="callout"><strong>Action:</strong> Official/authority quotes (police, prosecutors, government) are the highest-featuring subtype of quoted-lede headlines on Apple News. Use them when you have a credible sourced quote from an official — they get Featured at a higher rate than the quoted-lede average. Expert quotes (scientists, researchers) also index above baseline. First-person subject quotes perform below the quoted-lede average for featuring.</div>
         <table class="findings">
           <thead><tr><th>Quote lede type</th><th>n</th><th>Featured rate</th><th>Lift vs. baseline</th><th>p (chi²)</th><th>Within-Featured median %ile</th></tr></thead>
-          <tbody>{"".join(
-            f"<tr><td>{html_module.escape(str(r['label']))}</td><td>{int(r['n'])}</td>"
-            f"<td>{{r['feat_rate']:.0%}}</td>"
-            f"<td><span class=\"{'lift-high' if r['lift']>=1.5 else ('lift-pos' if r['lift']>=0.9 else 'lift-neg')}\">{{r['lift']:.2f}}\u00d7</span></td>"
-            f"<td>{{'p<0.05' if r['p']<0.05 else ('p<0.10' if r['p']<0.10 else f'p={{r[\"p\"]:.2f}}' )}}</td>"
-            f"<td>{{r['within_feat_med']:.0%}}</td></tr>"
-            for _, r in df_ql_subtypes.iterrows()
-          )}</tbody>
+          <tbody>{_ql_subtypes_rows_html}</tbody>
         </table>
         <p class="caveat">Subtypes classified by keywords after the closing quote mark. n={len(_ql_subset)} total quoted-lede articles. p-values are uncorrected for this exploratory breakdown. Interpret as directional guidance, not confirmed findings.</p>'''}
         {_question_type_html}
@@ -7725,6 +7738,17 @@ else:
 {_cluster_production_section()}
 </div>"""
 
+# Pre-compute string with \n escapes so it isn't inside the f-string expression
+# (Python 3.11 forbids backslashes inside f-string expression parts).
+_apb_export_extra = (
+    "  var pid = panelEl.id || '';\n"
+    "  var tileEl = null;\n"
+    "  document.querySelectorAll('.pb-tile').forEach(function(t) {{\n"
+    "    if ((t.getAttribute('onclick') || '').indexOf(pid) >= 0) tileEl = t;\n"
+    "  }});\n"
+    "  return tileEl;"
+)
+
 author_pb_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7946,13 +7970,7 @@ function togglePb(tile, id) {{
 }})();
 
 // ── Export (PNG / PDF) ──────────────────────────────────────────────────────
-{_make_export_js("3", ".tile-toggle,.export-btn-wrap", "h3.rh,h2", "author-playbook-",
-    "  var pid = panelEl.id || '';\n"
-    "  var tileEl = null;\n"
-    "  document.querySelectorAll('.pb-tile').forEach(function(t) {{\n"
-    "    if ((t.getAttribute('onclick') || '').indexOf(pid) >= 0) tileEl = t;\n"
-    "  }});\n"
-    "  return tileEl;")}
+{_make_export_js("3", ".tile-toggle,.export-btn-wrap", "h3.rh,h2", "author-playbook-", _apb_export_extra)}
 
 (function() {{
   document.addEventListener('DOMContentLoaded', function() {{
