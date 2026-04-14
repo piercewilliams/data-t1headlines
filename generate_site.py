@@ -3630,7 +3630,7 @@ def _make_col_tooltip_js() -> str:
 }})();
 """
 
-if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0 and not df_author_profiles.empty:
+if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
     _team_med_pct = float(team_combined["percentile"].median())
 
     # Team-wide formula medians for benchmarking each author against
@@ -3639,11 +3639,23 @@ if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0 and not
         for _, _tfr in df_formula_team.iterrows():
             _team_formula_meds[str(_tfr["formula"])] = float(_tfr["med_pct"])
 
-    # Authors with enough articles, ranked best first
-    _ranked_authors = (df_author_profiles.copy()
-                       .query("n_total >= @_AUTHOR_MIN_N")
-                       .sort_values("med_pct_overall", ascending=False)
-                       .reset_index(drop=True))
+    # Authors with enough articles, ranked best first.
+    # When ANP data is absent df_author_profiles is empty; fall back to
+    # deriving the same columns (n_total, med_pct_overall, author) directly
+    # from the tracker join so the playbook tiles still render.
+    if not df_author_profiles.empty:
+        _ranked_authors = (df_author_profiles.copy()
+                           .query("n_total >= @_AUTHOR_MIN_N")
+                           .sort_values("med_pct_overall", ascending=False)
+                           .reset_index(drop=True))
+    else:
+        _ranked_authors = (
+            team_combined.groupby("author", as_index=False)
+            .agg(n_total=("percentile", "count"), med_pct_overall=("percentile", "median"))
+            .query("n_total >= @_AUTHOR_MIN_N")
+            .sort_values("med_pct_overall", ascending=False)
+            .reset_index(drop=True)
+        )
 
     for _ai, _arow in _ranked_authors.iterrows():
         _auth     = str(_arow["author"])
