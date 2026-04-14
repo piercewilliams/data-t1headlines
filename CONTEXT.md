@@ -41,13 +41,14 @@ For session history: see [sessions/](sessions/)
 - [ ] Active time outliers in source Excel (3 rows up to 23,496s); pipeline caps at 600s; notify Tarrow
 - [ ] Wire Tracker→ANP join into pipeline; blocked on March ANP drop for Allison Palmer data
 - [ ] Lauren Jarvis-Gibson + Samantha Agate — 0 matched articles; author playbooks populate when content appears
+- [x] ~~"Hanna Wickes" / "Hanna WIckes" typo splits author rows~~ FIXED 2026-04-14: name normalization added to generate_site.py (`_AUTHOR_ALIASES`) — merges both spellings into "Hanna Wickes" before any tracker processing. Source spreadsheet still has the typo but pipeline handles it.
 
 **Analysis:**
 - [ ] O&O + syndication PV data layer (Chris Palo; Amplitude access needed)
 - [ ] Automate Sarah Price's Amplitude → Tracker join (manual monthly export; matching on title/URL/author)
-- [ ] SN channel × formula — does formula vary by channel? (MED probing queue; enabled by April 8 article-level SN data)
+- [ ] SN channel × formula — ANALYZED 2026-04-14: insufficient data (217 T1 articles, 85% direct declarative; WTK n=2, Question n=8). Directional signal consistent with formula trap. Revisit when 2026 has a full half-year (July). Decision pending: log to experiments page or footnote existing finding?
 - [ ] Trendhunter notification vertical breakdown — blocked until Tarrow adds author attribution to notification export
-- [ ] `data/weekly_snapshots.json` — longitudinal store built; not yet surfaced on the site (future session)
+- [x] ~~`data/weekly_snapshots.json` — longitudinal store built; not yet surfaced on the site~~ DONE 2026-04-14: section now renders on main page (docs/index.html) and experiments page. Placeholder shows until ≥3 snapshots; trend table auto-renders after 2 more weekly runs.
 
 **Stakeholder:**
 - [ ] Share formula × topic interaction finding → editorial leads (weather/emergency = "here's/question"; all other topics = formula doesn't matter)

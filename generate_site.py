@@ -2995,6 +2995,12 @@ def _hn(t: str) -> str:
 try:
     tracker_raw = pd.read_excel(TRACKER, sheet_name="Data")
 
+    # Normalize known author name typos before any processing (affects cluster counts,
+    # author playbooks, and all downstream groupby("Author") operations).
+    _AUTHOR_ALIASES = {"Hanna WIckes": "Hanna Wickes"}
+    if "Author" in tracker_raw.columns:
+        tracker_raw["Author"] = tracker_raw["Author"].replace(_AUTHOR_ALIASES)
+
     # Pre-compute cluster size from Parent_ID linkage (before filtering).
     # cluster_size = 1 parent + n children that share that Parent_ID.
     # Parent-P rows use their own Asset_ID as the key; Child-C rows use Parent_ID.
@@ -6916,6 +6922,88 @@ function closeDetail() {{
 </body>
 </html>"""
 
+# ── Weekly longitudinal trends section (shared: main page + experiments) ─────
+# Computed here so it can be injected into both pages.
+# Requires ≥3 snapshots before rendering trend lines — single-point comparisons
+# are noise. Placeholder shown until enough history accumulates.
+_snapshots_path = Path("data/weekly_snapshots.json")
+_snapshots: list[dict] = []
+if _snapshots_path.exists():
+    try:
+        _snapshots = json.loads(_snapshots_path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+_SNAP_METRICS = [
+    ("fb_wtk_sn_rank",     "'What to Know' SmartNews rank",   "Lower = penalty stronger"),
+    ("fb_q_sn_rank",       "Question format SmartNews rank",  "Lower = penalty stronger"),
+    ("notif_len_best_ctr", "Notification best-bin CTR",       "Optimal 70–89 char bin"),
+    ("an_median_hl_len",   "Apple News median headline length","chars"),
+    ("sn_median_hl_len",   "SmartNews median headline length", "chars"),
+]
+
+if len(_snapshots) < 3:
+    _lts_section = f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
+  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
+             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
+  <p style="font-size:.85em;color:#8b90a0">
+    Building history — trend lines will appear after {3 - len(_snapshots)} more weekly run(s).
+    Currently {len(_snapshots)} snapshot(s) recorded. Tracked metrics:
+    WTK SmartNews rank, question format SmartNews rank, notification CTR,
+    Apple News median headline length, SmartNews median headline length.
+  </p>
+</section>"""
+else:
+    _dates = [s["date"] for s in _snapshots]
+    _rows_html = ""
+    for _key, _label, _note in _SNAP_METRICS:
+        _vals = [s.get(_key) for s in _snapshots]
+        if all(v is None for v in _vals):
+            continue
+        _first  = next((v for v in _vals if v is not None), None)
+        _last   = next((v for v in reversed(_vals) if v is not None), None)
+        _change = ((_last - _first) / abs(_first) * 100) if (_first and _first != 0) else 0
+        _dir    = "▲" if _change > 1 else ("▼" if _change < -1 else "→")
+        _color  = "#4caf50" if _change > 1 else ("#ef5350" if _change < -1 else "#8b90a0")
+        _rows_html += (
+            f"<tr><td>{_label}</td>"
+            f"<td style='font-family:monospace'>{_first:.3f}</td>"
+            f"<td style='font-family:monospace'>{_last:.3f}</td>"
+            f"<td style='color:{_color};font-weight:700'>{_dir} {abs(_change):.1f}%</td>"
+            f"<td style='color:#8b90a0;font-size:.82em'>{_note}</td></tr>\n"
+        )
+    _lts_section = f"""
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
+  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
+             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
+  <p style="font-size:.85em;color:#8b90a0;margin-bottom:1rem">
+    {len(_snapshots)} weekly snapshots · {_dates[0]} → {_dates[-1]}.
+    Tracks whether key performance signals are stable, strengthening, or shifting over time.
+    A stable signal is evidence the finding is durable; a shifting signal is a reason to re-examine.
+  </p>
+  <table style="width:100%;border-collapse:collapse;font-size:.82em">
+    <thead>
+      <tr style="background:#1a1d27;color:#8b90a0;font-size:.75em;text-transform:uppercase;letter-spacing:.05em">
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Metric</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">First</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Latest</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Change</th>
+        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Notes</th>
+      </tr>
+    </thead>
+    <tbody>{_rows_html}</tbody>
+  </table>
+  <p style="font-size:.78em;color:#8b90a0;margin-top:.75rem">
+    Values computed from source data on each weekly ingest run.
+    Change = (latest − first) / first. Signals that shift &gt;5% over 4+ weeks warrant re-examination.
+  </p>
+</section>"""
+
+# Inject into main page
+html = html.replace("</body></html>",
+    f'<div style="max-width:1100px;margin:0 auto;padding:0 28px 80px">{_lts_section}</div>\n</body></html>')
+
 out = Path("docs/index.html")
 out.parent.mkdir(exist_ok=True)
 # Strip AI-style em-dash constructions from all output — catches both hardcoded
@@ -9087,83 +9175,8 @@ _exp_suggs_raw  = _collect_experiment_suggestions()
 _exp_suggs      = [s for s in _exp_suggs_raw if _validate_exp_suggestion(s)]
 _exp_html       = _generate_experiments_page(_exp_suggs, REPORT_DATE_SLUG)
 
-# ── Append weekly longitudinal trends section ─────────────────────────────────
-# Reads data/weekly_snapshots.json (written by update_snapshots.py after each run).
-# Requires ≥3 entries before rendering trend lines — single-point trends are noise.
-_snapshots_path = Path("data/weekly_snapshots.json")
-_snapshots: list[dict] = []
-if _snapshots_path.exists():
-    try:
-        _snapshots = json.loads(_snapshots_path.read_text(encoding="utf-8"))
-    except Exception:
-        pass
-
-_SNAP_METRICS = [
-    ("fb_wtk_sn_rank",     "'What to Know' SmartNews rank",   "Lower = penalty stronger"),
-    ("fb_q_sn_rank",       "Question format SmartNews rank",  "Lower = penalty stronger"),
-    ("notif_len_best_ctr", "Notification best-bin CTR",       "Optimal 70–89 char bin"),
-    ("an_median_hl_len",   "Apple News median headline length","chars"),
-    ("sn_median_hl_len",   "SmartNews median headline length", "chars"),
-]
-
-if len(_snapshots) < 3:
-    _lts_section = f"""
-<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
-  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
-             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
-  <p style="font-size:.85em;color:#8b90a0">
-    Building history — trend lines will appear after {3 - len(_snapshots)} more weekly run(s).
-    Currently {len(_snapshots)} snapshot(s) recorded. Tracked metrics:
-    WTK SmartNews rank, question format SmartNews rank, notification CTR,
-    Apple News median headline length, SmartNews median headline length.
-  </p>
-</section>"""
-else:
-    _dates = [s["date"] for s in _snapshots]
-    _rows_html = ""
-    for _key, _label, _note in _SNAP_METRICS:
-        _vals = [s.get(_key) for s in _snapshots]
-        if all(v is None for v in _vals):
-            continue
-        _first  = next((v for v in _vals if v is not None), None)
-        _last   = next((v for v in reversed(_vals) if v is not None), None)
-        _change = ((_last - _first) / abs(_first) * 100) if (_first and _first != 0) else 0
-        _dir    = "▲" if _change > 1 else ("▼" if _change < -1 else "→")
-        _color  = "#4caf50" if _change > 1 else ("#ef5350" if _change < -1 else "#8b90a0")
-        _rows_html += (
-            f"<tr><td>{_label}</td>"
-            f"<td style='font-family:monospace'>{_first:.3f}</td>"
-            f"<td style='font-family:monospace'>{_last:.3f}</td>"
-            f"<td style='color:{_color};font-weight:700'>{_dir} {abs(_change):.1f}%</td>"
-            f"<td style='color:#8b90a0;font-size:.82em'>{_note}</td></tr>\n"
-        )
-    _lts_section = f"""
-<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid #2e3350">
-  <h2 style="font-size:1.05em;font-weight:700;color:#7c9df7;text-transform:uppercase;
-             letter-spacing:.04em;margin-bottom:.5rem">Weekly Longitudinal Trends</h2>
-  <p style="font-size:.85em;color:#8b90a0;margin-bottom:1rem">
-    {len(_snapshots)} weekly snapshots · {_dates[0]} → {_dates[-1]}.
-    Tracks whether key performance signals are stable, strengthening, or shifting over time.
-    A stable signal is evidence the finding is durable; a shifting signal is a reason to re-examine.
-  </p>
-  <table style="width:100%;border-collapse:collapse;font-size:.82em">
-    <thead>
-      <tr style="background:#1a1d27;color:#8b90a0;font-size:.75em;text-transform:uppercase;letter-spacing:.05em">
-        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Metric</th>
-        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">First</th>
-        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Latest</th>
-        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Change</th>
-        <th style="text-align:left;padding:7px 10px;border-bottom:2px solid #2e3350">Notes</th>
-      </tr>
-    </thead>
-    <tbody>{_rows_html}</tbody>
-  </table>
-  <p style="font-size:.78em;color:#8b90a0;margin-top:.75rem">
-    Values computed from source data on each weekly ingest run.
-    Change = (latest − first) / first. Signals that shift &gt;5% over 4+ weeks warrant re-examination.
-  </p>
-</section>"""
-
+# ── Append weekly longitudinal trends section to experiments page ─────────────
+# _lts_section computed earlier (before main page write) — reuse here.
 _exp_html = _exp_html.replace("</body></html>",
     f'<div style="max-width:1100px;margin:0 auto;padding:0 28px 80px">{_lts_section}</div>\n</body></html>')
 
