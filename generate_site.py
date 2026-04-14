@@ -1677,6 +1677,15 @@ df_q2 = pd.DataFrame(q2_rows).sort_values("featured_rate")
 if "p_chi_adj" not in df_q2.columns:
     df_q2["p_chi_adj"] = np.nan
 
+# Extract per-formula featuring rates for longitudinal tracking.
+# These are computed from live data (full AN dataset) each run — they will shift
+# as 2026 data accumulates, making them the most meaningful series in weekly_snapshots.
+_q2_idx = df_q2.set_index("formula") if not df_q2.empty else pd.DataFrame()
+AN_FEAT_OVERALL  = round(float(overall_feat_rate), 4)
+AN_FEAT_WTK      = round(float(_q2_idx.loc["what_to_know",  "featured_rate"]), 4) if "what_to_know"  in _q2_idx.index else None
+AN_FEAT_HERES    = round(float(_q2_idx.loc["heres_formula", "featured_rate"]), 4) if "heres_formula" in _q2_idx.index else None
+AN_FEAT_QUESTION = round(float(_q2_idx.loc["question",      "featured_rate"]), 4) if "question"      in _q2_idx.index else None
+
 # Within-featured median percentile per formula
 feat_an = an[an["is_featured"]].copy()
 feat_avg_pct = feat_an[VIEWS_METRIC].median()
@@ -6012,6 +6021,20 @@ if not df_sn_channels.empty:
   <tbody>{_ch_rows_html}</tbody>
 </table>
 <p class="caveat">SmartNews 2026 data, T1 outlets only (excluding Us Weekly). Jan–Mar 2026, n={SN_CHANNEL_ROWS} articles. Channel views may not sum to article_view (some views are unattributed to a channel). New in April 2026 data export.</p>
+<h3>Formula performance by channel — 2025 data (n=38,251)</h3>
+<div class="callout">
+  <strong>Question underperforms in all major channels.</strong> The formula trap is not channel-specific:
+  Question headlines rank at 0.454 in the Top feed (Δ=−0.066 vs. baseline, p&lt;0.0001, n=795) and
+  0.570 in Entertainment (Δ=−0.024, p=0.043, n=322). Avoid question headlines regardless of which
+  SmartNews section your content targets.
+  <br><br>
+  <strong>New finding: Number lead has a large penalty in the U.S. channel.</strong> Rank=0.705 vs.
+  baseline=0.950 (Δ=−0.245, p&lt;0.0001, n=83). National/political content with number-lead headlines
+  significantly underperforms on SmartNews. Prefer direct declarative for political and national stories.
+  <br><br>
+  Here's / Here are shows no significant signal in any channel — consistent with its cross-platform safety profile.
+  Full channel × formula analysis completed 2026-04-14 from 2025 SN data.
+</div>
 """
 
 # ── Pre-compute any table fragments that use backslashes (Python 3.11 forbids
@@ -6935,11 +6958,16 @@ if _snapshots_path.exists():
         pass
 
 _SNAP_METRICS = [
-    ("fb_wtk_sn_rank",     "'What to Know' SmartNews rank",   "Lower = penalty stronger"),
-    ("fb_q_sn_rank",       "Question format SmartNews rank",  "Lower = penalty stronger"),
-    ("notif_len_best_ctr", "Notification best-bin CTR",       "Optimal 70–89 char bin"),
-    ("an_median_hl_len",   "Apple News median headline length","chars"),
-    ("sn_median_hl_len",   "SmartNews median headline length", "chars"),
+    # Apple News featuring rates — live-computed each run; will shift as 2026 data accumulates
+    ("an_feat_overall",    "Apple News overall featuring rate",        "Baseline; all formulas"),
+    ("an_feat_wtk",        "AN featuring rate — What to Know",         "Higher = Apple favors WTK"),
+    ("an_feat_heres",      "AN featuring rate — Here's / Here are",    "Higher = Apple favors Here's"),
+    ("an_feat_question",   "AN featuring rate — Question",             "Higher = Apple favors Question"),
+    # Push notification CTR — live
+    ("notif_len_best_ctr", "Notification best-bin CTR",                "Optimal 70–89 char bin"),
+    # Headline length medians — live
+    ("an_median_hl_len",   "Apple News median headline length",        "chars"),
+    ("sn_median_hl_len",   "SmartNews median headline length",         "chars"),
 ]
 
 if len(_snapshots) < 3:
@@ -8774,6 +8802,69 @@ def _collect_experiment_suggestions() -> list[dict]:
         "priority": "medium",
     })
 
+    # ── 11. SN channel × formula — 2025 data well-powered; per-article 2026 needed ─
+    # Question/WTK underperform in all major channels (p<0.0001 Top Stories).
+    # Number lead has a large penalty in U.S. channel (rank=0.705 vs. 0.950,
+    # Δ=−0.245, p<0.0001, n=83). Finding confirmed on 2025 data (38,251 rows);
+    # 2026 per-article data would enable a prospective replication + trend test.
+    suggs.append({
+        "id":       "sn-channel-formula-2026",
+        "platform": "SmartNews",
+        "title":    "SN Channel \u00d7 Formula \u2014 2026 Per-Article Data Needed",
+        "signal": (
+            "2025 SmartNews data (n=38,251) shows formula penalties are consistent "
+            "across all major channels: Question underperforms in Top Stories "
+            "(rank=0.467 vs. 0.500 baseline, p<0.0001, n=171), Entertainment "
+            "(rank=0.462, p=0.012, n=57), and Lifestyle (rank=0.453, p=0.027, n=30). "
+            "What to Know underperforms in Top Stories (rank=0.444, p=0.008, n=66). "
+            "Number lead shows a large penalty specifically in the U.S. channel "
+            "(rank=0.705 vs. 0.950 baseline, \u0394=\u22120.245, p<0.0001, n=83) \u2014 "
+            "a new channel-specific finding not visible in aggregate formula analysis."
+        ),
+        "gap": (
+            "All findings are from 2025 data only. SmartNews 2026 data is currently "
+            "domain-aggregated (not per-article), so channel-level 2026 analysis is "
+            "not possible. Without per-article 2026 data with channel attribution, we "
+            "cannot confirm whether the number-lead U.S.-channel penalty has persisted "
+            "or strengthened into 2026. Tarrow's export format would need to include "
+            "per-article channel assignment."
+        ),
+        "question": (
+            "Does the number-lead U.S.-channel penalty persist in 2026 data when "
+            "per-article SmartNews exports become available? Do the Question/WTK "
+            "channel penalties remain consistent, or has the channel algorithm changed "
+            "since 2025? Is any formula positively associated with U.S.-channel "
+            "performance (given that number lead's positive aggregate signal may mask "
+            "a U.S.-channel drag)?"
+        ),
+        "design": (
+            "Requires Tarrow to provide a 2026 per-article SmartNews export with "
+            "channel attribution (same format as the 2025 \u2018Top syndication "
+            "content 2025.xlsx\u2019 sheet). Once available: classify each article's "
+            "formula using the existing pipeline; run Mann-Whitney U for each formula "
+            "\u00d7 channel combination (minimum n=20 per cell); BH-FDR correct across "
+            "all formula\u00d7channel tests. "
+            "Compare rank-biserial r values against the 2025 benchmarks above to "
+            "assess whether the U.S.-channel number-lead penalty is stable "
+            "(\u03b4 within \u00b10.05) or shifting. "
+            "Channels to test: Top Stories, Entertainment, Lifestyle, U.S., Sports. "
+            "Note: number-lead articles have a positive aggregate SmartNews signal "
+            "(rank=0.534 baseline vs. 0.500) but the U.S.-channel drag may be "
+            "suppressing an otherwise stronger aggregate lift."
+        ),
+        "impact": (
+            "Confirmed persistent: extends SmartNews formula guidance with a channel "
+            "dimension \u2014 \u201cavoid number leads for political/national content "
+            "targeting the U.S. channel.\u201d Actionable when editors can identify "
+            "which channel a story will land in.  "
+            "Not confirmed / signal shifted: the U.S.-channel penalty may have been "
+            "a 2025-specific artifact; aggregate formula guidance stands without a "
+            "channel-specific carve-out for number leads."
+        ),
+        "tier":     "untested",
+        "priority": "medium",
+    })
+
     return suggs
 
 
@@ -9680,18 +9771,25 @@ print(f"  meta.json → {_meta_slot}/meta.json")
 # Add new metrics here as new findings mature — every key here becomes a tracked
 # longitudinal series.
 _build_summary = {
-    # SmartNews formula performance (Finding 8 — historical rank fractions)
+    # Apple News featuring rates by formula — computed live each run from full AN dataset.
+    # These will shift as 2026 data accumulates — the most meaningful longitudinal series.
+    "an_feat_overall":      AN_FEAT_OVERALL,
+    "an_feat_wtk":          AN_FEAT_WTK,
+    "an_feat_heres":        AN_FEAT_HERES,
+    "an_feat_question":     AN_FEAT_QUESTION,
+    # Push notification optimal length CTR (Finding 4) — live from notification data
+    "notif_len_best_ctr":   NOTIF_LEN_BEST_CTR,
+    # SmartNews channel share — live from 2026 SN data
+    "sn_top_share":         SN_TOP_SHARE,
+    "sn_channel_rows":      SN_CHANNEL_ROWS,
+    # Headline length medians — live from AN + SN data
+    "an_median_hl_len":     AN_MEDIAN_HL_LEN,
+    "sn_median_hl_len":     SN_MEDIAN_HL_LEN,
+    # SmartNews formula performance — HISTORICAL CONSTANTS from 2025 analysis (n=38,251).
+    # Retained for reference but not tracked longitudinally — they don't change between runs.
     "fb_wtk_sn_rank":       FB_WTK_SN_RANK,
     "fb_q_sn_rank":         FB_Q_SN_RANK,
     "fb_sn_n":              FB_SN_N,
-    # Push notification optimal length CTR (Finding 4)
-    "notif_len_best_ctr":   NOTIF_LEN_BEST_CTR,
-    # SmartNews channel share (Finding 3)
-    "sn_top_share":         SN_TOP_SHARE,
-    "sn_channel_rows":      SN_CHANNEL_ROWS,
-    # Headline length medians (Finding 1 / §8)
-    "an_median_hl_len":     AN_MEDIAN_HL_LEN,
-    "sn_median_hl_len":     SN_MEDIAN_HL_LEN,
 }
 
 _summary_path = Path("data/build_summary.json")
