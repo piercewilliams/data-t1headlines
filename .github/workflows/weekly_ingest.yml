@@ -24,7 +24,15 @@ jobs:
           pip install \
             pandas numpy scipy plotly openpyxl xlrd \
             statsmodels scikit-learn pingouin \
-            google-auth requests
+            google-auth requests pytest
+
+      - name: Syntax check and smoke tests
+        # Runs under Python 3.11 (the CI version) — catches f-string compatibility
+        # issues (backslash-in-expression, same-quote nesting) that Python 3.14+
+        # permits locally but 3.11 rejects. Fails fast before the slow data download.
+        run: |
+          python3 -m py_compile generate_site.py download_tarrow.py update_snapshots.py ingest.py
+          python3 -m pytest tests/ -v
 
       - name: Write service account credentials
         env:

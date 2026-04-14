@@ -1341,6 +1341,24 @@ if HAS_ANP:
           f"across {_anp['ANP_N_PUBS']} publications")
 else:
     print(f"  ⚠  No ANP CSVs found in {ANP_DATA_DIR!r} — findings 6, 7 & 8 will be hidden")
+    # Both dicts stay empty. Every subscript access on these dicts elsewhere in the
+    # file must be inside one of:
+    #   - a Python-level `if HAS_ANP:` block
+    #   - a ternary `(... if HAS_ANP else ...)` (Python evaluates lazily — the
+    #     True branch is never evaluated when HAS_ANP=False)
+    #   - a pre-computed variable assigned before the f-string (e.g. _anp_section_tagging_li)
+    # When adding new _anp / _anp_fail references, always apply one of these guards.
+    # ANP-DEPENDENCY INVENTORY (variables that require HAS_ANP=True):
+    #   _anp keys: ANP_N_NEWS, ANP_N_FEATURED, ANP_FEAT_RATE, ANP_N_PUBS,
+    #              ANP_WTN_FEAT_LIFT, ANP_WEATHER_FEAT, ANP_SPORTS_FEAT
+    #   _anp_fail keys: ANP_FAIL_N_TOTAL, ANP_FAIL_MAIN_BOT_PCT, ANP_FAIL_MAIN_RANK,
+    #                   ANP_FAIL_MAIN_P, ANP_FAIL_MAIN_N, ANP_FAIL_SPORTS_BOT_PCT,
+    #                   ANP_FAIL_SPORTS_RANK, ANP_FAIL_SP_FEAT_N, ANP_FAIL_SP_FEAT_RANK,
+    #                   ANP_FAIL_SP_NONFEAT_RANK, ANP_FAIL_NW_RANK, ANP_FAIL_NW_BOT_PCT,
+    #                   ANP_FAIL_NW_P, ANP_FAIL_LOCAL_RANK, ANP_FAIL_SEC_DF, ANP_FAIL_SEC_TABLE
+    #   df_author_profiles: populated only when HAS_TRACKER and HAS_ANP
+    #   team_combined["formula"]: classified inside HAS_TRACKER+HAS_ANP block; ensure
+    #                             present before author loop with the guard at line ~3638
     _anp = {}
     _anp_fail = {}
 
@@ -3631,8 +3649,10 @@ def _make_col_tooltip_js() -> str:
 """
 
 if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
-    # "formula" is added inside the HAS_ANP block (line ~3314); ensure it exists
-    # here so the per-author loop can group on it even when ANP data is absent.
+    # "formula" is classified inside the `if HAS_TRACKER and HAS_ANP:` block
+    # (~line 3315). When ANP data is absent that block is skipped entirely, so
+    # team_combined never gets the column. Classify it here on-demand so the
+    # per-author loop can always group by formula regardless of HAS_ANP.
     if "formula" not in team_combined.columns:
         team_combined["formula"] = team_combined["headline"].apply(classify_formula)
 

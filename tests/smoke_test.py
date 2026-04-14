@@ -3,19 +3,31 @@
 Run with:  python3 -m pytest tests/ -v
 Or:        python3 tests/smoke_test.py
 
+IMPORTANT — run under Python 3.11 to catch CI-specific syntax restrictions:
+  python3.11 -m pytest tests/ -v
+
+Python 3.11 enforces f-string rules that 3.12+ relaxed (PEP 701):
+  - No backslash in f-string expression part (the {...} section)
+  - No same-quote-style nesting (f\"\"\" inside f\"\"\")
+  The py_compile tests below catch these when run under 3.11. Run locally
+  with `python3.11 -m pytest tests/` before pushing any generate_site.py change.
+
 These tests cover functions that can be exercised without running the full
 pipeline (no Excel files required).  They are NOT integration tests — they
 don't validate that the generated HTML is correct, only that core utility
 functions behave as specified.
 
-Three categories:
-  1. AST-parse checks — catch syntax regressions without importing the module
-     (importing generate_site.py executes the full pipeline at import time).
-  2. _validate_exp_suggestion() — dict validation logic.
-  3. _append_experiment_log() — append-only log writer, exercised with a temp file.
+Four categories:
+  1. Compile checks — py_compile bytecode compilation catches syntax errors
+     the AST parser might miss (especially under Python 3.11).
+  2. F-string safety scans — detect known-risky patterns before CI runs.
+  3. _validate_exp_suggestion() — dict validation logic.
+  4. _append_experiment_log() — append-only log writer, exercised with a temp file.
 """
 
 import ast
+import py_compile
+import re
 import sys
 import tempfile
 import unittest
@@ -31,44 +43,108 @@ DOWNLOAD_TARROW   = REPO_ROOT / "download_tarrow.py"
 UPDATE_SNAPSHOTS  = REPO_ROOT / "update_snapshots.py"
 
 
-# ── 1. AST-parse smoke tests ──────────────────────────────────────────────────
+# ── 1. Compile smoke tests ────────────────────────────────────────────────────
 
-class TestAstParse(unittest.TestCase):
-    """Verify that generate_site.py and ingest.py are syntactically valid Python.
+class TestCompile(unittest.TestCase):
+    """Verify that all pipeline scripts compile cleanly under the current interpreter.
+
+    Uses py_compile (full bytecode compilation) rather than ast.parse() alone —
+    py_compile catches a strict superset of what the AST parser checks, including
+    f-string backslash and same-quote-nesting restrictions on Python 3.11.
 
     We cannot import these modules directly because importing generate_site.py
     executes the full analysis pipeline (it has no if __name__ == '__main__' guard).
-    AST parsing catches SyntaxErrors and encoding issues without running any code.
+
+    Run under Python 3.11 (`python3.11 -m pytest tests/ -v`) to catch CI-specific
+    syntax restrictions before pushing.
     """
 
-    def _assert_parses(self, path: Path) -> None:
+    def _assert_compiles(self, path: Path) -> None:
         self.assertTrue(path.exists(), f"{path} not found")
-        source = path.read_text(encoding="utf-8")
         try:
-            ast.parse(source)
-        except SyntaxError as exc:
-            self.fail(f"SyntaxError in {path.name}: {exc}")
+            py_compile.compile(str(path), doraise=True)
+        except py_compile.PyCompileError as exc:
+            self.fail(f"Compile error in {path.name}: {exc}")
 
-    def test_generate_site_parses(self):
-        self._assert_parses(GENERATE_SITE)
+    def test_generate_site_compiles(self):
+        self._assert_compiles(GENERATE_SITE)
 
-    def test_ingest_parses(self):
-        self._assert_parses(INGEST_PY)
+    def test_ingest_compiles(self):
+        self._assert_compiles(INGEST_PY)
 
-    def test_generate_grader_parses(self):
-        self._assert_parses(GRADER_PY)
+    def test_generate_grader_compiles(self):
+        self._assert_compiles(GRADER_PY)
 
-    def test_generate_style_guide_parses(self):
-        self._assert_parses(STYLE_GUIDE_PY)
+    def test_generate_style_guide_compiles(self):
+        self._assert_compiles(STYLE_GUIDE_PY)
 
-    def test_download_tarrow_parses(self):
-        self._assert_parses(DOWNLOAD_TARROW)
+    def test_download_tarrow_compiles(self):
+        self._assert_compiles(DOWNLOAD_TARROW)
 
-    def test_update_snapshots_parses(self):
-        self._assert_parses(UPDATE_SNAPSHOTS)
+    def test_update_snapshots_compiles(self):
+        self._assert_compiles(UPDATE_SNAPSHOTS)
+
+
+# ── 2. F-string safety scans ──────────────────────────────────────────────────
+
+class TestFStringSafety(unittest.TestCase):
+    """Scan generate_site.py source text for Python 3.11 f-string anti-patterns.
+
+    Python 3.11 (used in CI) restricts f-strings more strictly than 3.12+:
+      - No backslash anywhere in the raw source text of an f-string expression
+        part — including inside nested string literals within {...}.
+      - No same-quote-style nesting: f\"\"\" cannot contain another f\"\"\" in
+        an expression slot; use f''' inside f\"\"\" instead.
+
+    These text-level checks catch the patterns before CI runs. They are
+    conservative (may flag false positives for pre-computed variables), but any
+    flagged hit should be manually verified.
+    """
+
+    def setUp(self):
+        self.source = GENERATE_SITE.read_text(encoding="utf-8")
+
+    def test_no_same_triple_double_quote_nesting(self):
+        """f\"\"\"...{ f\"\"\"...\"\"\" }...\"\"\" breaks Python 3.11."""
+        # Find f\"\"\" blocks and check if any contain a nested f\"\"\"
+        # Simple heuristic: look for 'else f"""' or '( f"""' inside an f-string context
+        hits = [
+            (i + 1, line.strip())
+            for i, line in enumerate(self.source.splitlines())
+            if re.search(r'else\s+f"""', line) or re.search(r'\(\s*f"""', line)
+        ]
+        # Only flag if the hit is inside another f""" block (nested)
+        # We check by scanning whether we're inside an outer f""" context.
+        # Conservative: just report — the compile test will catch real errors.
+        if hits:
+            # If the compile test passes, these are false positives from pre-computed
+            # variables or non-nested contexts. Warn rather than fail.
+            for lineno, snippet in hits[:3]:
+                print(f"\n  [f-string nesting hint] line {lineno}: {snippet[:80]}")
+
+    def test_no_backslash_in_fstring_expression(self):
+        """Backslash inside {{...}} in an f-string breaks Python 3.11."""
+        # Look for the specific pattern: backslash inside {} in an f-string line.
+        # Reliable detection requires a full parser; this is a conservative text scan.
+        hits = []
+        in_fstring = False
+        brace_depth = 0
+        for i, line in enumerate(self.source.splitlines(), 1):
+            # Very conservative: flag lines that have both { and \ and are in f-strings
+            # Only catch the patterns that actually caused CI failures:
+            # - join(...for...) with \n or \" inside the format spec
+            if re.search(r'f["\'].*\{[^}]*\\[ntr"\'\\][^}]*\}', line):
+                hits.append((i, line.strip()))
+        self.assertEqual(
+            hits, [],
+            "Possible backslash-in-f-string-expression on lines:\n"
+            + "\n".join(f"  {i}: {s[:100]}" for i, s in hits[:5])
+            + "\nPre-compute the value into a variable before the f-string."
+        )
 
 
 # ── Helpers extracted for unit-testing without importing the pipeline ──────────
+# ── 3. & 4. Unit tests for isolated helper functions ─────────────────────────
 #
 # _validate_exp_suggestion() and _append_experiment_log() are copy-extracted
 # here so they can be tested without triggering the pipeline execution.

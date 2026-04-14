@@ -163,8 +163,38 @@ The build report shows which optional packages are active (statsmodels ✓/✗, 
 
 Run before any push:
 ```bash
-python3 -m pytest tests/ -v                          # 16 smoke tests (AST parse + unit tests)
+python3.11 -m pytest tests/ -v                       # compile + f-string + unit tests (must use 3.11)
+python3.11 -m py_compile generate_site.py            # fast syntax check under 3.11
 ruff check generate_site.py generate_style_guide.py ingest.py generate_grader.py
 python3 generate_site.py                             # full build + all automated quality gates
 python3 generate_style_guide.py                      # style guide page (separate generator)
 ```
+
+**Why `python3.11`:** CI runs Python 3.11 but local dev typically runs 3.14. Python 3.11 enforces f-string restrictions that 3.14 relaxed: no backslash in expression parts, no same-quote nesting. Running the test suite and `py_compile` under 3.11 locally will catch these before CI does.
+
+## Python 3.11 f-string rules (CI constraint — do not break)
+
+CI uses `python-version: '3.11'`. Two restrictions apply that are gone in 3.12+ (PEP 701):
+
+1. **No backslash in f-string expression parts.** `f"{some_dict['key']}"` is fine. `f"{'\\n'.join(...)}"` is not — the `\n` inside the `{...}` is forbidden. Fix: pre-compute the value into a plain variable before the f-string.
+
+2. **No same-quote-style nesting.** `f"""...{ f"""inner""" }..."""` breaks Python 3.11 because the parser sees the inner `"""` as closing the outer string. Fix: use `f'''inner'''` inside `f"""outer"""`.
+
+**Pattern to follow for ANP-conditional HTML fragments inside f-strings:**
+```python
+# Pre-compute before the outer f-string, not inside it:
+_my_value = f"...{_anp_fail['KEY']:.0%}..." if HAS_ANP else "N/A"
+# Then reference by name inside the f-string:
+html = f"""...{_my_value}..."""
+```
+
+## ANP-guard rules
+
+`_anp` and `_anp_fail` are both `{}` when `HAS_ANP=False`. Any subscript access on them must be guarded by one of:
+- A Python-level `if HAS_ANP:` block
+- A ternary `(value if HAS_ANP else fallback)` — Python evaluates lazily; the True branch is skipped when False
+- A pre-computed variable assigned before the f-string
+
+The ANP-dependency inventory (all keys) is in the comment block immediately after `_anp = {}` / `_anp_fail = {}` in `generate_site.py`.
+
+`team_combined["formula"]` is also ANP-dependent — it's classified inside the `if HAS_TRACKER and HAS_ANP:` block. The author playbooks section re-classifies it on-demand if missing (guard at `if "formula" not in team_combined.columns`).
