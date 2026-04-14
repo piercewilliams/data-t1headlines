@@ -7049,6 +7049,15 @@ else:
     _pub_section_html = ""
 
 # ── Editorial Playbooks page ──────────────────────────────────────────────────
+_anp_section_tagging_li = (
+    f'<li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. '
+    f'Untagged articles land in the bottom 20% at {_anp_fail["ANP_FAIL_MAIN_BOT_PCT"]:.0%}'
+    ' \u2014 2.4\u00d7 the baseline rate.</li>'
+) if HAS_ANP else (
+    '<li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. '
+    'Untagged articles land in the bottom 20% at a significantly elevated rate \u2014 2.4\u00d7 the baseline rate.</li>'
+)
+
 playbook_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7293,7 +7302,7 @@ playbook_html = f"""<!DOCTYPE html>
     <li><strong>[HIGH] Character length:</strong> Target 90–120 characters. Below 70 chars and above 130 chars both underperform the median.</li>
     <li><strong>[HIGH] Crime/Business formula:</strong> "Here's" format associated with 16% featuring rate for crime (n=89) and 14% for business (n=72). Use it when targeting Featured in these topics.</li>
     <li><strong>[HIGH] Sports:</strong> Formula choice does not affect featuring odds for sports content (0% across all formulas, n=22–52). Optimize for organic only; do not target Featured for sports.</li>
-    <li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. Untagged articles land in the bottom 20% at {_anp_fail['ANP_FAIL_MAIN_BOT_PCT']:.0%} — 2.4× the baseline rate.</li>
+    {_anp_section_tagging_li}
     <li><strong>[MOD] Number lead trend:</strong> Number leads are the only formula trending upward over time (Q1 2025 → Q1 2026). Lean into them; deprioritize question format which is trending down.</li>
     <li><strong>[MOD] Trendhunter content:</strong> Mind-Body, Everyday Living, and Experience content currently earns 0% featuring. Focus persona configuration on organic Apple News reach, not featuring optimization.</li>
   </ul>
