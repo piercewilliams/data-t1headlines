@@ -6251,23 +6251,23 @@ html = f"""<!DOCTYPE html>
       <span class="tile-more">Details ↓</span>
     </div>
 
-{"" if (msn.empty or not SHOW_MSN_TILE) else f"""
+{"" if (msn.empty or not SHOW_MSN_TILE) else f'''
     <div class="tile" onclick="showDetail('msn-formula', this)">
       <span class="tile-num">MSN · Formula Divergence</span>
       <p class="tile-claim">On MSN, direct declarative headlines outperform {_msn_worst_formula_label.lower()} format by {MSN_DIVERGE_LIFT_STR} (n={MSN_N_TOTAL} T1 news brand articles, Jan–Mar 2026). Structured formulas consistently underperform the plain declarative baseline.</p>
       <p class="tile-action">→ Write direct, subject-verb-object headlines for MSN. Don't repurpose Apple News formula copy for MSN distribution.</p>
       <span class="tile-more">Details ↓</span>
     </div>
-"""}
+'''}
 
-{"" if not HAS_ANP else f"""
+{"" if not HAS_ANP else f'''
     <div class="tile" onclick="showDetail('anp-failures', this)">
       <span class="tile-num">8 · Apple News Bottom Performers Follow Three Patterns</span>
       <p class="tile-claim">Three content types account for the majority of underperformance: (1) articles with no section tag land in the bottom 20% nearly half the time ({_anp_fail['ANP_FAIL_MAIN_BOT_PCT']:.0%}, median rank {_anp_fail['ANP_FAIL_MAIN_RANK']:.2f}, p={_anp_fail['ANP_FAIL_MAIN_P']:.1e}); (2) local Sports content ranks at the {_anp_fail['ANP_FAIL_SPORTS_RANK']:.0%} percentile without featuring — but the {_anp_fail['ANP_FAIL_SP_FEAT_N']} featured Sports articles reach rank {_anp_fail['ANP_FAIL_SP_FEAT_RANK']:.2f}; (3) national wire (Nation &amp; World) underperforms local sections by {_anp_fail['ANP_FAIL_LOCAL_RANK'] - _anp_fail['ANP_FAIL_NW_RANK']:.0%} percentile points.</p>
       <p class="tile-action">→ Tag every article's section before publishing. Don't rely on Apple News for local sports distribution. Route national wire content through other channels.</p>
       <span class="tile-more">Details ↓</span>
     </div>
-"""}
+'''}
 
   </div><!-- /.tile-grid -->
 
@@ -6291,7 +6291,7 @@ html = f"""<!DOCTYPE html>
           <tbody>{_t2}</tbody>
         </table>
         <p class="callout-inline"><strong>Read this table as:</strong> "Featured lift" is how much more often Apple selects this formula for Featured. A high rate means Apple's algorithm rewards it — not that it organically outperforms.</p>
-        {"" if df_ql_subtypes is None else f"""<h3>Quote lede breakdown: which type gets featured?</h3>
+        {"" if df_ql_subtypes is None else f'''<h3>Quote lede breakdown: which type gets featured?</h3>
         <div class="callout"><strong>Action:</strong> Official/authority quotes (police, prosecutors, government) are the highest-featuring subtype of quoted-lede headlines on Apple News. Use them when you have a credible sourced quote from an official — they get Featured at a higher rate than the quoted-lede average. Expert quotes (scientists, researchers) also index above baseline. First-person subject quotes perform below the quoted-lede average for featuring.</div>
         <table class="findings">
           <thead><tr><th>Quote lede type</th><th>n</th><th>Featured rate</th><th>Lift vs. baseline</th><th>p (chi²)</th><th>Within-Featured median %ile</th></tr></thead>
@@ -6304,7 +6304,7 @@ html = f"""<!DOCTYPE html>
             for _, r in df_ql_subtypes.iterrows()
           )}</tbody>
         </table>
-        <p class="caveat">Subtypes classified by keywords after the closing quote mark. n={len(_ql_subset)} total quoted-lede articles. p-values are uncorrected for this exploratory breakdown. Interpret as directional guidance, not confirmed findings.</p>"""}
+        <p class="caveat">Subtypes classified by keywords after the closing quote mark. n={len(_ql_subset)} total quoted-lede articles. p-values are uncorrected for this exploratory breakdown. Interpret as directional guidance, not confirmed findings.</p>'''}
         {_question_type_html}
         <p class="caveat">All {N_AN:,} Apple News articles (2025–2026). Chi-square test: each formula vs. all other articles combined. BH–FDR across all {len(_q2_raw_p)} formula tests. Causal direction of "What to know" → Featured is unconfirmed.</p>
       </div><!-- /#detail-featured -->
@@ -6455,7 +6455,7 @@ html = f"""<!DOCTYPE html>
       </div><!-- /#detail-sn-formula-trap -->
 
       <!-- DETAIL: MSN FORMULA DIVERGENCE -->
-      {"" if msn.empty else f"""
+      {"" if msn.empty else f'''
       <div class="detail-panel" id="detail-msn-formula">
         <h2>MSN · Formula Divergence</h2>
         <div class="callout">
@@ -6487,7 +6487,7 @@ html = f"""<!DOCTYPE html>
         <p>These headlines share a common structure: subject + verb + direct object, no structural signal words, no question mark, no "Here's." The story event does the work; the headline reports it plainly.</p>
         <p class="caveat">MSN Jan–Mar 2026 (n={MSN_N_TOTAL} T1 news brand articles; Us Weekly / Woman's World excluded). Formula classification via unvalidated regex classifier. "Untagged" = no formula pattern detected (treated as direct declarative baseline). Mann-Whitney U tests, each formula vs. untagged baseline; BH–FDR correction applied across formula comparisons. Effect sizes not shown — use with caution at this sample size. Pageview minimum: MSN sheet filter applies (≥10k PV threshold in source data).</p>
       </div><!-- /#detail-msn-formula -->
-      """}
+      '''}
 
       <!-- DETAIL: TOPICS -->
       <div class="detail-panel" id="detail-topics">
@@ -6576,7 +6576,7 @@ html = f"""<!DOCTYPE html>
         {_hh_html}
       </div><!-- /#detail-longitudinal -->
 
-{"" if not HAS_ANP else f"""
+{"" if not HAS_ANP else f'''
       <!-- DETAIL: ANP BOTTOM PERFORMERS -->
       <div class="detail-panel" id="detail-anp-failures">
         <h2>Finding 8 · Apple News Bottom Performers Follow Three Patterns</h2>
@@ -6608,7 +6608,7 @@ html = f"""<!DOCTYPE html>
         </table>
         <p class="caveat">Apple News Publisher data, Jan–Feb 2026. {_anp_fail['ANP_FAIL_N_TOTAL']:,} news articles across 5 publications (Charlotte Observer, KC Star, Miami Herald, News &amp; Observer, Sacramento Bee). Politics excluded. Minimum 10 views per article. Sections with fewer than 20 articles excluded from table. Bottom/top 20% thresholds are within-publication percentiles — a "bottom 20%" article is bottom quintile within its own outlet's distribution. Mann-Whitney U tests; p-values not BH-FDR corrected across sections (each is a pre-specified test). Green shading = median rank ≥ 0.75; red shading = median rank ≤ 0.30.</p>
       </div><!-- /#detail-anp-failures -->
-"""}
+'''}
 
     </div><!-- /.detail-wrap -->
   </div><!-- /#detail-area -->
