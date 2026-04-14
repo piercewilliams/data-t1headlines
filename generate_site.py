@@ -3630,7 +3630,7 @@ def _make_col_tooltip_js() -> str:
 }})();
 """
 
-if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
+if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0 and not df_author_profiles.empty:
     _team_med_pct = float(team_combined["percentile"].median())
 
     # Team-wide formula medians for benchmarking each author against
