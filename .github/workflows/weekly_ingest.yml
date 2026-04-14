@@ -72,6 +72,6 @@ jobs:
           git add "Top Stories 2026 Syndication.xlsx" docs/ data/build_summary.json data/weekly_snapshots.json
           git diff --cached --quiet && echo "Nothing to commit" || (
             git commit -m "Auto: Weekly refresh $(date '+%Y-%m-%d')"
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main
             git push
           )
