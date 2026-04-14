@@ -3631,6 +3631,11 @@ def _make_col_tooltip_js() -> str:
 """
 
 if HAS_TRACKER and N_TRACKED >= _AUTHOR_MIN_N and len(team_combined) > 0:
+    # "formula" is added inside the HAS_ANP block (line ~3314); ensure it exists
+    # here so the per-author loop can group on it even when ANP data is absent.
+    if "formula" not in team_combined.columns:
+        team_combined["formula"] = team_combined["headline"].apply(classify_formula)
+
     _team_med_pct = float(team_combined["percentile"].median())
 
     # Team-wide formula medians for benchmarking each author against
