@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-10 — Cluster/variant production section added to author-playbooks; no actionable performance findings
+**Last session:** 2026-04-14 — SN channel × formula analyzed (2025 data, 38k rows); callout added to formula trap panel; longitudinal AN featuring rates replace hardcoded SN constants in build_summary.json; Hanna Wickes author normalization added; weekly snapshots surfaced on main page
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -46,7 +46,7 @@ For session history: see [sessions/](sessions/)
 **Analysis:**
 - [ ] O&O + syndication PV data layer (Chris Palo; Amplitude access needed)
 - [ ] Automate Sarah Price's Amplitude → Tracker join (manual monthly export; matching on title/URL/author)
-- [ ] SN channel × formula — ANALYZED 2026-04-14: insufficient data (217 T1 articles, 85% direct declarative; WTK n=2, Question n=8). Directional signal consistent with formula trap. Revisit when 2026 has a full half-year (July). Decision pending: log to experiments page or footnote existing finding?
+- [x] ~~SN channel × formula~~ DONE 2026-04-14: analyzed on 2025 full-year data (38,251 rows). Question underperforms in Top, Entertainment, Lifestyle (p<0.0001, p=0.012, p=0.027). WTK underperforms in Top (p=0.008). Number lead has large U.S.-channel penalty (Δ=−0.245, p<0.0001, n=83). Callout added to formula trap panel; experiment suggestion added for 2026 per-article replication. Message to Tarrow about 2025 data attribution pending.
 - [ ] Trendhunter notification vertical breakdown — blocked until Tarrow adds author attribution to notification export
 - [x] ~~`data/weekly_snapshots.json` — longitudinal store built; not yet surfaced on the site~~ DONE 2026-04-14: section now renders on main page (docs/index.html) and experiments page. Placeholder shows until ≥3 snapshots; trend table auto-renders after 2 more weekly runs.
 
