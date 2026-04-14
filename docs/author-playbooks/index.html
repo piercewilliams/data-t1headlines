@@ -137,8 +137,362 @@
 
 <div class="container">
   <h1>Author Playbooks</h1>
-  <p class="sub">No tracker data loaded this run. Place <code>Tracker Template.xlsx</code>
-  in the repo root and re-run <code>ingest.py</code> to generate per-author guidance.</p>
+  <p class="sub">Updated monthly. Click any tile to expand the full guidance.</p>
+
+  <div class="tile-grid">
+  <div class="pb-tile" onclick="togglePb(this,'ap-0')">
+    <span class="conf-badge conf-dir">Directional</span>
+    <span class="tile-label">Allison Palmer <span style="font-weight:400;color:var(--text-muted);font-size:.85em">· Mind-Body</span></span>
+    <p class="tile-claim">100% of articles use no tracked headline formula. Overall median is 76%ile—39 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p class="tile-action">→ Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (76%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-1')">
+    <span class="conf-badge conf-dir">Directional</span>
+    <span class="tile-label">Lauren Schuster <span style="font-weight:400;color:var(--text-muted);font-size:.85em">· Experience</span></span>
+    <p class="tile-claim">100% of articles use no tracked headline formula. Overall median is 44%ile—7 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p class="tile-action">→ Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (44%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-2')">
+    <span class="conf-badge conf-dir">Directional</span>
+    <span class="tile-label">Ryan Brennan <span style="font-weight:400;color:var(--text-muted);font-size:.85em">· General/Discovery</span></span>
+    <p class="tile-claim">96% of articles use no tracked headline formula. Overall median is 40%ile—3 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p class="tile-action">→ Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (52%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'ap-3')">
+    <span class="conf-badge conf-dir">Directional</span>
+    <span class="tile-label">Hanna Wickes <span style="font-weight:400;color:var(--text-muted);font-size:.85em">· General/Discovery</span></span>
+    <p class="tile-claim">78% of articles use no tracked headline formula. Overall median is 27%ile—10 pts below team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p class="tile-action">→ Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: SmartNews (34%ile).</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+  </div>
+
+<div id="ap-0" class="pb-detail" style="display:none">
+  <div style="background:var(--bg-muted);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+    <span class="conf-badge conf-dir" style="margin-bottom:0.6rem">Directional</span>
+    <p style="font-size:0.88rem;color:var(--text);line-height:1.55;margin-bottom:0.75rem">100% of articles use no tracked headline formula. Overall median is 76%ile—39 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem">Recommended actions this round</p>
+  <ul style="margin:0;padding-left:1.1rem;color:var(--text-secondary)">
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">TRY:</strong> <span style="font-size:0.84rem;line-height:1.45">Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (76%ile).</span></li>
+  </ul>
+  </div>
+  <div class="callout" style="margin-top:0.75rem;background:rgba(59,130,246,0.08);border-left-color:#7c9df7">
+    <strong>Vertical: Mind-Body—<em>preliminary, n&lt;30</em></strong>—This vertical currently earns 0% featuring rate on Apple News Publisher data (Jan–Feb 2026, n=2 matched articles). Featuring is not a lever for this content. Optimize for organic Apple News views and SmartNews distribution instead.
+  </div>
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">1 matched articles across 1 platform(s) · 76% median cohort percentile · 38.9 pts above team median (37%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>1</td><td>100%</td><td>76%</td><td><span class="lift-high">1.67×</span></td></tr></tbody></table>
+<p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">Platform breakdown</h3>
+  <p class="detail-sub">Cohort percentile vs. overall team median (37%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>Apple News</td><td>1</td><td>76%</td><td><span class="lift-high">2.05×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Top 1 articles by cohort percentile</h3>
+  <p class="detail-sub">Highest-performing matched articles for Allison Palmer.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>Cohort %ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">Why Are 3 AM Wake-Ups So Common? Here&#x27;s How to Stop Them For Good</td><td>Apple News</td><td>65,439</td><td>76%</td></tr></tbody></table>
+</div>
+
+<div id="ap-1" class="pb-detail" style="display:none">
+  <div style="background:var(--bg-muted);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+    <span class="conf-badge conf-dir" style="margin-bottom:0.6rem">Directional</span>
+    <p style="font-size:0.88rem;color:var(--text);line-height:1.55;margin-bottom:0.75rem">100% of articles use no tracked headline formula. Overall median is 44%ile—7 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem">Recommended actions this round</p>
+  <ul style="margin:0;padding-left:1.1rem;color:var(--text-secondary)">
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">TRY:</strong> <span style="font-size:0.84rem;line-height:1.45">Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (44%ile).</span></li>
+  </ul>
+  </div>
+  <div class="callout" style="margin-top:0.75rem;background:rgba(59,130,246,0.08);border-left-color:#7c9df7">
+    <strong>Vertical: Experience—<em>preliminary, n&lt;30</em></strong>—This vertical currently earns 0% featuring rate on Apple News Publisher data (Jan–Feb 2026, n=14 matched articles). Featuring is not a lever for this content. Optimize for organic Apple News views and SmartNews distribution instead.
+  </div>
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">2 matched articles across 1 platform(s) · 44% median cohort percentile · 6.8 pts above team median (37%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>2</td><td>100%</td><td>44%</td><td><span class="lift-pos">0.96×</span></td></tr></tbody></table>
+<p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">Platform breakdown</h3>
+  <p class="detail-sub">Cohort percentile vs. overall team median (37%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>Apple News</td><td>2</td><td>44%</td><td><span class="lift-pos">1.18×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Top 2 articles by cohort percentile</h3>
+  <p class="detail-sub">Highest-performing matched articles for Lauren Schuster.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>Cohort %ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">The United Airlines Playbook Most Travelers Haven&#x27;t Figured Out Yet</td><td>Apple News</td><td>32,753</td><td>74%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">What Your 401(k) Can (and Can&#x27;t) Do for Your Retirement Income</td><td>Apple News</td><td>13,745</td><td>13%</td></tr></tbody></table>
+</div>
+
+<div id="ap-2" class="pb-detail" style="display:none">
+  <div style="background:var(--bg-muted);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+    <span class="conf-badge conf-dir" style="margin-bottom:0.6rem">Directional</span>
+    <p style="font-size:0.88rem;color:var(--text);line-height:1.55;margin-bottom:0.75rem">96% of articles use no tracked headline formula. Overall median is 40%ile—3 pts above team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem">Recommended actions this round</p>
+  <ul style="margin:0;padding-left:1.1rem;color:var(--text-secondary)">
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">TRY:</strong> <span style="font-size:0.84rem;line-height:1.45">Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: Apple News (52%ile).</span></li>
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">DO:</strong> <span style="font-size:0.84rem;line-height:1.45">Route new articles through Apple News first (52%ile)—your highest-ROI distribution channel this round.</span></li>
+  </ul>
+  </div>
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">25 matched articles across 3 platform(s) · 40% median cohort percentile · 3.2 pts above team median (37%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>24</td><td>96%</td><td>45%</td><td><span class="lift-pos">1.00×</span></td></tr>
+<tr><td>possessive named entity</td><td>1</td><td>4%</td><td>0%</td><td><span class="lift-pos">1.00×</span></td></tr></tbody></table>
+<p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">24 of 25 articles (96%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Other unstructured</td><td>13</td><td><span class="lift-pos">51%</span></td></tr><tr><td>Named-entity declarative</td><td>10</td><td><span class="lift-neg">37%</span></td></tr><tr><td>Media-type label (Watch, Video, etc.)</td><td>1</td><td><span class="lift-pos">57%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
+  <h3 class="rh">Platform breakdown</h3>
+  <p class="detail-sub">Cohort percentile vs. overall team median (37%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>Apple News</td><td>7</td><td>52%</td><td><span class="lift-high">1.40×</span></td></tr>
+<tr><td>SmartNews</td><td>13</td><td>40%</td><td><span class="lift-pos">1.09×</span></td></tr>
+<tr><td>Yahoo</td><td>5</td><td>32%</td><td><span class="lift-neg">0.88×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Original vs. variant performance</h3>
+  <p class="detail-sub">10 originals (Parent-P) · 15 generated variants (Child-C)</p>
+  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody>
+    <tr><td>Original (Parent-P)</td><td>10</td><td>44%</td></tr>
+    <tr><td>Variant (Child-C)</td><td>15</td><td>40%</td></tr>
+  </tbody></table>
+  <h3 class="rh">Top 10 articles by cohort percentile</h3>
+  <p class="detail-sub">Highest-performing matched articles for Ryan Brennan.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>Cohort %ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">A 4-Foot Snake Killed by a Hiker Turned Out to Be Something Scientists Had Never Seen Before</td><td>SmartNews</td><td>233,065</td><td>100%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">DNA Testing Confirms Human Remains Found During Home Renovation Hold ‘No Forensic Value’</td><td>SmartNews</td><td>51,449</td><td>89%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Carnivorous Lizard Is Taking Over Florida and It’s Nearly Impossible to Catch or Remove</td><td>SmartNews</td><td>45,600</td><td>87%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Jeff Daniels Says He’s ‘Stunned’ By the Internet’s Reaction to His Viral Sandwich Recipe</td><td>SmartNews</td><td>33,845</td><td>80%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Wooden Coffin Fell From the Sky In 1899. Scientists Just Solved the Mystery Inside It</td><td>Apple News</td><td>26,918</td><td>73%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Zooey Deschanel Just Said What Many Crumbl Cookie Critics Have Been Thinking All Along</td><td>SmartNews</td><td>24,218</td><td>68%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Thought They Found a Dead Snake. It Turned Out to Be a New Species</td><td>SmartNews</td><td>20,683</td><td>61%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Alysa Liu&#x27;s Hidden Piercing Has Olympic Fans Obsessed—But Dentists Aren&#x27;t Impressed</td><td>Apple News</td><td>32,566</td><td>60%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Carnivorous Lizard Is Taking Over Florida and It&#x27;s Nearly Impossible to Catch or Remove</td><td>Apple News</td><td>6,740</td><td>57%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Video Shows Anglers Reeling In Massive 1,200-Pound Surprise on Florida Beach</td><td>Yahoo</td><td>20,772</td><td>57%</td></tr></tbody></table>
+</div>
+
+<div id="ap-3" class="pb-detail" style="display:none">
+  <div style="background:var(--bg-muted);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+    <span class="conf-badge conf-dir" style="margin-bottom:0.6rem">Directional</span>
+    <p style="font-size:0.88rem;color:var(--text);line-height:1.55;margin-bottom:0.75rem">78% of articles use no tracked headline formula. Overall median is 27%ile—10 pts below team—but formula impact can&#x27;t be measured without consistent format use.</p>
+    <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem">Recommended actions this round</p>
+  <ul style="margin:0;padding-left:1.1rem;color:var(--text-secondary)">
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">TRY:</strong> <span style="font-size:0.84rem;line-height:1.45">Apply a repeatable headline formula (number lead, &#x27;What to know&#x27;, or possessive named entity) to at least the next 5 articles. That creates a testable signal. Best platform right now: SmartNews (34%ile).</span></li>
+    <li style="margin-bottom:0.4rem"><strong style="color:var(--accent);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase">DO:</strong> <span style="font-size:0.84rem;line-height:1.45">Route new articles through SmartNews first (34%ile)—your highest-ROI distribution channel this round.</span></li>
+  </ul>
+  </div>
+  <h3 class="rh">Performance overview</h3>
+  <p class="detail-sub">9 matched articles across 3 platform(s) · 27% median cohort percentile · 9.9 pts below team median (37%)</p>
+
+  <h3 class="rh">Formula profile</h3>
+  <p class="detail-sub">Lift vs. team-wide median for each formula. &gt;1.0× = outperforms team benchmark for that format.</p>
+  <table><thead><tr><th>Formula</th><th>n</th><th>Share</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>no tracked formula</td><td>7</td><td>78%</td><td>33%</td><td><span class="lift-neg">0.73×</span></td></tr>
+<tr><td>number lead</td><td>1</td><td>11%</td><td>17%</td><td><span class="lift-pos">1.00×</span></td></tr>
+<tr><td>question format</td><td>1</td><td>11%</td><td>27%</td><td><span class="lift-pos">1.00×</span></td></tr></tbody></table>
+<p class="detail-sub" style="margin-top:0.4rem">Significance test not run (fewer than 3 articles per formula group).</p>
+  <h3 class="rh">What the untagged headlines actually are</h3>
+  <p class="detail-sub">7 of 9 articles (78%) matched no tracked formula. Secondary pattern breakdown—cohort %ile per structural type.</p>
+  <table><thead><tr><th>Structure</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody><tr><td>Named-entity declarative</td><td>5</td><td><span class="lift-neg">33%</span></td></tr><tr><td>Other unstructured</td><td>2</td><td><span class="lift-neg">36%</span></td></tr></tbody></table>
+  <p class="detail-sub" style="margin-top:0.4rem">These are sub-patterns within the untagged bucket—not formal formulas, but useful for spotting what's working and where a structured formula could be applied next.</p>
+
+  <h3 class="rh">Platform breakdown</h3>
+  <p class="detail-sub">Cohort percentile vs. overall team median (37%).</p>
+  <table><thead><tr><th>Platform</th><th>n</th><th>Cohort %ile</th><th>Lift vs. team</th></tr></thead>
+  <tbody><tr><td>SmartNews</td><td>2</td><td>34%</td><td><span class="lift-pos">0.93×</span></td></tr>
+<tr><td>Apple News</td><td>3</td><td>33%</td><td><span class="lift-neg">0.89×</span></td></tr>
+<tr><td>Yahoo</td><td>4</td><td>22%</td><td><span class="lift-neg">0.60×</span></td></tr></tbody></table>
+
+  <h3 class="rh">Original vs. variant performance</h3>
+  <p class="detail-sub">4 originals (Parent-P) · 5 generated variants (Child-C)</p>
+  <table><thead><tr><th>Type</th><th>n</th><th>Median %ile</th></tr></thead>
+  <tbody>
+    <tr><td>Original (Parent-P)</td><td>4</td><td>30%</td></tr>
+    <tr><td>Variant (Child-C)</td><td>5</td><td>15%</td></tr>
+  </tbody></table>
+  <h3 class="rh">Top 9 articles by cohort percentile</h3>
+  <p class="detail-sub">Highest-performing matched articles for Hanna Wickes.</p>
+  <table><thead><tr><th>Headline</th><th>Platform</th><th>Views</th><th>Cohort %ile</th></tr></thead>
+  <tbody><tr><td style="max-width:360px;white-space:normal">Oscar Winner Amy Madigan and Ed Harris Have Been Married More Than 40 Years—How Their Love Story Began</td><td>Apple News</td><td>23,046</td><td>71%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Curling Cheating Scandal Just Rocked the 2026 Winter Olympics - and It Unraveled In Four Days</td><td>SmartNews</td><td>24,214</td><td>68%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Noah Cyrus Responds to Viral TikTok About Her ‘Transformation’ and Changing Appearance</td><td>Yahoo</td><td>29,110</td><td>68%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Elana Meyers Taylor Wins Olympic Gold at 41—and Her Son&#x27;s Reaction on the Podium Will Move You to Tears</td><td>Apple News</td><td>18,607</td><td>33%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">‘Single’s Inferno’: Which Couples Are Still Together From the Reality Dating Show?</td><td>Yahoo</td><td>11,425</td><td>27%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">7 Stolen Dogs Escaped a Truck in China and Trekked Over 10 Miles Back to Their Owners</td><td>Yahoo</td><td>9,895</td><td>17%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Went Looking For an Extinct Fish in South Africa —They Found a Species New to Science</td><td>Yahoo</td><td>8,769</td><td>15%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">A Curling Cheating Scandal Just Rocked the 2026 Winter Olympics—and It Unraveled In Four Days</td><td>Apple News</td><td>2,089</td><td>4%</td></tr>
+<tr><td style="max-width:360px;white-space:normal">Scientists Found a ‘Giant’ Cave Creature In Australia With 11 Claws - It Fits On Your Fingernail</td><td>SmartNews</td><td>10,040</td><td>0%</td></tr></tbody></table>
+</div>
+
+
+<section class="vert-perf-section" style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Content Vertical Performance—Apple News</h2>
+  <p class="sub" style="margin-bottom:1.5rem">
+    Based on Tracker→ANP join (247 matched / 839 Tracker articles,
+    Jan–Feb 2026). Verticals identified by author. Match rate improves as ANP data accumulates monthly.
+  </p>
+  <div class="callout" style="margin-bottom:1.5rem">
+  <strong>0% featuring rate across all verticals</strong> (247 matched articles,
+  Jan–Feb 2026). ANP baseline = 1.2%. Featuring is not currently a lever for this
+  content—optimize for organic Apple News views, not featuring odds.
+</div>
+  <table class="findings">
+    <thead><tr>
+      <th>Vertical</th><th>n matched</th><th>Median views</th>
+      <th>Max views</th><th>Featuring rate</th><th>Top article</th>
+    </tr></thead>
+    <tbody><tr><td><strong>Experience</strong> <em style='font-size:.75em;color:#f59e0b'>(preliminary, n&lt;30)</em></td><td>14</td><td>319</td><td>1,539</td><td>0%</td><td style='font-size:.85em;color:#8b90a0'>These Health Savings Account Pitfalls Could Cost You Thousands in Retirement…</td></tr>
+<tr><td><strong>Everyday Living</strong> <em style='font-size:.75em;color:#f59e0b'>(preliminary, n&lt;30)</em></td><td>6</td><td>228</td><td>787</td><td>0%</td><td style='font-size:.85em;color:#8b90a0'>How to Transform Your Bathroom Using These Genius (and Totally Free) Hacks…</td></tr>
+<tr><td><strong>Mind-Body</strong> <em style='font-size:.75em;color:#f59e0b'>(preliminary, n&lt;30)</em></td><td>2</td><td>210</td><td>246</td><td>0%</td><td style='font-size:.85em;color:#8b90a0'>How to Build a Skincare Routine That Actually Works After 50…</td></tr>
+<tr><td><strong>General/Discovery</strong></td><td>225</td><td>100</td><td>53,306</td><td>0%</td><td style='font-size:.85em;color:#8b90a0'>A 4-Foot Snake Killed by a Hiker Turned Out to Be Something Scientists Had Never…</td></tr>
+</tbody>
+  </table>
+  
+<h3 style="margin-top:1.5rem">Why 0%? Featuring investigation by dimension</h3>
+<p>Section tagging is not the primary driver of 0% featuring.</p>
+<table class="findings">
+  <thead><tr>
+    <th>Dimension</th><th>Value</th><th>n</th><th>Feat%</th><th>Median views</th>
+  </tr></thead>
+  <tbody><tr><td><em style='color:#8b90a0;font-size:.85em'>Section tag</em></td><td>No section tag</td><td>0</td><td>—</td><td>—</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Section tag</em></td><td>Has section tag</td><td>247</td><td>0%</td><td>112</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Formula</em></td><td>Untagged (baseline)</td><td>210</td><td>0%</td><td>121</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Formula</em></td><td>Quoted lede</td><td>20</td><td>0%</td><td>36</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Formula</em></td><td>Possessive named entity</td><td>6</td><td>0%</td><td>41</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Formula</em></td><td>Number lead</td><td>5</td><td>0%</td><td>160</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Topic</em></td><td>Other</td><td>136</td><td>0%</td><td>118</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Topic</em></td><td>Nature/Wildlife</td><td>40</td><td>0%</td><td>168</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Topic</em></td><td>Sports</td><td>37</td><td>0%</td><td>81</td></tr>
+<tr><td><em style='color:#8b90a0;font-size:.85em'>Topic</em></td><td>Local/Civic</td><td>13</td><td>0%</td><td>65</td></tr>
+</tbody>
+</table>
+<p class="caveat">Investigation is observational—section tags, formula, and topic are all correlated
+with vertical and with each other. The section-tag gap is the most operationally actionable: adding a
+section tag to CMS metadata is a zero-cost change that makes content eligible for the featuring algorithm.
+Formula and topic distributions reflect editorial choices for this content type.</p>
+  <h3 style="margin-top:2rem">Top articles by vertical</h3>
+  <table class="findings">
+    <thead><tr><th>Vertical</th><th>Author</th><th>Headline</th><th>Views</th></tr></thead>
+    <tbody><tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>A 4-Foot Snake Killed by a Hiker Turned Out to Be Something Scientists Had Never Seen Befo</td><td>53,306</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Hanna Wickes</td><td>Elana Meyers Taylor Wins Olympic Gold at 41—and Her Son’s Reaction on the Podium Will Mo</td><td>21,631</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Hanna Wickes</td><td>Rare Wildlife Camera Footage Captures One of the World’s Most Endangered Mammals in Action</td><td>13,449</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>Fans Love Alysa Liu’s Smiley Piercing—But Here’s What Dentists Are Saying</td><td>13,428</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>Underground Railroad Escape Route Found Behind Dresser Drawer in Historic NYC Home</td><td>13,235</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>How Much Do U.S. Olympians Earn for Gold? The Number May Surprise You</td><td>11,817</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Hanna WIckes</td><td>Rare ‘Fire Tiger’ of Thai Legend Captured on Trail Camera: A Glimpse of One of Asia’s Most</td><td>4,150</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Hanna Wickes</td><td>First-Ever Shark Footage Captured In Antarctic Waters Stuns Marine Scientists</td><td>3,713</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>Strange Creature With ‘Elongated Limbs’ Found in Iranian Canyon. It’s a New Species</td><td>3,295</td></tr>
+<tr><td><span style='font-size:.8em;background:#1a1d27;padding:2px 6px;border-radius:3px'>General/Discovery</span></td><td>Ryan Brennan</td><td>Scientist Discovers Ancient Crocodile Species With Unique Greyhound-Like Features</td><td>2,795</td></tr>
+</tbody>
+  </table>
+  <p class="caveat">Apple News Publisher data, Jan–Feb 2026 (March pending). Staging URLs and
+  non-T1 domains excluded. ★ = Apple News featured placement. Views = total across all days
+  article appeared in ANP data.</p>
+</section>
+
+
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Original vs. Variant Performance</h2>
+  <p class="sub" style="margin-bottom:1rem">
+    Tracker Content_Type field: Parent-P = original article, Child-C = CSA-generated variant.
+    Tests whether variants syndicate as well as originals across matched platforms.
+  </p>
+  <table class="findings">
+    <thead><tr><th>Content type</th><th>n matched</th><th>Median views percentile</th></tr></thead>
+    <tbody><tr><td>Variant (Child-C)</td><td>21</td><td>40%</td></tr>
+<tr><td>Original article (Parent-P)</td><td>16</td><td>35%</td></tr>
+</tbody>
+  </table>
+  <p class='caveat' style='margin-top:.75rem'>Mann-Whitney p=0.635 (no detectable difference). Variants outperform variants: original median 35% vs. variant median 40% (views percentile within cohort).</p>
+  
+<h3 style="margin-top:1.5rem">Cluster size vs. per-article performance</h3>
+<p>Does producing more variants per story correlate with higher per-article views?</p>
+<p class='caveat' style='margin-top:.5rem'>
+  Spearman r=0.093, p=0.586 (n=37, no detectable relationship).
+  Positive association between cluster size and views percentile.
+  Observational—cluster size and content type are correlated; cannot isolate variant
+  production as the cause. Cluster size = 1 parent + n children in Tracker.
+</p>
+  <p class="caveat" style="margin-top:.75rem">
+    Tracker→platform join (37 matched articles across Apple News, SmartNews, Yahoo).
+    Views percentile is normalized within platform cohort (year). Observational data only —
+    content type and distribution platform are correlated with topic and author, which are
+    also correlated with performance.
+  </p>
+</section>
+
+
+<section style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+  <h2 style="margin-bottom:.5rem">Variant Production—Tracker Overview</h2>
+  <p class="sub" style="margin-bottom:1rem">
+    Based on 422 clusters in the Tracker. Cluster = 1 original (Parent-P) +
+    its CSA-generated variants (Child-C). This analysis uses the Tracker directly —
+    no platform performance join required.
+  </p>
+  <p>
+    <strong>397 of 422 clusters (94%)</strong> have ≥2 articles
+    (original + at least one variant).
+    Mean cluster size: <strong>2.85</strong>.
+    Median: 3. Max: 6.
+  </p>
+  <h3 style="margin-top:1.5rem">Cluster size distribution</h3>
+  <table class="findings">
+    <thead><tr>
+      <th>Variants per cluster</th>
+      <th>Clusters</th>
+      <th>Share</th>
+    </tr></thead>
+    <tbody><tr><td>1</td><td>25</td><td>6%</td></tr>
+<tr><td>2</td><td>150</td><td>36%</td></tr>
+<tr><td>3</td><td>139</td><td>33%</td></tr>
+<tr><td>4</td><td>81</td><td>19%</td></tr>
+<tr><td>5+</td><td>27</td><td>6%</td></tr>
+</tbody>
+  </table>
+  
+<h3 style="margin-top:1.5rem">Variant production by author (top 10 by cluster count)</h3>
+<table class="findings">
+  <thead><tr>
+    <th>Author</th>
+    <th>Clusters</th>
+    <th>Mean variants/cluster</th>
+  </tr></thead>
+  <tbody><tr><td>Ryan Brennan</td><td>154</td><td>3.1</td></tr>
+<tr><td>Hanna Wickes</td><td>144</td><td>3.1</td></tr>
+<tr><td>Lauren Schuster</td><td>47</td><td>2.2</td></tr>
+<tr><td>Lauren J-G</td><td>40</td><td>2.0</td></tr>
+<tr><td>Allison Palmer</td><td>19</td><td>1.9</td></tr>
+<tr><td>Samantha Agate</td><td>11</td><td>2.9</td></tr>
+<tr><td>Hanna WIckes</td><td>4</td><td>2.0</td></tr>
+<tr><td>Lauren JG</td><td>2</td><td>1.0</td></tr>
+</tbody>
+</table>
+  <p class="caveat" style="margin-top:.75rem">
+    Cluster size = 1 (original) + count of Child-C rows sharing the same Parent_ID.
+    Only Parent-P rows are counted here—each represents one cluster.
+    Child-C rows without a valid Parent_ID are excluded from cluster counts.
+  </p>
+</section>
 </div>
 <script>
 var _openTile = null, _openPanel = null;

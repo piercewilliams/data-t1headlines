@@ -156,6 +156,22 @@
     <span class="tile-toggle">Details ↓</span>
   </div>
 
+  <div class="pb-tile" onclick="togglePb(this,'pb-8a')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News · Section Tagging</span>
+    <p class="tile-claim">Articles published without a section tag (“Main only”) land in the bottom 20% at 47%—2.4× the baseline rate. Their median view percentile rank is 0.22, versus 0.51 for section-tagged articles (Mann-Whitney p=9.9e-36, n=318 untagged). Featured rate: 2.5% vs. 7.7% for tagged articles.</p>
+    <p class="tile-action">→ Verify every article has a non-Main section assigned before publishing to Apple News. Missing section metadata removes the article from section feeds and makes featuring nearly impossible. This is the most avoidable failure mode in the dataset.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
+  <div class="pb-tile" onclick="togglePb(this,'pb-8b')">
+    <span class="conf-badge conf-high">High confidence</span>
+    <span class="tile-label">Apple News · Local vs. National Content</span>
+    <p class="tile-claim">National wire content (“Nation &amp; World”) underperforms local-tagged sections by 26% percentile points (median rank 0.33 vs. 0.59; p=5.3e-19). 35% of Nation &amp; World articles land in the bottom quintile. Top-performing sections are all locally specific: Weather (41% featured, rank 0.89), city-branded local sections, and franchise sports teams with national audiences.</p>
+    <p class="tile-action">→ Don’t use Apple News as the primary distribution channel for national wire stories. Apple News users follow local outlets for local content; they get national news from national brands. Route national wire through MSN or SmartNews instead, where platform topology differs.</p>
+    <span class="tile-toggle">Details ↓</span>
+  </div>
+
   <div class="pb-tile" onclick="togglePb(this,'pb-dual')">
     <span class="conf-badge conf-high">High confidence</span>
     <span class="tile-label">Platform Headline Pairs · Same Story, Different Headline</span>
@@ -278,7 +294,7 @@
     <li><strong>[HIGH] Character length:</strong> Target 90–120 characters. Below 70 chars and above 130 chars both underperform the median.</li>
     <li><strong>[HIGH] Crime/Business formula:</strong> "Here's" format associated with 16% featuring rate for crime (n=89) and 14% for business (n=72). Use it when targeting Featured in these topics.</li>
     <li><strong>[HIGH] Sports:</strong> Formula choice does not affect featuring odds for sports content (0% across all formulas, n=22–52). Optimize for organic only; do not target Featured for sports.</li>
-    <li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. Untagged articles land in the bottom 20% at a significantly elevated rate—2.4× the baseline rate.</li>
+    <li><strong>[HIGH] Section tagging:</strong> Every article must have a non-Main section tag. Untagged articles land in the bottom 20% at 47%—2.4× the baseline rate.</li>
     <li><strong>[MOD] Number lead trend:</strong> Number leads are the only formula trending upward over time (Q1 2025 → Q1 2026). Lean into them; deprioritize question format which is trending down.</li>
     <li><strong>[MOD] Trendhunter content:</strong> Mind-Body, Everyday Living, and Experience content currently earns 0% featuring. Focus persona configuration on organic Apple News reach, not featuring optimization.</li>
   </ul>
