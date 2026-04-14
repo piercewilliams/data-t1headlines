@@ -1,6 +1,6 @@
 {
   "release": "2026-04",
-  "generated": "2026-04-13T23:54:24",
+  "generated": "2026-04-14T05:00:14",
   "data_2025": "Top syndication content 2025.xlsx",
   "data_2026": "Top Stories 2026 Syndication.xlsx",
   "rows": {
@@ -9,7 +9,7 @@
     "notifications": 1923
   },
   "findings": {
-    "high_confidence": 5,
+    "high_confidence": 3,
     "moderate": 0,
     "directional": 0
   },
