@@ -2,7 +2,8 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-14 — SN channel × formula analyzed (2025 data, 38k rows); callout added to formula trap panel; longitudinal AN featuring rates replace hardcoded SN constants in build_summary.json; Hanna Wickes author normalization added; weekly snapshots surfaced on main page
+**Last session:** 2026-04-15 — Snowflake/Sigma walkthrough complete (Rocky+Chad). Author playbook upgrade path confirmed: join dynamic_story_metadata (author_name) to story_traffic_main (O&O PV) in Snowflake on story ID. Both tables in MCC presentation schema. Blocked on GitHub→Snowflake connection setup (Chad Bruton).
+**Prior session:** 2026-04-14 — SN channel × formula analyzed (2025 data, 38k rows); callout added to formula trap panel; longitudinal AN featuring rates replace hardcoded SN constants in build_summary.json; Hanna Wickes author normalization added; weekly snapshots surfaced on main page
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
@@ -44,7 +45,7 @@ For session history: see [sessions/](sessions/)
 - [x] ~~"Hanna Wickes" / "Hanna WIckes" typo splits author rows~~ FIXED 2026-04-14: name normalization added to generate_site.py (`_AUTHOR_ALIASES`) — merges both spellings into "Hanna Wickes" before any tracker processing. Source spreadsheet still has the typo but pipeline handles it.
 
 **Analysis:**
-- [ ] O&O + syndication PV data layer (Chris Palo; Amplitude access needed)
+- [ ] O&O + syndication PV data layer — use Snowflake: story_traffic_main (MCC presentation → Tableau reporting) has O&O PV by story/market/date. Amplitude data is also in Snowflake (Amplitude events prod table). Blocked on GitHub→Snowflake connection setup (Chad Bruton 2026-04-15).
 - [ ] Automate Sarah Price's Amplitude → Tracker join (manual monthly export; matching on title/URL/author)
 - [x] ~~SN channel × formula~~ DONE 2026-04-14: analyzed on 2025 full-year data (38,251 rows). Question underperforms in Top, Entertainment, Lifestyle (p<0.0001, p=0.012, p=0.027). WTK underperforms in Top (p=0.008). Number lead has large U.S.-channel penalty (Δ=−0.245, p<0.0001, n=83). Callout added to formula trap panel; experiment suggestion added for 2026 per-article replication. Message to Tarrow about 2025 data attribution pending.
 - [ ] Trendhunter notification vertical breakdown — blocked until Tarrow adds author attribution to notification export
