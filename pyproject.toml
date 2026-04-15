@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 100
-target-version = "py312"  # minimum supported — allows 3.12+ f-string syntax used in generate_site.py
+target-version = "py311"  # CI runs Python 3.11; ruff lints against that baseline
 
 [tool.ruff.lint]
 # E = pycodestyle errors, W = pycodestyle warnings, F = pyflakes, I = isort

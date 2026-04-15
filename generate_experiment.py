@@ -414,9 +414,10 @@ def render_report(
         callout_color = GREEN if lift >= 1 else RED
         callout_bg = "#dcfce7" if lift >= 1 else "#fee2e2"
     else:
+        _lift_display = f"{result['lift']:.2f}×" if result['lift'] is not None else "—"
         conclusion_text = (
             f"Not statistically significant (p={result['p']:.3f}). "
-            f"Observed lift: {result['lift']:.2f}× — but could be noise at current sample sizes "
+            f"Observed lift: {_lift_display} — but could be noise at current sample sizes "
             f"(n={result['n_a']:,} before, n={result['n_b']:,} after)."
         )
         callout_color = GRAY
@@ -686,7 +687,8 @@ def run_experiment(spec_path: "str | Path") -> "dict | None":
     if spec.get("experiment_type") == "temporal_cohort":
         try:
             ts_html = make_timeseries_chart(df, spec, metric_info)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ⚠  Time series chart skipped ({slug}): {exc}")
             ts_html = None  # Non-critical; comparison chart still renders
 
     report = render_report(spec, result, metric_info, chart_html, ts_html,

@@ -416,8 +416,8 @@ def _print_diff(old_profile: "dict | None", old_period: "str | None", new_profil
             try:
                 if opp["check"](old_profile, new_profile):
                     triggered.append(opp)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ⚠  Opportunity check '{opp['id']}' failed: {exc}")
 
     print(f"\n{SEP}")
     if triggered:

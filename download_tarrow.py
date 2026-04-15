@@ -51,7 +51,11 @@ def _load_credentials():
 
     sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if sa_json:
-        info = json.loads(sa_json)
+        try:
+            info = json.loads(sa_json)
+        except json.JSONDecodeError as exc:
+            print(f"Error: GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: {exc}")
+            sys.exit(1)
         return Credentials.from_service_account_info(info, scopes=SCOPES)
 
     print(

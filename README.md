@@ -505,17 +505,17 @@ Check the GitHub Actions tab → `grader.yml` workflow for the last run status. 
 
 Run this before any push:
 ```bash
-# Syntax + unit tests (no Excel or API keys needed):
-python3 -m pytest tests/ -v
+# Full test suite (must use python3.11 — CI runs 3.11, not local Python):
+python3.11 -m pytest tests/ -v
 
 # Grader smoke check (objective criteria only, no API calls):
 python3 generate_grader.py --skip-llm --dry-run
 
-# Syntax check on new pipeline scripts:
-python3 -c "import ast; [ast.parse(open(f).read()) for f in ['download_tarrow.py','update_snapshots.py']]; print('ok')"
+# Syntax check via bytecode compilation (catches 3.11 f-string restrictions):
+python3.11 -m py_compile generate_site.py download_tarrow.py generate_grader.py update_snapshots.py ingest.py && echo "syntax OK"
 ```
 
-All three must pass before committing.
+All three must pass before committing. Always use `python3.11` — the local Python may be 3.14+ and will not catch 3.11 f-string syntax errors that break CI.
 
 ---
 

@@ -413,8 +413,8 @@ def load_history():
             data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
             if isinstance(data, list):
                 return data
-        except Exception:
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  ⚠  Could not load history ({HISTORY_PATH}): {exc} — starting fresh", file=sys.stderr)
     return []
 
 
@@ -572,7 +572,7 @@ def _history_strip(history):
         try:
             d = datetime.date.fromisoformat(date)
             label = d.strftime("%-m/%-d")
-        except Exception:
+        except ValueError:
             label = date
         color = _score_color(avg)
         tip = _esc(f"{date}: {n} headlines, avg {avg}%, top issue: {issue}")
