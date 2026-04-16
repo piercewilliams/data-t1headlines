@@ -127,8 +127,6 @@ class TestFStringSafety(unittest.TestCase):
         # Look for the specific pattern: backslash inside {} in an f-string line.
         # Reliable detection requires a full parser; this is a conservative text scan.
         hits = []
-        in_fstring = False
-        brace_depth = 0
         for i, line in enumerate(self.source.splitlines(), 1):
             # Very conservative: flag lines that have both { and \ and are in f-strings
             # Only catch the patterns that actually caused CI failures:

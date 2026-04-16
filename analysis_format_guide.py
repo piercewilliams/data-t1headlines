@@ -358,7 +358,7 @@ if len(featured) > 10:
     print("VERDICT (guide claim: human curation favors quality/originality):")
     top_lifted = comp.head(2).index.tolist()
     print(f"  Apple editors over-index on: {top_lifted}")
-    print(f"  (Lift > 1.0 means featured rate exceeds overall population rate)")
+    print("  (Lift > 1.0 means featured rate exceeds overall population rate)")
 else:
     print("  Not enough featured-pick data to analyze formula distribution.")
 
@@ -393,7 +393,7 @@ print()
 print("VERDICT (guide claim: consistent category targeting aids Apple News discoverability):")
 top_topics = topic_stats_an.head(3)["topic"].tolist()
 print(f"  Top performing topics by median views: {top_topics}")
-print(f"  These appear to be naturally high-performing categories on Apple News.")
+print("  These appear to be naturally high-performing categories on Apple News.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ANALYSIS 7: SmartNews — Topic Performance (2025)
