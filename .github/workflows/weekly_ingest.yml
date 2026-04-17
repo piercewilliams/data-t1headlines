@@ -96,3 +96,59 @@ jobs:
             git pull --rebase --autostash origin main
             git push
           )
+
+      - name: Summary — success (data changed)
+        if: success() && steps.data_check.outputs.changed == 'true'
+        run: |
+          echo "## ✅ Tuesday Site Refresh — $(date '+%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tarrow data changed and was processed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tracker gap report" >> $GITHUB_STEP_SUMMARY
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+          summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+          gaps_file = Path("data/tracker_gaps.json")
+          if not gaps_file.exists():
+              print("tracker_gaps.json not found.")
+          else:
+              d = json.loads(gaps_file.read_text())
+              gaps = d.get("gaps", [])
+              count = d.get("gap_count", 0)
+              with open(summary, "a") as f:
+                  if count == 0:
+                      f.write("✅ No untracked articles — Tarrow and Sara's tracker are fully reconciled.\n")
+                  else:
+                      f.write(f"⚠️ **{count} article(s) in Tarrow not found in Sara's tracker** — review and forward to Sara.\n\n")
+                      f.write("| Platform | Views | Author | Headline |\n")
+                      f.write("|----------|-------|--------|----------|\n")
+                      for g in gaps[:20]:
+                          views = f"{g['platform_views']:,}" if g.get('platform_views') else "?"
+                          author = g.get('author') or '—'
+                          headline = (g.get('headline') or '')[:60]
+                          platform = g.get('platform', '')
+                          f.write(f"| {platform} | {views} | {author} | {headline} |\n")
+                      if count > 20:
+                          f.write(f"\n_...and {count - 20} more. See `data/tracker_gaps.json` for full list._\n")
+                      f.write(f"\n**Action:** Send unrecognised articles to Sara Vallone for tracker logging.\n")
+          PYEOF
+
+      - name: Summary — no change
+        if: success() && steps.data_check.outputs.changed == 'false'
+        run: |
+          echo "## ℹ️ Tuesday Site Refresh — $(date '+%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tarrow's sheet was unchanged since last week. Site not regenerated." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If this is unexpected, verify that Tarrow has updated his sheet and re-run manually." >> $GITHUB_STEP_SUMMARY
+
+      - name: Summary — failure
+        if: failure()
+        run: |
+          echo "## ❌ Tuesday Site Refresh FAILED — $(date '+%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action required:** Check the failed step above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Until fixed: data-headlines site and tracker_gaps.json are stale for this week." >> $GITHUB_STEP_SUMMARY
+          echo "Re-run via: Actions → Weekly Site Refresh → Run workflow." >> $GITHUB_STEP_SUMMARY
