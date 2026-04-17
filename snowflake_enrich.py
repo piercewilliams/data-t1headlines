@@ -20,6 +20,14 @@ Env vars (optional):
 
 Usage:
     python3 snowflake_enrich.py [--out FILE]
+
+
+Also audits Tarrow's XLSX for articles that appear on syndication platforms but have
+no matching row in Sara's tracker. These are logged to data/tracker_gaps.json —
+articles the team produced and syndicated but never formally tracked.
+
+Usage:
+    python3 snowflake_enrich.py [--out FILE] [--tarrow FILE]
 """
 
 import argparse
@@ -37,7 +45,9 @@ SF_KEY_PATH = os.getenv(
     str(Path.home() / ".credentials" / "growth_strategy_service_rsa_key.p8"),
 )
 
-DEFAULT_OUT = "data/snowflake_enrichment.json"
+DEFAULT_OUT    = "data/snowflake_enrichment.json"
+DEFAULT_TARROW = "Top Stories 2026 Syndication.xlsx"
+DEFAULT_GAPS   = "data/tracker_gaps.json"
 
 FETCH_SQL = """
 SELECT
@@ -231,10 +241,124 @@ def build_authors(rows):
     return authors
 
 
+def _norm(url):
+    """Normalize URL for matching: lowercase, strip trailing slash, fix amp."""
+    if not url:
+        return ""
+    url = str(url).strip().lower()
+    url = re.sub(r'://amp\.', '://www.', url)
+    return url.rstrip('/')
+
+
+def collect_tarrow_urls(tarrow_file):
+    """
+    Read all O&O article URLs out of Tarrow's syndication XLSX.
+
+    Returns a list of dicts:
+        { url_norm, raw_url, headline, author, platform, date, platform_views }
+
+    Covers Apple News (Publisher Article ID), SmartNews (url).
+    MSN and Yahoo have no reliable O&O URL field so are skipped.
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        print("  openpyxl not installed — skipping Tarrow gap audit.")
+        return []
+
+    if not Path(tarrow_file).exists():
+        print(f"  {tarrow_file} not found — skipping Tarrow gap audit.")
+        return []
+
+    records = []
+    wb = openpyxl.load_workbook(tarrow_file, read_only=True, data_only=True)
+
+    # ── Apple News ────────────────────────────────────────────────────────────
+    if "Apple News" in wb.sheetnames:
+        ws = wb["Apple News"]
+        hdrs = [str(c) if c else "" for c in
+                next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+        idx = {h: i for i, h in enumerate(hdrs)}
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            raw_url = row[idx["Publisher Article ID"]] if "Publisher Article ID" in idx else None
+            if not raw_url or not str(raw_url).startswith("http"):
+                continue
+            records.append({
+                "url_norm":       _norm(raw_url),
+                "raw_url":        str(raw_url).strip(),
+                "headline":       str(row[idx["Article"]]).strip() if "Article" in idx else "",
+                "author":         str(row[idx["Author"]]).strip() if "Author" in idx else "",
+                "platform":       "Apple News",
+                "date":           str(row[idx["Date Published"]])[:10] if "Date Published" in idx else "",
+                "platform_views": row[idx["Total Views"]] if "Total Views" in idx else None,
+            })
+
+    # ── SmartNews ─────────────────────────────────────────────────────────────
+    if "SmartNews" in wb.sheetnames:
+        ws = wb["SmartNews"]
+        hdrs = [str(c) if c else "" for c in
+                next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+        idx = {h: i for i, h in enumerate(hdrs)}
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            raw_url = row[idx["url"]] if "url" in idx else None
+            if not raw_url or not str(raw_url).startswith("http"):
+                continue
+            records.append({
+                "url_norm":       _norm(raw_url),
+                "raw_url":        str(raw_url).strip(),
+                "headline":       str(row[idx["title"]]).strip() if "title" in idx else "",
+                "author":         "",
+                "platform":       "SmartNews",
+                "date":           str(row[idx["month"]])[:10] if "month" in idx else "",
+                "platform_views": row[idx["article_view"]] if "article_view" in idx else None,
+            })
+
+    print(f"  Read {len(records)} Tarrow article records "
+          f"(AN={sum(1 for r in records if r['platform']=='Apple News')}, "
+          f"SN={sum(1 for r in records if r['platform']=='SmartNews')}).")
+    return records
+
+
+def build_gaps(tarrow_records, tracker_urls):
+    """
+    Find Tarrow URLs that have no matching row in Sara's tracker.
+
+    tracker_urls  — set of normalized URLs from TRACKER_ENRICHED
+    Returns list of gap dicts sorted by platform_views descending.
+    """
+    # Deduplicate Tarrow records by url_norm, keeping the highest-view entry
+    best = {}
+    for r in tarrow_records:
+        key = r["url_norm"]
+        if not key:
+            continue
+        if key not in best or (r["platform_views"] or 0) > (best[key]["platform_views"] or 0):
+            best[key] = r
+
+    gaps = []
+    for key, r in best.items():
+        if key not in tracker_urls:
+            gaps.append({
+                "url":            r["raw_url"],
+                "headline":       r["headline"],
+                "author":         r["author"],
+                "platform":       r["platform"],
+                "date":           r["date"],
+                "platform_views": int(r["platform_views"]) if r["platform_views"] else None,
+            })
+
+    gaps.sort(key=lambda g: g["platform_views"] or 0, reverse=True)
+    return gaps
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build snowflake_enrichment.json")
-    parser.add_argument("--out", default=DEFAULT_OUT,
+    parser.add_argument("--out",    default=DEFAULT_OUT,
                         help=f"Output JSON path (default: {DEFAULT_OUT})")
+    parser.add_argument("--tarrow", default=DEFAULT_TARROW,
+                        help=f"Tarrow XLSX path (default: {DEFAULT_TARROW})")
+    parser.add_argument("--gaps",   default=DEFAULT_GAPS,
+                        help=f"Gap report output path (default: {DEFAULT_GAPS})")
     args = parser.parse_args()
 
     print("Connecting to Snowflake…")
@@ -269,6 +393,33 @@ def main():
     out_path.write_text(json.dumps(out, indent=2, default=str))
     size_kb = out_path.stat().st_size // 1024
     print(f"\nWrote {args.out} ({size_kb} KB, {len(articles)} articles, {len(authors)} authors).")
+
+    # ── Tracker gap audit ─────────────────────────────────────────────────────
+    print(f"\nAuditing Tarrow → tracker gaps ({args.tarrow})…")
+    tarrow_records = collect_tarrow_urls(args.tarrow)
+    if tarrow_records:
+        tracker_urls = set(articles.keys())
+        gaps = build_gaps(tarrow_records, tracker_urls)
+
+        gaps_out = {
+            "generated":     datetime.now(timezone.utc).isoformat(),
+            "tarrow_total":  len({r["url_norm"] for r in tarrow_records if r["url_norm"]}),
+            "tracker_total": len(tracker_urls),
+            "gap_count":     len(gaps),
+            "gaps":          gaps,
+        }
+        gaps_path = Path(args.gaps)
+        gaps_path.parent.mkdir(parents=True, exist_ok=True)
+        gaps_path.write_text(json.dumps(gaps_out, indent=2, default=str))
+
+        print(f"  {len(gaps)} untracked articles found out of "
+              f"{gaps_out['tarrow_total']} unique Tarrow URLs.")
+        if gaps:
+            print(f"  Top 5 by platform views:")
+            for g in gaps[:5]:
+                views = f"{g['platform_views']:,}" if g['platform_views'] else "?"
+                print(f"    [{g['platform']}] {views} views — {g['headline'][:60]}")
+        print(f"  Full gap report → {args.gaps}")
 
 
 if __name__ == "__main__":
