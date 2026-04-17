@@ -196,6 +196,42 @@ All dependencies are in `requirements.txt`. Core: pandas, numpy, scipy, plotly, 
 
 `generate_site.py` is the single source of truth. Every number on the site is computed from the raw Excel files on each run — no manual HTML editing. Numbers are always grounded in the source DataFrames.
 
+## Snowflake — Replacing Tarrow Data
+
+**Full reference:** [`ops-hub/SNOWFLAKE.md`](../ops-hub/SNOWFLAKE.md) — account, auth, all tables, SQL patterns, scripts, quirks.
+
+**HIGH PRIORITY:** All Tarrow-sourced data (weekly ingest, grader, author playbooks, tracker_raw) must eventually be replaced with direct Snowflake pulls. Tarrow is poor quality; Snowflake is the authoritative source. Gate: GitHub→Snowflake connection (Chad Bruton).
+
+### What Snowflake adds to headline analysis
+
+| What | How | Snowflake source |
+|------|-----|-----------------|
+| Author attribution on MSN, Yahoo, SmartNews | Join via URL or title+date fuzzy match | `DYN_STORY_META_DATA` |
+| O&O traffic counterpart per syndicated article | STORY_ID join | `STORY_TRAFFIC_MAIN` |
+| Section / topic / vertical metadata | STORY_ID join | `DYN_STORY_META_DATA` |
+| Subscriber page views per article | STORY_ID join | `STORY_TRAFFIC_MAIN.SUBS_PAGEVIEWS` |
+
+### What Tarrow has that Snowflake does NOT
+
+| Metric | Source | Notes |
+|--------|--------|-------|
+| Apple News platform-side views | Tarrow — Apple News sheet | Views WITHIN Apple News app; Snowflake only has click-throughs back to O&O |
+| Apple News notification CTR + impressions | Tarrow — Apple News Notifications sheet | Most unique data for headline CTR analysis |
+| SmartNews channel placement | Tarrow — SmartNews sheet | Top/Entertainment/Lifestyle/etc. — critical for headline format analysis |
+| MSN / Yahoo pageviews on platform | Tarrow — MSN, Yahoo sheets | Same distinction: on-platform ≠ click-through |
+
+**Key quirk:** `APPLENEWS_PAGEVIEWS` in Snowflake = click-throughs back to O&O. Completely different number from Apple News platform views. Do not conflate.
+
+### Enrichment approach
+
+Take Tarrow file as input → join each row to Snowflake → write back author + O&O PVs + benchmark.
+- Apple News: cleanest join (Publisher Article ID in Tarrow = O&O URL)
+- MSN / Yahoo: title + date fuzzy match against `DYN_STORY_META_DATA`
+
+Script target: `scripts/enrich_tarrow.py` (not yet built — blocked on Snowflake→GitHub connection).
+
+---
+
 ## Synthesis Skills (Available in This Claude Code Environment)
 
 - **synthesis-thinking-framework** — structure the analysis approach (four-mode reasoning)
