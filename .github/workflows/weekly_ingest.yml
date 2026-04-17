@@ -2,7 +2,8 @@ name: Weekly Site Refresh
 
 on:
   schedule:
-    - cron: '0 1 * * 2'   # 8pm CDT Monday (01:00 UTC Tuesday); adjust to '0 0 * * 2' in winter (CST)
+    - cron: '0 17 * * 2'  # Noon CDT Tuesday (17:00 UTC); Tarrow's sheet updates Tuesday morning
+                           # Adjust to '0 18 * * 2' in winter (CST). Verify with Tarrow if timing shifts.
   workflow_dispatch:        # manual trigger via GitHub UI or API
 
 permissions:

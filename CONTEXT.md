@@ -2,12 +2,38 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-17 — **HIGH PRIORITY: Replace all Tarrow data dependencies with direct Snowflake pulls.** Tarrow data is poor quality; Snowflake is authoritative. Affects: weekly ingest (download_tarrow.py), headline grader (pulls from Tarrow sheet), author playbooks, and all analysis built on tracker_raw. Tables: STORY_TRAFFIC_MAIN + DYN_STORY_META_DATA (MCC_PRESENTATION.TABLEAU_REPORTING). Blocked on GitHub→Snowflake connection (Chad Bruton).
-**Prior session:** 2026-04-15 — Snowflake/Sigma walkthrough complete (Rocky+Chad). Author playbook upgrade path confirmed: join dynamic_story_metadata (author_name) to story_traffic_main (O&O PV) in Snowflake on story ID. Blocked on GitHub→Snowflake connection setup (Chad Bruton).
-**Prior session:** 2026-04-14 — SN channel × formula analyzed (2025 data, 38k rows); callout added to formula trap panel; longitudinal AN featuring rates replace hardcoded SN constants in build_summary.json; Hanna Wickes author normalization added; weekly snapshots surfaced on main page
+**Last session:** 2026-04-18 — Snowflake enrichment pipeline built: `snowflake_enrich.py` reads TRACKER_ENRICHED (headless RSA auth), writes `data/snowflake_enrichment.json` (per-article O&O traffic + per-author pub/topic breakdowns) and `data/tracker_gaps.json` (Tarrow articles not in Sara's tracker). Weekly workflow rescheduled Tuesday noon CDT. `generate_site.py` loads SF_ARTICLES + SF_AUTHORS at startup. Pipeline order of operations locked (see below).
+**Prior session:** 2026-04-17 — Snowflake enrichment scope defined; Tarrow identified as supplementary (platform views only); Sara's tracker confirmed as primary analysis universe going forward.
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
 For session history: see [sessions/](sessions/)
+
+---
+
+## Data Pipeline — Order of Operations
+
+Three data authorities. Each owns specific columns. No authority overwrites another's owned data.
+
+| Authority | Owns | Rule |
+|-----------|------|------|
+| **Sara's tracker** | All left-side cols: Author, Headline, Vertical, Keywords, Personas, Syndication Platform, Published URL, Pub Date, Week #, Created Date | Automation may fill **empty cells only** — never overwrites |
+| **Snowflake** (TRACKER_ENRICHED) | Right-side enrichment cols: total_pvs, channel PVs, cluster stats, similarity, IAB topic, median benchmark | Always refreshed — overwriting is correct and expected |
+| **Tarrow** (syndication XLSX) | Platform-native views: AN views, SN views, MSN, Yahoo, featuring, notification CTR | Read-only; contributes to analysis and empty-cell backfill only |
+
+**Weekly sequence:**
+
+| When | Who | What |
+|------|-----|------|
+| Mon 9am CDT (auto) | ops-hub Actions | `ingest_tracker.py` → `model_tracker.py` — baseline snapshot of Sara's tracker into TRACKER_ENRICHED |
+| Mon, after 9am (manual) | Pierce | `python3 scripts/enrich_tracker.py` — write Snowflake enrichment columns back to Sara's tracker |
+| Tue morning | Tarrow | Updates syndication Google Sheet with prior week's platform data |
+| Tue noon CDT (auto) | data-headlines Actions | `download_tarrow.py` → `snowflake_enrich.py` → `generate_site.py` — full site rebuild with enriched data; `tracker_gaps.json` updated |
+| Tue, after noon (manual) | Pierce | Review `data/tracker_gaps.json`; forward untracked articles to Sara for logging |
+
+**Future automation (not yet built):**
+- `tarrow_backfill.py` — fill empty left-side Sara cells from Tarrow by URL match; run before Tuesday ingest
+- Second Tuesday `ingest_tracker.py` + `model_tracker.py` run — re-snapshot after backfill
+- `enrich_tracker.py` headless auth — switch Snowflake connection to RSA key (same as model_tracker.py) to enable full automation; requires confirming GROWTH_AND_STRATEGY_SERVICE_USER has write access to Sara's Google Sheet
 
 ---
 
