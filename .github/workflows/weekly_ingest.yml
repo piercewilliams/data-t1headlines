@@ -25,7 +25,7 @@ jobs:
           pip install \
             pandas numpy scipy plotly openpyxl xlrd \
             statsmodels scikit-learn pingouin \
-            google-auth requests pytest \
+            google-auth gspread requests pytest \
             snowflake-connector-python cryptography
 
       - name: Syntax check and smoke tests
@@ -33,7 +33,7 @@ jobs:
         # issues (backslash-in-expression, same-quote nesting) that Python 3.14+
         # permits locally but 3.11 rejects. Fails fast before the slow data download.
         run: |
-          python3 -m py_compile generate_site.py download_tarrow.py update_snapshots.py ingest.py snowflake_enrich.py
+          python3 -m py_compile generate_site.py download_tarrow.py update_snapshots.py ingest.py snowflake_enrich.py tarrow_backfill.py
           python3 -m pytest tests/ -v
 
       - name: Write service account credentials
@@ -68,6 +68,12 @@ jobs:
             echo "No previous version found — treating as changed."
           fi
 
+      - name: Backfill Syndication platform from Tarrow
+        if: steps.data_check.outputs.changed == 'true'
+        env:
+          GOOGLE_SERVICE_ACCOUNT_FILE: /tmp/sa.json
+        run: python3 tarrow_backfill.py
+
       - name: Enrich with Snowflake O&O data
         if: steps.data_check.outputs.changed == 'true'
         env:
@@ -90,7 +96,7 @@ jobs:
           # Commit the updated xlsx so next week's change-detection compares against the
           # current version, not a stale HEAD. Without this, 'changed=true' would fire
           # every week regardless of whether Tarrow actually updated the sheet.
-          git add "Top Stories 2026 Syndication.xlsx" docs/ data/build_summary.json data/weekly_snapshots.json data/snowflake_enrichment.json data/tracker_gaps.json
+          git add "Top Stories 2026 Syndication.xlsx" docs/ data/build_summary.json data/weekly_snapshots.json data/snowflake_enrichment.json data/tracker_gaps.json data/tarrow_backfill_report.json
           git diff --cached --quiet && echo "Nothing to commit" || (
             git commit -m "Auto: Weekly refresh $(date '+%Y-%m-%d')"
             git pull --rebase --autostash origin main
