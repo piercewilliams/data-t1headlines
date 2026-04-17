@@ -2,7 +2,8 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-15 — Snowflake/Sigma walkthrough complete (Rocky+Chad). Author playbook upgrade path confirmed: join dynamic_story_metadata (author_name) to story_traffic_main (O&O PV) in Snowflake on story ID. Both tables in MCC presentation schema. Blocked on GitHub→Snowflake connection setup (Chad Bruton).
+**Last session:** 2026-04-17 — **HIGH PRIORITY: Replace all Tarrow data dependencies with direct Snowflake pulls.** Tarrow data is poor quality; Snowflake is authoritative. Affects: weekly ingest (download_tarrow.py), headline grader (pulls from Tarrow sheet), author playbooks, and all analysis built on tracker_raw. Tables: STORY_TRAFFIC_MAIN + DYN_STORY_META_DATA (MCC_PRESENTATION.TABLEAU_REPORTING). Blocked on GitHub→Snowflake connection (Chad Bruton).
+**Prior session:** 2026-04-15 — Snowflake/Sigma walkthrough complete (Rocky+Chad). Author playbook upgrade path confirmed: join dynamic_story_metadata (author_name) to story_traffic_main (O&O PV) in Snowflake on story ID. Blocked on GitHub→Snowflake connection setup (Chad Bruton).
 **Prior session:** 2026-04-14 — SN channel × formula analyzed (2025 data, 38k rows); callout added to formula trap panel; longitudinal AN featuring rates replace hardcoded SN constants in build_summary.json; Hanna Wickes author normalization added; weekly snapshots surfaced on main page
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -35,6 +36,9 @@ For session history: see [sessions/](sessions/)
 | 2026 XLSX | 🔄 Auto-refreshed | Weekly via GitHub Actions — Tarrow share confirmed ✅ |
 
 ## Open Items
+
+**HIGH PRIORITY — Tarrow Replacement:**
+- [ ] **Replace all Tarrow data with direct Snowflake pulls — HIGH PRIORITY.** Tarrow data is poor quality; Snowflake is the authoritative source. Scope: (1) replace `download_tarrow.py` with Snowflake ingest script; (2) replace headline grader's Tarrow sheet reads with Snowflake queries; (3) replace all `tracker_raw` builds that currently come from Tarrow. Target tables: `STORY_TRAFFIC_MAIN` (traffic by story/date), `DYN_STORY_META_DATA` (headline, author, URL, keywords). Dependency: GitHub→Snowflake connection (Chad Bruton). Once live: enrich_tracker.py's `cluster_vs_co.median` will also be more reliable since the author-attribution issues in Tarrow (e.g. Hanna Wickes typo) won't exist in Snowflake.
 
 **Data:**
 - [ ] ANP March drop — drop into `anp_data/` when it arrives from Tarrow's Drive folder
