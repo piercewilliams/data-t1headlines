@@ -126,7 +126,6 @@ AUTHOR_VERTICAL: dict[str, str] = {
     "Lauren Schuster":    "Experience",
     "Ryan Brennan":       "General/Discovery",
     "Hanna Wickes":       "General/Discovery",
-    "Hanna WIckes":       "General/Discovery",
     "Samantha Agate":     "General/Discovery",
 }
 TRENDHUNTER_VERTICALS = {"Mind-Body", "Everyday Living", "Experience"}
