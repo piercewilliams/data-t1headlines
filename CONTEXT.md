@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-18 — Snowflake enrichment pipeline built: `snowflake_enrich.py` reads TRACKER_ENRICHED (headless RSA auth), writes `data/snowflake_enrichment.json` (per-article O&O traffic + per-author pub/topic breakdowns) and `data/tracker_gaps.json` (Tarrow articles not in Sara's tracker). Weekly workflow rescheduled Tuesday noon CDT. `generate_site.py` loads SF_ARTICLES + SF_AUTHORS at startup. Pipeline order of operations locked (see below).
+**Last session:** 2026-04-18 — `tarrow_backfill.py` built and wired into Tuesday CI: reads Tarrow AN/SN XLSX, fills empty `Syndication platform` cells in Sara's tracker (13 filled on first run), exports `Tracker Template.xlsx`. Full pipeline now: `download_tarrow.py` → `tarrow_backfill.py` → `snowflake_enrich.py` → `generate_site.py` → `update_snapshots.py`. Also: Snowflake enrichment pipeline built: `snowflake_enrich.py`, `snowflake_enrichment.json`, `tracker_gaps.json`.
 **Prior session:** 2026-04-17 — Snowflake enrichment scope defined; Tarrow identified as supplementary (platform views only); Sara's tracker confirmed as primary analysis universe going forward.
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -27,13 +27,12 @@ Three data authorities. Each owns specific columns. No authority overwrites anot
 | Mon 9am CDT (auto) | ops-hub Actions | `ingest_tracker.py` → `model_tracker.py` — baseline snapshot of Sara's tracker into TRACKER_ENRICHED |
 | Mon, after 9am (manual) | Pierce | `python3 scripts/enrich_tracker.py` — write Snowflake enrichment columns back to Sara's tracker |
 | Tue morning | Tarrow | Updates syndication Google Sheet with prior week's platform data |
-| Tue noon CDT (auto) | data-headlines Actions | `download_tarrow.py` → `snowflake_enrich.py` → `generate_site.py` — full site rebuild with enriched data; `tracker_gaps.json` updated |
+| Tue noon CDT (auto) | data-headlines Actions | `download_tarrow.py` → `tarrow_backfill.py` → `snowflake_enrich.py` → `generate_site.py` — full site rebuild with enriched data; `tracker_gaps.json` + `tarrow_backfill_report.json` updated |
 | Tue, after noon (manual) | Pierce | Review `data/tracker_gaps.json`; forward untracked articles to Sara for logging |
 
 **Future automation (not yet built):**
-- `tarrow_backfill.py` — fill empty left-side Sara cells from Tarrow by URL match; run before Tuesday ingest
-- Second Tuesday `ingest_tracker.py` + `model_tracker.py` run — re-snapshot after backfill
-- `enrich_tracker.py` headless auth — switch Snowflake connection to RSA key (same as model_tracker.py) to enable full automation; requires confirming GROWTH_AND_STRATEGY_SERVICE_USER has write access to Sara's Google Sheet
+- Second Tuesday `ingest_tracker.py` + `model_tracker.py` run — re-snapshot after backfill so Snowflake sees this week's platform fills by Tuesday; currently backfilled data enters Snowflake on NEXT Monday's run (acceptable)
+- `enrich_tracker.py` headless auth — switch Snowflake connection to RSA key to enable full automation; requires confirming GROWTH_AND_STRATEGY_SERVICE_USER has write access to Sara's Google Sheet
 
 ---
 
