@@ -2,7 +2,7 @@
 
 **Phase:** Phase 2 active — findings live, playbook, author-playbooks, experiments, daily Headline Grader, weekly auto-ingest
 **Status:** Active
-**Last session:** 2026-04-18 — `tarrow_backfill.py` built and wired into Tuesday CI: reads Tarrow AN/SN XLSX, fills empty `Syndication platform` cells in Sara's tracker (13 filled on first run), exports `Tracker Template.xlsx`. Full pipeline now: `download_tarrow.py` → `tarrow_backfill.py` → `snowflake_enrich.py` → `generate_site.py` → `update_snapshots.py`. Also: Snowflake enrichment pipeline built: `snowflake_enrich.py`, `snowflake_enrichment.json`, `tracker_gaps.json`.
+**Last session:** 2026-04-18 — `tarrow_backfill.py` built and wired into Tuesday CI (13 rows filled on first run). Hanna WIckes double-entry fixed at source (gspread batch update) + removed duplicate from both `AUTHOR_VERTICAL` dicts. `_AUTHOR_ALIASES` safety net retained. `snowflake_discovery2.py` M.HEADLINE → M.TITLE fix. **Open items added:** scrub defunct pubs (First for Women, Soaps in Depth, InTouch); verify Week # vs McClatchy 4-4-5 calendar.
 **Prior session:** 2026-04-17 — Snowflake enrichment scope defined; Tarrow identified as supplementary (platform views only); Sara's tracker confirmed as primary analysis universe going forward.
 
 For stable reference facts: see [REFERENCE.md](REFERENCE.md)
@@ -64,6 +64,10 @@ Three data authorities. Each owns specific columns. No authority overwrites anot
 
 **HIGH PRIORITY — Tarrow Replacement:**
 - [ ] **Replace all Tarrow data with direct Snowflake pulls — HIGH PRIORITY.** Tarrow data is poor quality; Snowflake is the authoritative source. Scope: (1) replace `download_tarrow.py` with Snowflake ingest script; (2) replace headline grader's Tarrow sheet reads with Snowflake queries; (3) replace all `tracker_raw` builds that currently come from Tarrow. Target tables: `STORY_TRAFFIC_MAIN` (traffic by story/date), `DYN_STORY_META_DATA` (headline, author, URL, keywords). Dependency: GitHub→Snowflake connection (Chad Bruton). Once live: enrich_tracker.py's `cluster_vs_co.median` will also be more reliable since the author-attribution issues in Tarrow (e.g. Hanna Wickes typo) won't exist in Snowflake.
+
+**Data Quality:**
+- [ ] **Scrub defunct publications** — Remove First for Women, Soaps in Depth, InTouch from `AUTHOR_VERTICAL` dict in `generate_site.py` and `generate_grader.py`, and from any hardcoded publication lists in the pipeline. Confirmed defunct 2026-04-17.
+- [ ] **Verify Week # alignment** — Tracker Week # column may not align with McClatchy 4-4-5 fiscal calendar (weeks start on 4th calendar day of year, not Jan 1 like Google). Confirm before any week-based comparative analysis.
 
 **Data:**
 - [ ] ANP March drop — drop into `anp_data/` when it arrives from Tarrow's Drive folder
